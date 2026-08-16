@@ -23,13 +23,13 @@ const apiKeyInput = document.getElementById("apiKey") as HTMLInputElement;
 const saveKeyBtn = document.getElementById("saveKeyBtn") as HTMLButtonElement;
 const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
 
-// Font size cycling: starts at M (smallest), then L (largest), then S
+// Font size cycling: starts at M, then L, then S
 const FONT_PRESETS = ["Large", "Medium", "Small"] as const;
-let fontSizeIndex = 1; // start at Medium, which is now the smallest size
-const FONT_SIZES: Record<string, string> = { Large: "20px", Medium: "14px", Small: "17px" };
+let fontSizeIndex = 1; // start at Medium
+const FONT_SIZES: Record<string, string> = { Large: "23px", Medium: "20px", Small: "17px" };
 
 function setFontSize(label: string) {
-  content.style.fontSize = FONT_SIZES[label] ?? "14px";
+  content.style.fontSize = FONT_SIZES[label] ?? "20px";
   fontSizeBtn.textContent = "Aa · " + label.charAt(0);
 }
 

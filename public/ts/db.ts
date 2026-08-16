@@ -12,6 +12,7 @@ const cancelSaveBtn = document.getElementById("cancelSaveBtn") as HTMLButtonElem
 const deleteConfirmModal = document.getElementById("deleteConfirmModal") as HTMLDivElement;
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn") as HTMLButtonElement;
+const MAX_TITLE_LEN = 20;
 const entryList = document.getElementById("entryList") as HTMLUListElement;
 const refreshListBtn = document.getElementById("refreshListBtn") as HTMLButtonElement;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
@@ -59,6 +60,8 @@ async function confirmSave() {
     setStatus("Please enter a non-Chinese title", "error");
     return;
   }
+  // Enforce a max title length of 20 characters
+  const finalTitle = Array.from(clean).slice(0, MAX_TITLE_LEN).join("");
   // If already translated, save the current content with 『』 translations
   const contentToSave = getCurrentText();
   closeSaveModal();
@@ -66,7 +69,7 @@ async function confirmSave() {
     const res = await fetch("/api/entries", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: clean, content: contentToSave }),
+      body: JSON.stringify({ title: finalTitle, content: contentToSave }),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -75,7 +78,7 @@ async function confirmSave() {
     }
     // After creating, select it so subsequent saves overwrite directly
     selectedId = data.id ?? null;
-    selectedTitle = clean;
+    selectedTitle = finalTitle;
     setStatus("✅ Saved to database" + (hasTranslation() ? " (with translations)" : ""), "ok");
     setTimeout(() => setStatus(""), 2500);
     refreshList();
