@@ -3,11 +3,13 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .55);
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
+  /* 默认隐藏，由 hidden 属性控制；显示时用 :not([hidden]) 开启 flex */
+  display: none;
 }
+.modal-mask:not([hidden]) { display: flex; }
 .modal {
   background: var(--panel);
   border: 1px solid var(--border);

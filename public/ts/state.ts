@@ -1,7 +1,7 @@
 /**
  * state.ts - 全局元素引用、共享状态、渲染与模式管理
  */
-import { el, setStatus, paragraphsToText } from "./util";
+import { el, setStatus } from "./util";
 
 // ---------------- 元素引用 ----------------
 export const content = document.getElementById("content") as HTMLDivElement;
@@ -37,6 +37,21 @@ export function parseParagraphs(text: string): string[] {
     .filter((p) => p.length > 0);
 }
 
+// 把一段文本拆解为「普通文本」与「『』译文」片段
+function splitParagraph(para: string): Array<{ type: "plain" | "note"; text: string }> {
+  const pieces: Array<{ type: "plain" | "note"; text: string }> = [];
+  const re = /『([^』]*)』/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(para))) {
+    if (m.index > last) pieces.push({ type: "plain", text: para.slice(last, m.index) });
+    pieces.push({ type: "note", text: m[1]! });
+    last = m.index + m[0].length;
+  }
+  if (last < para.length) pieces.push({ type: "plain", text: para.slice(last) });
+  return pieces.filter((p) => p.text.length > 0);
+}
+
 // ---------------- 渲染 ----------------
 export function render(text: string) {
   wordsById.clear();
@@ -53,24 +68,36 @@ export function render(text: string) {
 
   for (const para of paragraphs) {
     const p = el("p");
-    const tokens = para.match(/[A-Za-z'’\-–—]+|[^\s]/g) ?? [];
-    let pos = 0;
-    for (const tok of tokens) {
-      if (pos < para.length) {
-        const ws = para.slice(pos, para.length).match(/^\s+/)?.[0] ?? "";
-        if (ws) {
-          p.appendChild(document.createTextNode(ws));
-          pos += ws.length;
-        }
+
+    for (const piece of splitParagraph(para)) {
+      if (piece.type === "note") {
+        // 『…』译文 → 重建为 .note（CSS 负责加 『 』 边框与字体样式）
+        const note = el("span", "note", piece.text);
+        note.dataset.deletable = "1";
+        p.appendChild(note);
+        continue;
       }
-      const span = el("span", "term", tok);
-      const id = cursor++;
-      span.dataset.wordId = String(id);
-      span.title = "单击选中";
-      wordsById.set(id, { id, text: tok, el: span });
-      p.appendChild(span);
-      pos += tok.length;
+      // 普通文本：拆成 词 与 空白
+      const tokens = piece.text.match(/[A-Za-z'’\-–—]+|[^\s]/g) ?? [];
+      let pos = 0;
+      for (const tok of tokens) {
+        if (pos < piece.text.length) {
+          const ws = piece.text.slice(pos, piece.text.length).match(/^\s+/)?.[0] ?? "";
+          if (ws) {
+            p.appendChild(document.createTextNode(ws));
+            pos += ws.length;
+          }
+        }
+        const span = el("span", "term", tok);
+        const id = cursor++;
+        span.dataset.wordId = String(id);
+        span.title = "单击选中";
+        wordsById.set(id, { id, text: tok, el: span });
+        p.appendChild(span);
+        pos += tok.length;
+      }
     }
+
     content.appendChild(p);
   }
 
@@ -78,10 +105,29 @@ export function render(text: string) {
   setTimeout(() => setStatus(""), 2500);
 }
 
-// ---------------- 当前全文 ----------------
+// ---------------- 当前全文（含『』译文标记） --------------
 export function getCurrentText(): string {
   const paras = Array.from(content.querySelectorAll("p"));
-  return paragraphsToText(paras);
+  return paras
+    .map((p) => {
+      let out = "";
+      for (const node of p.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          out += node.textContent ?? "";
+        } else {
+          const h = node as HTMLElement;
+          if (h.classList?.contains("note")) {
+            // 译文：包上 『』 标记以便再次渲染时重建为 .note
+            out += "『" + (h.textContent ?? "") + "』";
+          } else {
+            out += h.textContent ?? "";
+          }
+        }
+      }
+      return out.replace(/\s+/g, " ").trim();
+    })
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 // ---------------- 清除所有选中高亮 ----------------

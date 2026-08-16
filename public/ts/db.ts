@@ -13,6 +13,10 @@ const entryList = document.getElementById("entryList") as HTMLUListElement;
 const refreshListBtn = document.getElementById("refreshListBtn") as HTMLButtonElement;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 
+// 当前选中的已保存文章 id（用于高亮与直接覆盖保存）
+let selectedId: number | null = null;
+let selectedTitle = "";
+
 function hasTranslation(): boolean {
   return content.querySelectorAll(".note[data-deletable='1']").length > 0;
 }
@@ -55,6 +59,9 @@ async function confirmSave() {
       setStatus(`保存失败：${data.error ?? ""}`, "error");
       return;
     }
+    // 新建后即选中，便于后续直接覆盖保存
+    selectedId = data.id ?? null;
+    selectedTitle = clean;
     setStatus("✅ 已保存到数据库" + (hasTranslation() ? "（含译文）" : ""), "ok");
     setTimeout(() => setStatus(""), 2500);
     refreshList();
@@ -76,6 +83,7 @@ export async function refreshList() {
     }
     for (const e of entries) {
       const li = document.createElement("li");
+      if (selectedId === e.id) li.classList.add("active"); // 选中高亮
       const t = document.createElement("span");
       t.className = "entry-title";
       t.textContent = e.title;
@@ -91,9 +99,13 @@ export async function refreshList() {
         const one = await fetch(`/api/entries/${e.id}`);
         const od = await one.json();
         if (od.ok) {
+          // 选中并高亮
+          selectedId = e.id;
+          selectedTitle = e.title;
+          markActive(li);
           render(od.entry.content);
-          setStatus(`已加载：${e.title}`, "ok");
-          setTimeout(() => setStatus(""), 2500);
+          setStatus(`已加载：${e.title}（再次点击保存可直接覆盖）`, "ok");
+          setTimeout(() => setStatus(""), 3500);
         }
       });
 
@@ -101,6 +113,10 @@ export async function refreshList() {
         ev.stopPropagation();
         if (!confirm(`确定删除「${e.title}」吗？`)) return;
         await fetch(`/api/entries/${e.id}`, { method: "DELETE" });
+        if (selectedId === e.id) {
+          selectedId = null;
+          selectedTitle = "";
+        }
         refreshList();
       });
 
@@ -111,9 +127,52 @@ export async function refreshList() {
   }
 }
 
+// 仅保留一个条目为选中态（高亮）
+function markActive(activeLi: HTMLElement) {
+  entryList.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
+  activeLi.classList.add("active");
+}
+
+// ---------------- 保存按钮：选择过则直接覆盖，否则弹窗新建 ----------------
+async function handleSaveClick() {
+  const text = getCurrentText();
+  if (!text) {
+    setStatus("没有可保存的内容，请先粘贴文本", "error");
+    return;
+  }
+  // 已有选中的文章 → 直接更新覆盖（不弹窗，保留原标题）
+  if (selectedId !== null) {
+    await updateEntryContent(selectedId, text);
+    return;
+  }
+  // 无选中 → 弹出标题窗口新建
+  openSaveModal();
+}
+
+// 直接覆盖选中的文章内容（保留原标题）
+async function updateEntryContent(id: number, contentToSave: string) {
+  try {
+    const res = await fetch(`/api/entries/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: contentToSave }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setStatus(`覆盖保存失败：${data.error ?? ""}`, "error");
+      return;
+    }
+    setStatus("✅ 已覆盖保存到「" + selectedTitle + "」" + (hasTranslation() ? "（含译文）" : ""));
+    setTimeout(() => setStatus(""), 2500);
+    refreshList();
+  } catch {
+    setStatus("❌ 覆盖保存失败，请检查连接", "error");
+  }
+}
+
 // ---------------- 事件绑定 ----------------
 export function initDb() {
-  saveBtn.addEventListener("click", openSaveModal);
+  saveBtn.addEventListener("click", handleSaveClick);
   confirmSaveBtn.addEventListener("click", confirmSave);
   cancelSaveBtn.addEventListener("click", () => {
     closeSaveModal();

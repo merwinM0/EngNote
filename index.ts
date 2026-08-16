@@ -108,6 +108,25 @@ async function handleApi(req: Request, path: string): Promise<Response> {
         return json({ ok: false, error: "未找到该文章" }, 404);
       return json({ ok: true, id });
     }
+    if (method === "PUT") {
+      // 更新文章内容（保留原标题）
+      let body: { content?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, error: "无效的 JSON 请求体" }, 400);
+      }
+      const content = (body.content ?? "").trim();
+      if (!content) {
+        return json({ ok: false, error: "内容不能为空" }, 400);
+      }
+      const info = db
+        .query("UPDATE entries SET content = ? WHERE id = ?")
+        .run(content, id);
+      if (Number(info.changes) === 0)
+        return json({ ok: false, error: "未找到该文章" }, 404);
+      return json({ ok: true, id });
+    }
   }
 
   return json({ ok: false, error: "未知 API 请求" }, 404);

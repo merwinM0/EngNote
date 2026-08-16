@@ -31,6 +31,13 @@
   cursor: pointer;
 }
 .entry-list li:hover { border-color: var(--accent); }
+/* 选中的文章高亮 */
+.entry-list li.active {
+  background: #2c3a52;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.entry-list li.active .entry-title { color: #8fb8ff; font-weight: 600; }
 .entry-title {
   font-size: 13px;
   word-break: break-all;

@@ -29,14 +29,6 @@ export function setStatus(
   bar.classList.toggle("ok", type === "ok");
 }
 
-/** 按文档顺序读取并合并段落文本 */
-export function paragraphsToText(ps: HTMLElement[]): string {
-  return ps
-    .map((p) => p.textContent!.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 /** 过滤非英文字符（非法字符替换为空） */
 export function sanitizeEnglish(text: string): {
   clean: string;
