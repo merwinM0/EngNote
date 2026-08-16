@@ -165,4 +165,4 @@ Bun.serve({
   },
 });
 
-console.log(`\n🚀 服务已启动: http://localhost:${PORT}`);
+console.log(`\n 服务已启动: http://localhost:${PORT}`);

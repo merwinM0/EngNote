@@ -1,5 +1,5 @@
 /**
- * main.ts - 装配入口：绑定全局事件并初始化
+ * main.ts - Assembly entry point: binds global events and initialises
  */
 import { setStatus, sanitizeEnglish, readCookie, writeCookie } from "./util";
 import {
@@ -21,54 +21,71 @@ import { refreshList, initDb, deselectEntry } from "./db";
 
 const apiKeyInput = document.getElementById("apiKey") as HTMLInputElement;
 const saveKeyBtn = document.getElementById("saveKeyBtn") as HTMLButtonElement;
+const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
 
-// ---------------- 粘贴 ----------------
-// 单击一次直接粘贴，不需要确认弹窗。粘贴后视为“新内容”（清空选中项，避免覆盖已选文章）。
+// Font size cycling: starts at M (smallest), then L (largest), then S
+const FONT_PRESETS = ["Large", "Medium", "Small"] as const;
+let fontSizeIndex = 1; // start at Medium, which is now the smallest size
+const FONT_SIZES: Record<string, string> = { Large: "20px", Medium: "14px", Small: "17px" };
+
+function setFontSize(label: string) {
+  content.style.fontSize = FONT_SIZES[label] ?? "14px";
+  fontSizeBtn.textContent = "Aa · " + label.charAt(0);
+}
+
+fontSizeBtn.addEventListener("click", () => {
+  fontSizeIndex = (fontSizeIndex + 1) % FONT_PRESETS.length;
+  setFontSize(FONT_PRESETS[fontSizeIndex] ?? "Medium");
+});
+
+// ---------------- Paste ----------------
+// Single click pastes directly (no confirmation modal). Pasting is treated as
+// "new content": it deselects any selected saved article to avoid overwriting it.
 pasteBtn.addEventListener("click", async () => {
   try {
     const text = await navigator.clipboard.readText();
     const { clean } = sanitizeEnglish(text);
     if (!clean) {
-      setStatus("剪贴板内容为空或不含英文字符", "error");
+      setStatus("Clipboard is empty or contains no English", "error");
       return;
     }
     render(clean);
-    deselectEntry(); // 新内容：取消选中任何已保存文章
-    setStatus("✅ 已从剪贴板粘贴并分段（新内容，保存会新建）", "ok");
+    deselectEntry(); // new content: deselect any selected saved article
+    setStatus("✅ Pasted from clipboard and divided into paragraphs (new content; Save will create a new article)", "ok");
     setTimeout(() => setStatus(""), 2500);
   } catch {
-    setStatus("无法读取剪贴板，请检查浏览器权限后重试", "error");
+    setStatus("Cannot read clipboard — check browser permission and retry", "error");
   }
 });
 
-// ---------------- 清空 ----------------
+// ---------------- Clear ----------------
 clearBtn.addEventListener("click", () => {
   content.textContent = "";
   setDeleteMode(false);
   setTranslateMode(false);
-  deselectEntry(); // 清空后为新内容状态
-  setStatus("已清空（保存会新建，不再覆盖以前文章）", "ok");
+  deselectEntry(); // after clearing, it's new-content state
+  setStatus("Cleared (Save will create a new article instead of overwriting)", "ok");
   setTimeout(() => setStatus(""), 2000);
 });
 
-// ---------------- 内容点击分发 ----------------
+// ---------------- Content click dispatch ----------------
 content.addEventListener("click", (ev) => {
   const target = (ev.target as HTMLElement)?.closest<HTMLElement>(
     ".term, .note"
   );
   if (!target) return;
 
-  // 删除翻译模式：处理『』译文
+  // Delete-translation mode: handle 『』 notes
   if (isDeleteMode() && target.classList.contains("note")) {
     ev.preventDefault();
-    // 仅允许删除已完成翻译的『』（跳过 loading / 失败标记）
+    // Only allow removing finished translations (skip loading / error markers)
     if (!target.classList.contains("loading") && !target.classList.contains("error")) {
       handleDeleteNote(target as HTMLElement);
     }
     return;
   }
 
-  // 选词模式：选中单词
+  // Select mode: select a word
   if (isTranslateMode() && target.classList.contains("term")) {
     ev.preventDefault();
     const id = Number(target.dataset.wordId);
@@ -80,36 +97,37 @@ content.addEventListener("click", (ev) => {
 apiKeyInput.addEventListener("input", () => {
   if (apiKeyInput.value !== readCookie(COOKIE_KEY)) {
     (document.getElementById("modeHint") as HTMLElement).textContent =
-      "API Key 已修改，点击「保存 Key」写入 cookie";
+      "API Key changed — click 'Save Key' to store it in the cookie";
   }
 });
 
 saveKeyBtn.addEventListener("click", () => {
   const key = apiKeyInput.value.trim();
   if (!key) {
-    setStatus("请输入 API Key 后再保存", "error");
+    setStatus("Please enter an API Key before saving", "error");
     return;
   }
   writeCookie(COOKIE_KEY, key);
-  setStatus("✅ API Key 已保存到浏览器 cookie", "ok");
+  setStatus("✅ API Key saved to browser cookie", "ok");
   (document.getElementById("modeHint") as HTMLElement).textContent = "";
   setTimeout(() => setStatus(""), 2500);
 });
 
-// ---------------- 功能按钮 ----------------
+// ---------------- Feature buttons ----------------
 document.getElementById("formatBtn")!.addEventListener("click", onFormat);
 translateBtn.addEventListener("click", onTranslateClick);
 document.getElementById("deleteBtn")!.addEventListener("click", toggleDeleteMode);
 
-// ---------------- 初始化 ----------------
+// ---------------- Initialisation ----------------
 function init() {
   const savedKey = readCookie(COOKIE_KEY) ?? "";
   if (savedKey) {
     apiKeyInput.value = savedKey;
-    setStatus("已从 cookie 读取 API Key", "ok");
+    setStatus("Loaded API Key from cookie", "ok");
     setTimeout(() => setStatus(""), 2500);
   }
   initDb();
   refreshList();
+  setFontSize("Medium");
 }
 init();

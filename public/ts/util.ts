@@ -1,11 +1,11 @@
 /**
- * util.ts - 通用工具函数
+ * util.ts - Common helper functions
  */
 
-// 允许的英文文本字符：字母、空格、常见英文标点（含 - ' “ ” ’ — –）
+// Allowed English text chars: letters, spaces, common English punctuation (incl. - ' " '' ' — –)
 export const ALLOWED = /[^A-Za-z\s.,;:!?()'"\u201c\u201d\u2019\u2014\u2013\u2192-]/g;
 
-/** 创建带类名/文本的元素 */
+/** Create an element with class name / text */
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className = "",
@@ -17,7 +17,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return n;
 }
 
-/** 更新状态栏 */
+/** Update the status bar */
 export function setStatus(
   msg: string,
   type: "info" | "ok" | "error" = "info"
@@ -29,7 +29,7 @@ export function setStatus(
   bar.classList.toggle("ok", type === "ok");
 }
 
-/** 过滤非英文字符（非法字符替换为空） */
+/** Filter out non-English characters (replaced with empty) */
 export function sanitizeEnglish(text: string): {
   clean: string;
   hadBad: boolean;
@@ -38,7 +38,7 @@ export function sanitizeEnglish(text: string): {
   return { clean: text.replace(ALLOWED, ""), hadBad };
 }
 
-/** 标题：去除所有中文字符 */
+/** Title: remove all Chinese characters */
 export function sanitizeTitle(title: string): {
   clean: string;
   hadBad: boolean;
@@ -47,13 +47,13 @@ export function sanitizeTitle(title: string): {
   return { clean: title.replace(/[\u4e00-\u9fff]/g, "").trim(), hadBad };
 }
 
-/** 读取 cookie */
+/** Read a cookie */
 export function readCookie(name: string): string {
   const m = document.cookie.match(new RegExp("(^|; )" + name + "=([^;]*)"));
   return m ? decodeURIComponent(m[2] ?? "") : "";
 }
 
-/** 写入 cookie */
+/** Write a cookie */
 export function writeCookie(name: string, value: string) {
   const encoded = encodeURIComponent(value);
   document.cookie = `${name}=${encoded}; path=/; max-age=31536000; SameSite=Lax`;

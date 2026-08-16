@@ -1,9 +1,9 @@
 /**
- * state.ts - 全局元素引用、共享状态、渲染与模式管理
+ * state.ts - Global element refs, shared state, rendering & mode management
  */
 import { el, setStatus } from "./util";
 
-// ---------------- 元素引用 ----------------
+// ---------------- Element refs ----------------
 export const content = document.getElementById("content") as HTMLDivElement;
 export const pasteBtn = document.getElementById("pasteBtn") as HTMLButtonElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
@@ -13,7 +13,7 @@ export const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 export const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
 export const modeHint = document.getElementById("modeHint") as HTMLSpanElement;
 
-// ---------------- 状态 ----------------
+// ---------------- State ----------------
 export type WordInfo = { id: number; text: string; el: HTMLElement };
 export const wordsById = new Map<number, WordInfo>();
 export const loadingNotes = new Map<number, HTMLElement>();
@@ -29,7 +29,7 @@ export function isDeleteMode() {
   return deleteMode;
 }
 
-// ---------------- 文本解析：按空行分段 ----------------
+// ---------------- Text parsing: split into paragraphs by blank lines ----------------
 export function parseParagraphs(text: string): string[] {
   return text
     .split(/\n{2,}/)
@@ -37,7 +37,7 @@ export function parseParagraphs(text: string): string[] {
     .filter((p) => p.length > 0);
 }
 
-// 把一段文本拆解为「普通文本」与「『』译文」片段
+// Split a paragraph into "plain text" and "『』 translation" pieces
 function splitParagraph(para: string): Array<{ type: "plain" | "note"; text: string }> {
   const pieces: Array<{ type: "plain" | "note"; text: string }> = [];
   const re = /『([^』]*)』/g;
@@ -52,10 +52,10 @@ function splitParagraph(para: string): Array<{ type: "plain" | "note"; text: str
   return pieces.filter((p) => p.text.length > 0);
 }
 
-// ---------------- 渲染 ----------------
+// ---------------- Rendering ----------------
 export function render(text: string) {
   wordsById.clear();
-  // 重建内容时退出删除模式（避免悬挂的待删除引用）
+  // Exit delete mode when rebuilding (avoid dangling pending reference)
   if (deleteMode) {
     deleteMode = false;
     deleteBtn.classList.remove("active-delete");
@@ -71,13 +71,13 @@ export function render(text: string) {
 
     for (const piece of splitParagraph(para)) {
       if (piece.type === "note") {
-        // 『…』译文 → 重建为 .note（CSS 负责加 『 』 边框与字体样式）
+        // 『…』 translation → rebuild as .note (CSS adds the 『 』 border & font style)
         const note = el("span", "note", piece.text);
         note.dataset.deletable = "1";
         p.appendChild(note);
         continue;
       }
-      // 普通文本：拆成 词 与 空白
+      // Plain text: split into words and whitespace
       const tokens = piece.text.match(/[A-Za-z'’\-–—]+|[^\s]/g) ?? [];
       let pos = 0;
       for (const tok of tokens) {
@@ -91,7 +91,7 @@ export function render(text: string) {
         const span = el("span", "term", tok);
         const id = cursor++;
         span.dataset.wordId = String(id);
-        span.title = "单击选中";
+        span.title = "Click to select";
         wordsById.set(id, { id, text: tok, el: span });
         p.appendChild(span);
         pos += tok.length;
@@ -101,11 +101,11 @@ export function render(text: string) {
     content.appendChild(p);
   }
 
-  setStatus("已重新分段渲染", "ok");
+  setStatus("Rendered into paragraphs", "ok");
   setTimeout(() => setStatus(""), 2500);
 }
 
-// ---------------- 当前全文（含『』译文标记） --------------
+// ---------------- Current full text (with 『』 translation markers) --------------
 export function getCurrentText(): string {
   const paras = Array.from(content.querySelectorAll("p"));
   return paras
@@ -117,7 +117,7 @@ export function getCurrentText(): string {
         } else {
           const h = node as HTMLElement;
           if (h.classList?.contains("note")) {
-            // 译文：包上 『』 标记以便再次渲染时重建为 .note
+            // Wrap translations in 『』 so re-render can rebuild them as .note
             out += "『" + (h.textContent ?? "") + "』";
           } else {
             out += h.textContent ?? "";
@@ -130,7 +130,7 @@ export function getCurrentText(): string {
     .join("\n\n");
 }
 
-// ---------------- 清除所有选中高亮 ----------------
+// ---------------- Clear all selected highlights ----------------
 export function clearPicked() {
   pickedIds.forEach((id) => {
     const info = wordsById.get(id);
@@ -139,7 +139,7 @@ export function clearPicked() {
   pickedIds.clear();
 }
 
-// ---------------- 单击切换单词选中 ----------------
+// ---------------- Toggle a single word's selection ----------------
 export function togglePick(id: number) {
   const info = wordsById.get(id);
   if (!info) return;
@@ -163,7 +163,7 @@ export function collectPickedIds(): number[] {
   return Array.from(pickedIds).sort((a, b) => a - b);
 }
 
-// ---------------- 把相邻单词 id 合并为词组 ----------------
+// ---------------- Merge adjacent word ids into a phrase ----------------
 export function groupIds(ids: number[]): number[][] {
   const groups: number[][] = [];
   for (const id of ids) {
@@ -184,16 +184,16 @@ export function groupText(group: number[]): string {
     .join(" ");
 }
 
-// ---------------- 模式管理（互斥） ----------------
+// ---------------- Mode management (mutually exclusive) ----------------
 export function setTranslateMode(on: boolean) {
   translateMode = on;
-  translateBtn.textContent = on ? "➜ 翻译所选" : "✎ AI 翻译";
+  translateBtn.textContent = on ? "➜ Translate Selected" : "✎ Translate";
   modeHint.textContent = on
-    ? "模式：单击单词即可选中（再次单击取消），选中变背景色，然后点「翻译所选」"
+    ? "Mode: click words to select (click again to deselect), then hit 'Translate Selected'"
     : "";
-  // 进入翻译时退出删除模式
+  // Exit delete mode when entering translate
   if (on && deleteMode) setDeleteMode(false);
-  // 退出选词模式时清除选中高亮
+  // Clear selected highlights when exiting select mode
   if (!on && pickedIds.size) clearPicked();
 }
 
@@ -201,17 +201,17 @@ export function setDeleteMode(on: boolean) {
   deleteMode = on;
   deletePending = null;
   deleteBtn.classList.toggle("active-delete", on);
-  // 清理已有选中态
+  // Clear any existing selected state
   content
     .querySelectorAll(".note.delete-selected")
     .forEach((n) => n.classList.remove("delete-selected"));
-  // 所有译文标为可点选删除
+  // Mark all translations as clickable for deletion
   content.querySelectorAll<HTMLElement>(".note").forEach((n) => {
     n.dataset.deletable = on ? "1" : "0";
   });
   if (on && translateMode) setTranslateMode(false);
   modeHint.textContent = on
-    ? "删除翻译模式：单击一个『』选中，再单击该『』即可删除这条译文"
+    ? "Delete mode: click a 『』 note to select it, click it again to remove the translation"
     : "";
   if (!on) setStatus("");
 }

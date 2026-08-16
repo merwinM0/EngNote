@@ -1,4 +1,4 @@
-/* content.css - 展示卡片、段落与词注释样式 */
+/* content.css - Display card, paragraphs & word-note styles */
 .editor-card {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -30,17 +30,17 @@
 .content:focus { outline: none; }
 .content p { white-space: pre-wrap; word-break: break-word; }
 
-/* 单词原文 */
+/* Word text */
 .content .term { background: #2c3d55; border-radius: 4px; padding: 0 2px; }
 
-/* 选词：单击选中背景色 */
+/* Selection: single-click highlighted background */
 .content .term.picked {
   background: #7fc8a9;
   color: #00261a;
   box-shadow: 0 0 0 1px #3ddc97 inset;
 }
 
-/* 『释义』 */
+/* 『definition』 */
 .content .note {
   color: var(--note-text);
   font-style: normal;
@@ -49,11 +49,11 @@
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
 
-/* 加载动画 */
+/* Loading animation */
 .content .note.loading { color: #8fb4ff; font-style: italic; }
 .content .note.error { color: var(--danger); }
 
-/* 删除翻译模式：整条『』释义 */
+/* Delete-translation mode: entire 『』 definition */
 .content .note[data-deletable="1"] { cursor: pointer; }
 .content .note.delete-selected {
   background: rgba(255, 92, 108, .28);

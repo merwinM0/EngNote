@@ -1,5 +1,5 @@
 /**
- * format.ts - AI 整理（排版）
+ * format.ts - AI formatting (layout)
  */
 import { setStatus } from "./util";
 import { getCurrentText, render, formatBtn } from "./state";
@@ -8,12 +8,12 @@ import { callDeepSeek } from "./deepseek";
 export async function onFormat() {
   const text = getCurrentText();
   if (!text) {
-    setStatus("请先输入文本", "error");
+    setStatus("Please paste some text first", "error");
     return;
   }
   formatBtn.disabled = true;
-  formatBtn.textContent = "整理中…";
-  setStatus("正在调用 DeepSeek 整理排版…");
+  formatBtn.textContent = "Formatting…";
+  setStatus("Calling DeepSeek to format…");
 
   try {
     const system =
@@ -24,12 +24,12 @@ export async function onFormat() {
       "Output ONLY the reformatted English text, with no explanations or extra text.";
     const formatted = await callDeepSeek(system, text);
     render(formatted);
-    setStatus("✅ AI 整理完成", "ok");
+    setStatus("✅ Formatting complete", "ok");
     setTimeout(() => setStatus(""), 2500);
   } catch {
-    /* 错误已在上层提示 */
+    /* errors already surfaced above */
   } finally {
     formatBtn.disabled = false;
-    formatBtn.textContent = "✦ AI 整理";
+    formatBtn.textContent = "✦ Format";
   }
 }

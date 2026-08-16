@@ -1,5 +1,5 @@
 /**
- * deleteNote.ts - 删除翻译模式
+ * deleteNote.ts - Delete note (translation) mode
  */
 import { setStatus } from "./util";
 import {
@@ -10,22 +10,22 @@ import {
 } from "./state";
 
 /**
- * 点击一个『』译文：第一次单击选中（红色高亮），再次单击删除。
+ * Click a 『』 note: first click selects it (red highlight), click again to delete.
  */
 export function handleDeleteNote(note: HTMLElement) {
-  // 第二次点击同一『』 → 删除
+  // Second click on the same 『』 → delete
   if (isPending(note)) {
     clearDeleteSelection();
     note.remove();
-    setStatus("✅ 已删除该条翻译", "ok");
+    setStatus("✅ Translation note removed", "ok");
     setTimeout(() => setStatus(""), 2000);
     return;
   }
-  // 第一次点击：选中当前『』，清除其他选中
+  // First click: select the current 『』, clear other selections
   clearDeleteSelection();
   setDeletePending(note);
   note.classList.add("delete-selected");
-  setStatus("已选中该条『』，再单击一次删除");
+  setStatus("Selected this 『』 note — click it once more to remove it");
 }
 
 function isPending(note: HTMLElement): boolean {

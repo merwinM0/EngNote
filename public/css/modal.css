@@ -1,4 +1,4 @@
-/* modal.css - 保存弹窗 */
+/* modal.css - Save / delete modals */
 .modal-mask {
   position: fixed;
   inset: 0;
@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
-  /* 默认隐藏，由 hidden 属性控制；显示时用 :not([hidden]) 开启 flex */
+  /* Hidden by default, controlled by the hidden attribute; shown as flex via :not([hidden]) */
   display: none;
 }
 .modal-mask:not([hidden]) { display: flex; }

@@ -1,4 +1,4 @@
-/* sidebar.css - 右侧「已保存」边栏 */
+/* sidebar.css - Right "Saved" sidebar */
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -31,7 +31,7 @@
   cursor: pointer;
 }
 .entry-list li:hover { border-color: var(--accent); }
-/* 选中的文章高亮 */
+/* Selected article highlight */
 .entry-list li.active {
   background: #2c3a52;
   border-color: var(--accent);

@@ -1,10 +1,10 @@
 /**
- * db.ts - 保存到数据库 / 右侧边栏
+ * db.ts - Save to database / right sidebar
  */
 import { setStatus, sanitizeTitle } from "./util";
 import { content, getCurrentText, render } from "./state";
 
-// 弹窗与边栏元素
+// Modal & sidebar elements
 const saveModal = document.getElementById("saveModal") as HTMLDivElement;
 const saveTitleInput = document.getElementById("saveTitle") as HTMLInputElement;
 const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
@@ -16,13 +16,14 @@ const entryList = document.getElementById("entryList") as HTMLUListElement;
 const refreshListBtn = document.getElementById("refreshListBtn") as HTMLButtonElement;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 
-// 当前选中的已保存文章 id（用于高亮与直接覆盖保存）
+// Currently selected saved article id (for highlight & direct overwrite save)
 let selectedId: number | null = null;
 let selectedTitle = "";
-let pendingDeleteId: number | null = null; // 待删除确认的文章 id
+let pendingDeleteId: number | null = null; // article id pending delete confirmation
 
 /**
- * 取消选中：粘贴新内容时应调用，使内容作为“新文章”而非覆盖选中项。
+ * Deselect the current article. Should be called when pasting new content,
+ * so the content is treated as a "new article" rather than overwriting a selection.
  */
 export function deselectEntry() {
   selectedId = null;
@@ -37,7 +38,7 @@ function hasTranslation(): boolean {
 function openSaveModal() {
   const text = getCurrentText();
   if (!text) {
-    setStatus("没有可保存的内容，请先粘贴文本", "error");
+    setStatus("Nothing to save — paste some text first", "error");
     return;
   }
   saveTitleInput.value = "";
@@ -53,12 +54,12 @@ function closeSaveModal() {
 async function confirmSave() {
   const title = saveTitleInput.value;
   const { clean, hadBad } = sanitizeTitle(title);
-  if (hadBad) setStatus("标题不允许中文，已去除中文字符", "error");
+  if (hadBad) setStatus("Title cannot contain Chinese; Chinese characters removed", "error");
   if (!clean) {
-    setStatus("请输入非中文标题", "error");
+    setStatus("Please enter a non-Chinese title", "error");
     return;
   }
-  // 若已翻译，保存带 『』 译文的当前内容
+  // If already translated, save the current content with 『』 translations
   const contentToSave = getCurrentText();
   closeSaveModal();
   try {
@@ -69,21 +70,21 @@ async function confirmSave() {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      setStatus(`保存失败：${data.error ?? ""}`, "error");
+      setStatus(`Save failed: ${data.error ?? ""}`, "error");
       return;
     }
-    // 新建后即选中，便于后续直接覆盖保存
+    // After creating, select it so subsequent saves overwrite directly
     selectedId = data.id ?? null;
     selectedTitle = clean;
-    setStatus("✅ 已保存到数据库" + (hasTranslation() ? "（含译文）" : ""), "ok");
+    setStatus("✅ Saved to database" + (hasTranslation() ? " (with translations)" : ""), "ok");
     setTimeout(() => setStatus(""), 2500);
     refreshList();
   } catch {
-    setStatus("❌ 保存失败，请检查连接", "error");
+    setStatus("❌ Save failed — check connection", "error");
   }
 }
 
-// ---------------- 右侧边栏 ----------------
+// ---------------- Right sidebar ----------------
 export async function refreshList() {
   try {
     const res = await fetch("/api/entries");
@@ -91,19 +92,19 @@ export async function refreshList() {
     entryList.innerHTML = "";
     const entries = data.entries ?? [];
     if (entries.length === 0) {
-      entryList.innerHTML = "<li class='entry-empty'>暂无保存的文章</li>";
+      entryList.innerHTML = "<li class='entry-empty'>No saved articles</li>";
       return;
     }
     for (const e of entries) {
       const li = document.createElement("li");
-      if (selectedId === e.id) li.classList.add("active"); // 选中高亮
+      if (selectedId === e.id) li.classList.add("active"); // selected highlight
       const t = document.createElement("span");
       t.className = "entry-title";
       t.textContent = e.title;
       const del = document.createElement("button");
       del.className = "entry-del";
       del.textContent = "✕";
-      del.title = "删除该文章";
+      del.title = "Delete this article";
       li.appendChild(t);
       li.appendChild(del);
 
@@ -112,19 +113,19 @@ export async function refreshList() {
         const one = await fetch(`/api/entries/${e.id}`);
         const od = await one.json();
         if (od.ok) {
-          // 选中并高亮
+          // select and highlight
           selectedId = e.id;
           selectedTitle = e.title;
           markActive(li);
           render(od.entry.content);
-          setStatus(`已加载：${e.title}（再次点击保存可直接覆盖）`, "ok");
+          setStatus(`Loaded: ${e.title} (click Save again to overwrite)`, "ok");
           setTimeout(() => setStatus(""), 3500);
         }
       });
 
       del.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        // 打开主题风格删除确认弹窗（替代浏览器默认 confirm）
+        // Open the theme-styled delete confirm modal (replaces browser default confirm)
         pendingDeleteId = e.id;
         deleteConfirmModal.hidden = false;
       });
@@ -132,33 +133,33 @@ export async function refreshList() {
       entryList.appendChild(li);
     }
   } catch {
-    entryList.innerHTML = "<li class='entry-empty'>加载失败</li>";
+    entryList.innerHTML = "<li class='entry-empty'>Failed to load</li>";
   }
 }
 
-// 仅保留一个条目为选中态（高亮）
+// Keep only one list item as the selected (highlighted) state
 function markActive(activeLi: HTMLElement) {
   entryList.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
   activeLi.classList.add("active");
 }
 
-// ---------------- 保存按钮：选择过则直接覆盖，否则弹窗新建 ----------------
+// ---------------- Save button: overwrite if selected, else open modal to create ----------------
 async function handleSaveClick() {
   const text = getCurrentText();
   if (!text) {
-    setStatus("没有可保存的内容，请先粘贴文本", "error");
+    setStatus("Nothing to save — paste some text first", "error");
     return;
   }
-  // 已有选中的文章 → 直接更新覆盖（不弹窗，保留原标题）
+  // A selected article exists -> overwrite it directly (no modal, keep original title)
   if (selectedId !== null) {
     await updateEntryContent(selectedId, text);
     return;
   }
-  // 无选中 → 弹出标题窗口新建
+  // No selection -> open the title modal to create a new article
   openSaveModal();
 }
 
-// 直接覆盖选中的文章内容（保留原标题）
+// Directly overwrite the selected article's content (keeping the original title)
 async function updateEntryContent(id: number, contentToSave: string) {
   try {
     const res = await fetch(`/api/entries/${id}`, {
@@ -168,18 +169,18 @@ async function updateEntryContent(id: number, contentToSave: string) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      setStatus(`覆盖保存失败：${data.error ?? ""}`, "error");
+      setStatus(`Overwrite failed: ${data.error ?? ""}`, "error");
       return;
     }
-    setStatus("✅ 已覆盖保存到「" + selectedTitle + "」" + (hasTranslation() ? "（含译文）" : ""));
+    setStatus("✅ Overwritten \"" + selectedTitle + "\"" + (hasTranslation() ? " (with translations)" : ""));
     setTimeout(() => setStatus(""), 2500);
     refreshList();
   } catch {
-    setStatus("❌ 覆盖保存失败，请检查连接", "error");
+    setStatus("❌ Overwrite failed — check connection", "error");
   }
 }
 
-// ---------------- 事件绑定 ----------------
+// ---------------- Event bindings ----------------
 export function initDb() {
   saveBtn.addEventListener("click", handleSaveClick);
   confirmSaveBtn.addEventListener("click", confirmSave);
@@ -195,7 +196,7 @@ export function initDb() {
   });
   refreshListBtn.addEventListener("click", refreshList);
 
-  // 删除确认弹窗
+  // Delete confirm modal
   confirmDeleteBtn.addEventListener("click", async () => {
     const id = pendingDeleteId;
     deleteConfirmModal.hidden = true;

@@ -1,5 +1,5 @@
 /**
- * translate.ts - AI 翻译（选词 + 释义）
+ * translate.ts - AI translation (word selection + definitions)
  */
 import { el, setStatus } from "./util";
 import {
@@ -17,7 +17,7 @@ import {
 } from "./state";
 import { callDeepSeek } from "./deepseek";
 
-// 单击切换单词选中（供 main 的点击分发调用）
+// Single click toggles word selection (called from main's click dispatch)
 export function onTermClick(id: number) {
   togglePick(id);
 }
@@ -25,13 +25,13 @@ export function onTermClick(id: number) {
 export function onTranslateClick() {
   if (!isTranslateMode()) {
     setTranslateMode(true);
-    setStatus("已进入选词模式：单击单词选中，再点「翻译所选」");
+    setStatus("Select mode: click words to select, then hit 'Translate Selected'");
     return;
   }
   translateSelected();
 }
 
-// 在指定单词后插入「Translating...」loading 标记
+// Insert a "Translating..." loading marker after the given words
 function insertLoadingNote(group: number[], animId: number) {
   const lastId = group[group.length - 1]!;
   const info = wordsById.get(lastId);
@@ -61,11 +61,11 @@ function replaceOrErrNote(animId: number, meaning?: string) {
   if (meaning) {
     note.classList.remove("loading");
     note.textContent = meaning;
-    note.dataset.deletable = "1"; // 标记为可删除译文
+    note.dataset.deletable = "1"; // mark as a removable translation
   } else {
     note.classList.remove("loading");
     note.classList.add("error");
-    note.textContent = "翻译失败";
+    note.textContent = "Translation failed";
   }
   loadingNotes.delete(animId);
 }
@@ -75,15 +75,15 @@ export async function translateSelected() {
   clearPicked();
 
   if (ids.length === 0) {
-    setStatus("未选中任何单词，请先单击选中，再点「翻译所选」", "error");
+    setStatus("No words selected — click words first, then 'Translate Selected'", "error");
     return;
   }
   const groups = groupIds(ids);
   groups.forEach((g, gi) => insertLoadingNote(g, gi));
 
   translateBtn.disabled = true;
-  translateBtn.textContent = "翻译中…";
-  setStatus(`正在翻译 ${groups.length} 个词条…`);
+  translateBtn.textContent = "Translating…";
+  setStatus(`Translating ${groups.length} term(s)…`);
 
   try {
     const terms = groups.map((g) => groupText(g));
@@ -116,14 +116,14 @@ export async function translateSelected() {
       if (meaning) okCount++;
     });
     setStatus(
-      `✅ 翻译完成：成功 ${okCount}/${groups.length} 个词条`,
+      `✅ Translation done: ${okCount}/${groups.length} term(s)`,
       okCount === groups.length ? "ok" : "info"
     );
     if (okCount < groups.length)
-      setTimeout(() => setStatus("部分词条翻译失败，可重试", "error"), 2500);
+      setTimeout(() => setStatus("Some terms failed to translate; you can retry", "error"), 2500);
   } catch {
     groups.forEach((_g, gi) => replaceOrErrNote(gi));
-    setStatus("❌ 翻译失败，请检查 API Key 或网络", "error");
+    setStatus("❌ Translation failed — check API Key or network", "error");
   } finally {
     translateBtn.disabled = false;
     setTranslateMode(false);

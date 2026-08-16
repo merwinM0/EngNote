@@ -1,4 +1,4 @@
-/* layout.css - 页面主布局与工具栏 */
+/* layout.css - Page main layout & toolbar */
 main { padding: 20px; max-width: 1240px; margin: 0 auto; }
 
 .layout { display: flex; gap: 16px; align-items: flex-start; }
