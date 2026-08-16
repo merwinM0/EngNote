@@ -1,0 +1,94 @@
+/* base.css - 基础样式：变量、全局、布局骨架、通用控件 */
+:root {
+  --bg: #10131a;
+  --panel: #1a1f2b;
+  --panel-2: #222a3a;
+  --border: #2e384a;
+  --text: #e6ebf2;
+  --muted: #93a0b4;
+  --accent: #4f8cff;
+  --accent-2: #3ddc97;
+  --danger: #ff5c6c;
+  --note-bg: #2c3d55;
+  --note-text: #ffd479;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+.topbar {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.topbar h1 { margin: 0 0 10px; font-size: 22px; }
+.topbar .sub {
+  font-size: 13px;
+  font-weight: normal;
+  color: var(--muted);
+  margin-left: 8px;
+}
+.api-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.api-row label { color: var(--muted); font-size: 13px; }
+#apiKey {
+  width: 320px;
+  padding: 7px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+.api-row .hint { color: var(--muted); font-size: 12px; }
+
+/* 按钮 */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: filter .15s, transform .05s;
+}
+.btn:hover { filter: brightness(1.15); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-accent { background: var(--accent-2); border-color: var(--accent-2); color: #05281a; }
+.btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.btn-ghost { background: transparent; font-size: 12px; padding: 4px 10px; }
+
+.btn.active-delete {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+/* 状态栏 */
+.status-bar {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 13px;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.status-bar.error { border-color: var(--danger); color: var(--danger); }
+.status-bar.ok { border-color: var(--accent-2); color: var(--accent-2); }
+
+::selection { background: var(--accent); color: #fff; }

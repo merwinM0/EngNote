@@ -1,0 +1,18 @@
+/* layout.css - 页面主布局与工具栏 */
+main { padding: 20px; max-width: 1240px; margin: 0 auto; }
+
+.layout { display: flex; gap: 16px; align-items: flex-start; }
+.main-col { flex: 1; min-width: 0; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.mode-hint {
+  color: var(--accent);
+  font-size: 13px;
+  margin-left: 4px;
+}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English Reading · 英文阅读助手</title>
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/content.css" />
+  <link rel="stylesheet" href="/css/sidebar.css" />
+  <link rel="stylesheet" href="/css/modal.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>English Reading <span class="sub">英文阅读助手</span></h1>
+    <div class="api-row">
+      <label for="apiKey">DeepSeek API Key</label>
+      <input
+        id="apiKey"
+        type="password"
+        autocomplete="off"
+        placeholder="sk-..."
+        spellcheck="false"
+      />
+      <button id="saveKeyBtn" class="btn btn-primary">保存 Key</button>
+      <span class="hint">（保存到浏览器 cookie，下次自动读取）</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <button id="pasteBtn" class="btn">📋 粘贴</button>
+      <button id="formatBtn" class="btn">✦ AI 整理</button>
+      <button id="translateBtn" class="btn btn-accent">✎ AI 翻译</button>
+      <button id="deleteBtn" class="btn">🗑 删除翻译</button>
+      <button id="saveBtn" class="btn btn-primary">💾 保存</button>
+      <button id="clearBtn" class="btn btn-danger">清空</button>
+      <span id="modeHint" class="mode-hint"></span>
+    </div>
+
+    <div class="layout">
+      <section class="editor-card main-col">
+        <div class="card-head">
+          <span>英文段落展示（单击选词可翻译）</span>
+        </div>
+        <div id="content" class="content" data-placeholder="点击上方「粘贴」从剪贴板粘贴英文文本"></div>
+      </section>
+
+      <!-- 右侧边栏：已保存的文章 -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <span>已保存</span>
+          <button id="refreshListBtn" class="btn btn-ghost">↻ 刷新</button>
+        </div>
+        <ul id="entryList" class="entry-list"></ul>
+      </aside>
+    </div>
+
+    <section id="statusBar" class="status-bar" hidden></section>
+  </main>
+
+  <!-- 保存弹窗 -->
+  <div id="saveModal" class="modal-mask" hidden>
+    <div class="modal">
+      <h3>保存到数据库</h3>
+      <label for="saveTitle">标题（不允许中文）</label>
+      <input id="saveTitle" type="text" placeholder="Enter a title..." spellcheck="false" />
+      <div class="modal-actions">
+        <button id="confirmSaveBtn" class="btn btn-primary">保存</button>
+        <button id="cancelSaveBtn" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/dist/app.js"></script>
+</body>
+</html>
