@@ -17,12 +17,13 @@ import { COOKIE_KEY } from "./deepseek";
 import { onFormat } from "./format";
 import { onTranslateClick, onTermClick } from "./translate";
 import { handleDeleteNote, toggleDeleteMode } from "./deleteNote";
-import { refreshList, initDb } from "./db";
+import { refreshList, initDb, deselectEntry } from "./db";
 
 const apiKeyInput = document.getElementById("apiKey") as HTMLInputElement;
 const saveKeyBtn = document.getElementById("saveKeyBtn") as HTMLButtonElement;
 
 // ---------------- 粘贴 ----------------
+// 单击一次直接粘贴，不需要确认弹窗。粘贴后视为“新内容”（清空选中项，避免覆盖已选文章）。
 pasteBtn.addEventListener("click", async () => {
   try {
     const text = await navigator.clipboard.readText();
@@ -32,8 +33,9 @@ pasteBtn.addEventListener("click", async () => {
       return;
     }
     render(clean);
-    setStatus("✅ 已从剪贴板粘贴并分段", "ok");
-    setTimeout(() => setStatus(""), 2000);
+    deselectEntry(); // 新内容：取消选中任何已保存文章
+    setStatus("✅ 已从剪贴板粘贴并分段（新内容，保存会新建）", "ok");
+    setTimeout(() => setStatus(""), 2500);
   } catch {
     setStatus("无法读取剪贴板，请检查浏览器权限后重试", "error");
   }
@@ -44,7 +46,8 @@ clearBtn.addEventListener("click", () => {
   content.textContent = "";
   setDeleteMode(false);
   setTranslateMode(false);
-  setStatus("已清空", "ok");
+  deselectEntry(); // 清空后为新内容状态
+  setStatus("已清空（保存会新建，不再覆盖以前文章）", "ok");
   setTimeout(() => setStatus(""), 2000);
 });
 

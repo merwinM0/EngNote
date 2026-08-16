@@ -18,6 +18,11 @@
   width: 380px;
 }
 .modal h3 { margin: 0 0 14px; }
+.modal .modal-body {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 14px;
+}
 .modal label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .modal input {
   width: 100%;

@@ -9,6 +9,9 @@ const saveModal = document.getElementById("saveModal") as HTMLDivElement;
 const saveTitleInput = document.getElementById("saveTitle") as HTMLInputElement;
 const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
 const cancelSaveBtn = document.getElementById("cancelSaveBtn") as HTMLButtonElement;
+const deleteConfirmModal = document.getElementById("deleteConfirmModal") as HTMLDivElement;
+const confirmDeleteBtn = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
+const cancelDeleteBtn = document.getElementById("cancelDeleteBtn") as HTMLButtonElement;
 const entryList = document.getElementById("entryList") as HTMLUListElement;
 const refreshListBtn = document.getElementById("refreshListBtn") as HTMLButtonElement;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
@@ -16,6 +19,16 @@ const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 // 当前选中的已保存文章 id（用于高亮与直接覆盖保存）
 let selectedId: number | null = null;
 let selectedTitle = "";
+let pendingDeleteId: number | null = null; // 待删除确认的文章 id
+
+/**
+ * 取消选中：粘贴新内容时应调用，使内容作为“新文章”而非覆盖选中项。
+ */
+export function deselectEntry() {
+  selectedId = null;
+  selectedTitle = "";
+  entryList.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
+}
 
 function hasTranslation(): boolean {
   return content.querySelectorAll(".note[data-deletable='1']").length > 0;
@@ -109,15 +122,11 @@ export async function refreshList() {
         }
       });
 
-      del.addEventListener("click", async (ev) => {
+      del.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        if (!confirm(`确定删除「${e.title}」吗？`)) return;
-        await fetch(`/api/entries/${e.id}`, { method: "DELETE" });
-        if (selectedId === e.id) {
-          selectedId = null;
-          selectedTitle = "";
-        }
-        refreshList();
+        // 打开主题风格删除确认弹窗（替代浏览器默认 confirm）
+        pendingDeleteId = e.id;
+        deleteConfirmModal.hidden = false;
       });
 
       entryList.appendChild(li);
@@ -185,4 +194,28 @@ export function initDb() {
     if (ev.key === "Enter") confirmSave();
   });
   refreshListBtn.addEventListener("click", refreshList);
+
+  // 删除确认弹窗
+  confirmDeleteBtn.addEventListener("click", async () => {
+    const id = pendingDeleteId;
+    deleteConfirmModal.hidden = true;
+    pendingDeleteId = null;
+    if (id === null) return;
+    await fetch(`/api/entries/${id}`, { method: "DELETE" });
+    if (selectedId === id) {
+      selectedId = null;
+      selectedTitle = "";
+    }
+    refreshList();
+  });
+  cancelDeleteBtn.addEventListener("click", () => {
+    deleteConfirmModal.hidden = true;
+    pendingDeleteId = null;
+  });
+  deleteConfirmModal.addEventListener("click", (ev) => {
+    if (ev.target === deleteConfirmModal) {
+      deleteConfirmModal.hidden = true;
+      pendingDeleteId = null;
+    }
+  });
 }
