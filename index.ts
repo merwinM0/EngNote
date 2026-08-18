@@ -12,6 +12,8 @@
 
 import { build } from "bun";
 import { Database } from "bun:sqlite";
+import { initAuth, register, login, requestCode, resolveToken, logout } from "./backend/auth";
+import { networkInterfaces } from "os";
 
 // 构建前端 bundle
 console.log("▶ 构建前端 bundle...");
@@ -37,6 +39,7 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+initAuth(db);
 console.log(`✓ SQLite 就绪: ${DB_PATH}`);
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -59,10 +62,60 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/** 从 Authorization 头解析当前登录邮箱；未登录返回 null。 */
+async function getAuthedEmail(req: Request): Promise<string | null> {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.replace(/^Bearer\s+/i, "");
+  return resolveToken(token);
+}
+
 // ---------------- API 路由 ----------------
 async function handleApi(req: Request, path: string): Promise<Response> {
   const url = new URL(req.url);
   const method = req.method;
+
+  // ---------- Auth ----------
+  if (path === "/api/auth/send-code" && method === "POST") {
+    const body = (await req.json().catch(() => ({}))) as { email?: string };
+    const r = await requestCode(body.email ?? "");
+    if (!r.ok) return json({ ok: false, error: r.error }, 400);
+    return json({ ok: true, devCode: r.devCode });
+  }
+
+  if (path === "/api/auth/register" && method === "POST") {
+    const body = (await req.json().catch(() => ({}))) as {
+      email?: string;
+      password?: string;
+      code?: string;
+    };
+    const r = await register(body.email ?? "", body.password ?? "", body.code ?? "");
+    if (!r.ok) return json({ ok: false, error: r.error }, 400);
+    return json({ ok: true }, 201);
+  }
+
+  if (path === "/api/auth/login" && method === "POST") {
+    const body = (await req.json().catch(() => ({}))) as {
+      email?: string;
+      password?: string;
+    };
+    const r = await login(body.email ?? "", body.password ?? "");
+    if (!r.ok) return json({ ok: false, error: r.error }, 401);
+    return json({ ok: true, email: r.email, token: r.token });
+  }
+
+  if (path === "/api/auth/logout" && method === "POST") {
+    const body = (await req.json().catch(() => ({}))) as { token?: string };
+    await logout(body.token ?? "");
+    return json({ ok: true });
+  }
+
+  if (path === "/api/auth/me" && method === "GET") {
+    const auth = req.headers.get("authorization") ?? "";
+    const token = auth.replace(/^Bearer\s+/i, "");
+    const email = await resolveToken(token);
+    if (!email) return json({ ok: false, error: "Not logged in" }, 401);
+    return json({ ok: true, email });
+  }
 
   // 文章列表
   if (path === "/api/entries" && method === "GET") {
@@ -74,6 +127,9 @@ async function handleApi(req: Request, path: string): Promise<Response> {
 
   // 保存文章
   if (path === "/api/entries" && method === "POST") {
+    if (!(await getAuthedEmail(req))) {
+      return json({ ok: false, error: "Please log in to save" }, 401);
+    }
     let body: { title?: string; content?: string };
     try {
       body = await req.json();
@@ -103,6 +159,9 @@ async function handleApi(req: Request, path: string): Promise<Response> {
       return json({ ok: true, entry: row });
     }
     if (method === "DELETE") {
+      if (!(await getAuthedEmail(req))) {
+        return json({ ok: false, error: "Please log in to delete" }, 401);
+      }
       const info = db.query("DELETE FROM entries WHERE id = ?").run(id);
       if (Number(info.changes) === 0)
         return json({ ok: false, error: "未找到该文章" }, 404);
@@ -110,6 +169,9 @@ async function handleApi(req: Request, path: string): Promise<Response> {
     }
     if (method === "PUT") {
       // 更新文章内容（保留原标题）
+      if (!(await getAuthedEmail(req))) {
+        return json({ ok: false, error: "Please log in to save" }, 401);
+      }
       let body: { content?: string };
       try {
         body = await req.json();
@@ -134,6 +196,8 @@ async function handleApi(req: Request, path: string): Promise<Response> {
 
 Bun.serve({
   port: PORT,
+  // 监听所有网络接口，允许局域网内其他设备通过本机 IP 访问
+  hostname: "0.0.0.0",
   async fetch(req) {
     const url = new URL(req.url);
     let pathname = decodeURIComponent(url.pathname);
@@ -165,4 +229,14 @@ Bun.serve({
   },
 });
 
-console.log(`\n 服务已启动: http://localhost:${PORT}`);
+console.log(`\n🚀 服务已启动: http://localhost:${PORT}`);
+
+// 打印局域网可访问的本机 IP，便于手机/其他设备在同一网络访问
+const nets = networkInterfaces();
+for (const name of Object.keys(nets)) {
+  for (const net of nets[name] ?? []) {
+    if (net.family === "IPv4" && !net.internal) {
+      console.log(`   局域网访问: http://${net.address}:${PORT}`);
+    }
+  }
+}

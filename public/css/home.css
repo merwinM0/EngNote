@@ -129,8 +129,3 @@ body {
   color: var(--muted);
   font-size: 13px;
 }
-
-@media (max-width: 720px) {
-  .features { grid-template-columns: 1fr; }
-  .hero-title { font-size: 36px; }
-}

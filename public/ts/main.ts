@@ -18,6 +18,7 @@ import { onFormat } from "./format";
 import { onTranslateClick, onTermClick } from "./translate";
 import { handleDeleteNote, toggleDeleteMode } from "./deleteNote";
 import { refreshList, initDb, deselectEntry } from "./db";
+import { initAuth } from "./auth";
 
 const apiKeyInput = document.getElementById("apiKey") as HTMLInputElement;
 const saveKeyBtn = document.getElementById("saveKeyBtn") as HTMLButtonElement;
@@ -127,6 +128,7 @@ function init() {
     setTimeout(() => setStatus(""), 2500);
   }
   initDb();
+  initAuth();
   refreshList();
   setFontSize("Medium");
 }

@@ -3,6 +3,15 @@
  */
 import { setStatus, sanitizeTitle } from "./util";
 import { content, getCurrentText, render } from "./state";
+import { isLoggedIn as checkLoggedIn, getToken } from "./auth";
+
+// JSON header + Bearer token when logged in
+function authJsonHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "content-type": "application/json" };
+  const t = getToken();
+  if (t) h.authorization = `Bearer ${t}`;
+  return h;
+}
 
 // Modal & sidebar elements
 const saveModal = document.getElementById("saveModal") as HTMLDivElement;
@@ -68,7 +77,7 @@ async function confirmSave() {
   try {
     const res = await fetch("/api/entries", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ title: finalTitle, content: contentToSave }),
     });
     const data = await res.json();
@@ -148,6 +157,11 @@ function markActive(activeLi: HTMLElement) {
 
 // ---------------- Save button: overwrite if selected, else open modal to create ----------------
 async function handleSaveClick() {
+  // 未登录用户可使用翻译等功能，但禁止保存
+  if (!checkLoggedIn()) {
+    setStatus("Please log in to save articles", "error");
+    return;
+  }
   const text = getCurrentText();
   if (!text) {
     setStatus("Nothing to save — paste some text first", "error");
@@ -167,7 +181,7 @@ async function updateEntryContent(id: number, contentToSave: string) {
   try {
     const res = await fetch(`/api/entries/${id}`, {
       method: "PUT",
-      headers: { "content-type": "application/json" },
+      headers: authJsonHeaders(),
       body: JSON.stringify({ content: contentToSave }),
     });
     const data = await res.json();
@@ -205,7 +219,7 @@ export function initDb() {
     deleteConfirmModal.hidden = true;
     pendingDeleteId = null;
     if (id === null) return;
-    await fetch(`/api/entries/${id}`, { method: "DELETE" });
+    await fetch(`/api/entries/${id}`, { method: "DELETE", headers: authJsonHeaders() });
     if (selectedId === id) {
       selectedId = null;
       selectedTitle = "";

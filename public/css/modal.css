@@ -34,3 +34,25 @@
   font-size: 14px;
 }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
+/* Auth modal */
+.auth-tabs { display: flex; gap: 8px; margin-bottom: 12px; background: var(--panel-2); padding: 4px; border-radius: 8px; }
+.auth-tab {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+.auth-tab.active { background: var(--accent); color: #fff; font-weight: 600; }
+.modal-field { margin-bottom: 12px; }
+.modal-field label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.modal-field input { width: 100%; padding: 9px 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; }
+.code-row { display: flex; gap: 8px; }
+.code-row input { flex: 1; }
+.auth-msg { margin-top: 8px; font-size: 13px; }
+.auth-msg.error { color: var(--danger); }
+.auth-msg.ok { color: var(--accent-2); }

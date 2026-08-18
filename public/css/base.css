@@ -98,6 +98,16 @@ body {
   border-radius: 10px;
 }
 
+/* Right-side action buttons in the topbar row (Login + Home) */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.topbar-actions .home-link { margin-left: 0; }
+
 /* Status bar */
 .status-bar {
   margin-top: 14px;

@@ -1,6 +1,6 @@
 # English Reading 英文阅读助手
 
-一个基于 **HTML + TypeScript + CSS** 的英文阅读网页应用。用户点击「粘贴」按钮从剪贴板读取英文文本，页面按正确段落展示；支持调用 DeepSeek API 进行「AI 整理」排版与「AI 翻译」单词注释；可将内容**保存到 SQLite 数据库**并在右侧边栏读取。
+一个基于 **HTML + TypeScript + CSS** 的英文阅读网页应用。用户点击「粘贴」按钮从剪贴板读取英文文本，页面按正确段落展示；支持调用 DeepSeek API 进行「AI 整理」排版与「AI 翻译」单词注释；可将内容**保存到 SQLite 数据库**并在右侧边栏读取；支持**邮箱注册/登录**（带验证码）。
 
 ---
 
@@ -12,6 +12,10 @@
 | 构建/运行 | Bun（`bun run index.ts` 启动本地服务） |
 | AI 能力 | DeepSeek API（OpenAI 兼容接口） |
 | 存储 | SQLite（Bun 内置 `bun:sqlite`，本地 `data.db`） |
+| 密码哈希 | **慢哈希**：`argon2id`（内存/时间硬度高），经 Bun `Bun.password` 加密 |
+| 验证码存储 | Redis（`redis` npm 包；不可用时降级为内存）|
+| 邮件发送 | Nodemailer + SMTP，通过 `.env` 配置发信账号 |
+| 依赖 | `redis`、`nodemailer`（+ `@types/nodemailer`） |
 
 ---
 
@@ -91,6 +95,18 @@
 - API Key 通过前端配置面板输入，**保存在浏览器 cookie 中**（`document.cookie`），下次访问自动读取填充，无需重复输入。
 - API Key 仅存在浏览器端，**不上传**到我们的服务器/数据库。
 - 请求失败（超时、鉴权失败）时页面给出明确错误提示。
+
+### 8. 邮箱注册 / 登录
+- 阅读页顶栏提供「Login」按钮，弹出登录/注册弹窗（Login / Register 两个标签切换）。
+- **注册**需邮箱 + 验证码 + 密码（≥6 位）：
+  - 点击「Send Code」→ 后端生成 6 位验证码，存 **Redis**（TTL 5 分钟），并通过 **SMTP**（`.env` 配置）发送到邮箱。
+  - 验证码正确且邮箱未注册才算注册成功。
+- **登录**：邮箱 + 密码 → 校验通过后签发会话 Token（存 Redis，7 天有效），前端存 `localStorage`。
+- 登录界面**无需验证码**（验证码只在注册时要求）。
+- 登录后顶栏按钮变为「Logout」，点击退出登录。
+- **未登录用户**可使用粘贴、AI 整理、翻译等功能，但**不能保存/覆盖/删除文章**（前端阻止并提示「Please log in to save」，后端接口也会校验登录态返回 401）。
+- 密码使用**慢哈希算法（Argon2id）**加密后存 SQLite，绝不存明文。
+- 会话 Token 存 `localStorage`，保存/覆盖/删除时通过 `Authorization: Bearer <token>` 访问受保护接口。
 
 ---
 
@@ -221,13 +237,52 @@ type SelectionGroup = {
 - `content` 保存当前展示区文本；**若已翻译，则保存带 `『』` 释义的内容**。
 - 建表语句：`entries(id, title, content, created_at)`，存储于 `data.db`。
 
+### 认证 API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/auth/send-code` | 生成验证码存 Redis 并发送到邮箱，`{ email }` |
+| POST | `/api/auth/register` | 邮箱注册，`{ email, password, code }` |
+| POST | `/api/auth/login` | 登录，`{ email, password }` → `{ token }` |
+| POST | `/api/auth/logout` | 注销，`{ token }` |
+| GET | `/api/auth/me` | 校验会话，需 `Authorization: Bearer <token>` |
+
+- 密码存入 SQLite 时经 **Argon2id 慢哈希**（`Bun.password`）。
+- 验证码与会话 Token 存 **Redis**（`auth:code:<email>` / `auth:token:<token>`）；Redis 不可用时降级为内存（仅开发）。
+- 文章**写操作**（`POST /api/entries`、`PUT`、`DELETE`）需登录：携带 `Authorization: Bearer <token>`，未登录返回 `401`；`GET` 列表/读取公开。
+
+### 环境变量（`.env`，已 gitignore，可复制 `.env.example`）
+
+> `.env` 与 `.env.example` 内含**逐项修改备注**（邮箱服务商取值、授权码、Redis 地址、端口等），直接按文件内编号注释改即可。
+
+```env
+# 邮件发送（SMTP），SMTP_HOST 为空时不发信，验证码打印到日志
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+
+# Redis（验证码与会话存储）
+REDIS_URL=redis://127.0.0.1:6379
+
+# 端口
+PORT=3000
+```
+
 ---
 
 ## 目录结构（规划）
 
 ```
 english_reading/
-├── index.ts              # Bun 静态服务器 + SQLite API
+├── index.ts              # Bun 静态服务器 + SQLite API + 认证路由
+├── backend/              # 后端模块（auth / redis / mail）
+│   ├── auth.ts           # 注册/登录/会话（Argon2id 慢哈希 + Redis 验证码）
+│   ├── redis.ts          # Redis 客户端封装（验证码/会话；不可用时内存降级）
+│   └── mail.ts           # Nodemailer 发信（读 .env SMTP 配置）
+├── .env.example          # 环境变量模板（复制为 .env）
+├── .env                  # 实际配置（已 gitignore，不提交）
 ├── data.db               # SQLite 数据库（自动创建）
 ├── public/               # 前端静态资源
 │   ├── index.html        # 页面结构
@@ -235,6 +290,7 @@ english_reading/
 │   ├── ts/               # 前端逻辑（多个 TS 模块，由 main.ts 装配）
 │   │   ├── util.ts       # 通用工具（元素/文本/裁剪/cookie）
 │   │   ├── state.ts      # 元素引用、渲染、状态与模式管理
+│   │   ├── auth.ts       # 前端登录/注册弹窗 UI + 会话
 │   │   ├── deepseek.ts   # DeepSeek API 封装
 │   │   ├── format.ts     # AI 整理
 │   │   ├── translate.ts  # AI 翻译
@@ -246,7 +302,8 @@ english_reading/
 │       ├── layout.css    # 页面布局与工具栏
 │       ├── content.css   # 展示卡片、词注释
 │       ├── sidebar.css   # 已保存边栏
-│       └── modal.css     # 保存弹窗
+│       ├── modal.css     # 保存弹窗 + 认证弹窗
+│       └── responsive.css# 手机自适应
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -264,6 +321,8 @@ english_reading/
 - [x] 选词模式 + 分组算法 + AI 翻译联调
 - [x] 「保存」到 SQLite（弹窗标题）+ 右侧边栏读取/删除
 - [x] 「删除翻译」模式：单击选择整条 `『』`，再单击删除
+- [x] 邮箱注册/登录（Argon2id 慢哈希 + Redis 验证码 + SMTP 发信）
+- [x] 首页 + 阅读页导航统一与手机自适应
 - [ ] 错误提示与加载态完善
 - [ ] 样式美化
 
@@ -273,8 +332,13 @@ english_reading/
 
 ```bash
 bun install
+cp .env.example .env   # 按需填写 SMTP / REDIS_URL
 bun run index.ts
-# 浏览器打开 http://localhost:3000（端口以 index.ts 为准）
+# 浏览器打开 http://localhost:3000（端口以 index.ts / .env 中 PORT 为准）
 ```
 
 首页（`/`）为欢迎页，点击「Start」按钮进入阅读页（`/index.html`）。
+
+两页均**支持手机自适应**（`public/css/responsive.css` + viewport meta）。
+
+> **邮件验证码测试**：若 `.env` 未配置 `SMTP_HOST`，应用不会真正发信，而是把 6 位验证码打印到服务器日志（开发模式）。需要真实发信则填入 SMTP 账号；需要 Redis 持久化验证码则启动本地 Redis 并设置 `REDIS_URL`（未启动时自动降级为内存存储）。
