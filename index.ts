@@ -141,8 +141,8 @@ Bun.serve({
     // API 路由
     if (pathname.startsWith("/api/")) return handleApi(req, pathname);
 
-    // 静态文件
-    if (pathname === "/") pathname = "/index.html";
+    // Static files: homepage at /, reading page at /index.html
+    if (pathname === "/") pathname = "/home.html";
     const filePath = pathname.startsWith("/public/")
       ? pathname.slice(1)
       : `public${pathname}`;

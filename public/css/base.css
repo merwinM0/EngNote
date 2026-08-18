@@ -28,7 +28,17 @@ body {
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
-.topbar h1 { margin: 0 0 10px; font-size: 22px; }
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 22px;
+}
 .topbar .sub {
   font-size: 13px;
   font-weight: normal;
@@ -75,6 +85,17 @@ body {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+}
+
+/* Homepage link button (right-aligned in the topbar-row) */
+.home-link {
+  margin-left: auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  padding: 9px 22px;
+  border-radius: 10px;
 }
 
 /* Status bar */

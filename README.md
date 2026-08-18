@@ -276,3 +276,5 @@ bun install
 bun run index.ts
 # 浏览器打开 http://localhost:3000（端口以 index.ts 为准）
 ```
+
+首页（`/`）为欢迎页，点击「Start」按钮进入阅读页（`/index.html`）。
