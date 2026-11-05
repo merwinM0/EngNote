@@ -1,38 +1,46 @@
-import { el, setStatus, errorMessage } from "./util";
-import { content, translateBtn, wordsById, loadingNotes, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision } from "./state";
+import { setStatus, errorMessage } from "./util";
+import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions } from "./state";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
+import { openAISettings } from "./aiSettings";
+let activeRequest: AbortController | null = null;
 export const onTermClick = (id: number) => togglePick(id);
+export function cancelDefinitions(announce = true) {
+  const wasActive = isTranslateMode() || activeRequest !== null;
+  const request = activeRequest;
+  activeRequest = null;
+  request?.abort();
+  content.querySelectorAll(".defining").forEach(word => word.classList.remove("defining"));
+  setTranslateMode(false);
+  if (request) setBusy(false);
+  if (announce && wasActive) setStatus("Definitions canceled. Existing notes have been kept.");
+  return wasActive;
+}
 export function onTranslateClick() {
+  if (isTranslateMode()) { cancelDefinitions(); return; }
   if (isBusy()) return;
   if (!wordsById.size) return setStatus("Paste an English article first.", "error");
-  if (!isTranslateMode()) { setTranslateMode(true); return; }
-  void translateSelected();
+  setTranslateMode(true);
+  setStatus("");
 }
-
 export async function translateSelected() {
   if (isBusy()) return;
   const ids = collectPickedIds();
   if (!ids.length) return setStatus("Select a word or phrase first.", "error");
-  if (!getStoredApiKey()) return setStatus("Open AI tools and enter your DeepSeek API key first.", "error");
+  if (!getStoredApiKey()) { openAISettings(); return setStatus("Use AI setup to add your DeepSeek API key first.", "error"); }
+  const restoreFocus = document.activeElement?.id === "defineSelectedBtn";
+  const request = new AbortController();
+  activeRequest = request;
   const revision = getRevision();
   const groups = groupIds(ids);
-  const terms = groups.map(groupText);
+  const targets = groups.map(group => ({ term: groupText(group), word: wordsById.get(group.at(-1)!)! }));
   clearPicked();
-  for (const note of content.querySelectorAll(".note.error")) note.remove();
-  groups.forEach((group, index) => {
-    const word = wordsById.get(group.at(-1)!);
-    if (!word) return;
-    const note = el("span", "note loading", "Defining…");
-    word.el.after(note);
-    loadingNotes.set(index, note);
-  });
+  for (const target of targets) target.word.el.classList.add("defining");
   setBusy(true);
-  translateBtn.textContent = "Defining…";
-  setStatus(`Finding English definitions for ${groups.length} term(s)…`);
+  setStatus(`Finding English definitions for ${targets.length} term(s)…`);
   try {
     const raw = await callDeepSeek(
       'You are an English dictionary assistant. The user provides a JSON array of terms. Return ONLY a JSON array of objects {"term": string, "meaning": string}, one for each term with its exact spelling. Give a short English-only definition. Do not include Chinese, markup, or the characters 『 and 』.',
-      JSON.stringify(terms));
+      JSON.stringify(targets.map(target => target.term)), request.signal);
     const result: unknown = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? raw);
     if (!Array.isArray(result)) throw new Error("The dictionary response was invalid. Please try again.");
     const meanings = new Map<string, string>();
@@ -42,25 +50,24 @@ export async function translateSelected() {
         meanings.set(item.term.trim().toLowerCase(), item.meaning.trim().slice(0, 600));
       }
     }
-    if (getRevision() !== revision) return;
-    let count = 0;
-    groups.forEach((_, index) => {
-      const note = loadingNotes.get(index);
-      const meaning = meanings.get(terms[index]!.toLowerCase());
-      if (!note) return;
-      note.classList.remove("loading");
-      if (meaning) { note.textContent = meaning; count++; }
-      else { note.classList.add("error"); note.textContent = "No definition — select the word to retry"; }
-    });
-    setStatus(`${count}/${groups.length} definitions added.${count < groups.length ? " Select missing terms to retry." : ""}`, count ? "ok" : "error");
-  } catch (error) {
-    if (getRevision() === revision) {
-      loadingNotes.forEach(note => note.remove());
-      setStatus(errorMessage(error), "error");
+    if (activeRequest !== request || request.signal.aborted || getRevision() !== revision) return;
+    const definitions: Array<{ offset: number; meaning: string }> = [];
+    for (const target of targets) {
+      const meaning = meanings.get(target.term.toLowerCase());
+      if (meaning) definitions.push({ offset: target.word.end, meaning });
     }
+    addDefinitions(definitions);
+    setStatus(`${definitions.length}/${targets.length} definitions added. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
+  } catch (error) {
+    if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(errorMessage(error), "error");
   } finally {
-    loadingNotes.clear();
-    setBusy(false);
-    setTranslateMode(false);
+    // A canceled request must not unlock or reset a newer task.
+    if (activeRequest === request) {
+      activeRequest = null;
+      for (const target of targets) target.word.el.classList.remove("defining");
+      setBusy(false);
+      setTranslateMode(false);
+      if (restoreFocus && document.activeElement === document.body) content.focus({ preventScroll: true });
+    }
   }
 }

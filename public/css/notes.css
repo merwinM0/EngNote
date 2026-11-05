@@ -1,0 +1,18 @@
+/* The browser top layer supplies modality and background inertness. */
+html { scrollbar-gutter: stable; }
+html:has(.note-window[open]) { overflow: hidden; }
+.note-window { width: min(540px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 16px 8px 8px; border: 0; color: var(--text); background: transparent; overflow: auto; overscroll-behavior: contain; }
+.note-window::backdrop { background: var(--note-backdrop); }
+.note-window .note-panel { padding: 36px 28px 28px; box-shadow: var(--note-shadow); }
+.note-window h2 { padding-right: 28px; }
+.note-window h3 { margin: 0 0 16px; font: 400 24px/1.3 var(--serif); }
+.note-close { position: absolute; top: 12px; right: 12px; font-size: 22px; z-index: 1; }
+@media (max-width: 700px) {
+  .note-window { width: calc(100% - 16px); }
+  .note-window .note-panel { padding: 36px 20px 24px; }
+  .note-window h2 { font-size: 26px; }
+}
+@media (forced-colors: active) {
+  .note-window .note-panel { border-color: CanvasText; }
+  .note-window::backdrop { background: Canvas; opacity: .7; }
+}

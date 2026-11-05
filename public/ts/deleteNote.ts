@@ -7,6 +7,8 @@ import {
   setDeleteMode,
   clearDeleteSelection,
   setDeletePending,
+  removeDefinition,
+  content,
 } from "./state";
 
 /**
@@ -16,12 +18,8 @@ export function handleDeleteNote(note: HTMLElement) {
   // Second click on the same 『』 → delete
   if (isPending(note)) {
     clearDeleteSelection();
-    const previousWord = note.previousElementSibling;
-    note.remove();
-    if (previousWord instanceof HTMLElement) {
-      const reader = previousWord.closest<HTMLElement>(".content");
-      reader?.focus();
-    }
+    removeDefinition(note);
+    content.focus();
     setStatus("Definition removed.", "ok");
     return;
   }
@@ -38,4 +36,5 @@ function isPending(note: HTMLElement): boolean {
 
 export function toggleDeleteMode() {
   setDeleteMode(!isDeleteMode());
+  setStatus("");
 }

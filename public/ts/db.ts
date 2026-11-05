@@ -1,11 +1,11 @@
 import { api, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
 import { getCurrentText, render, isBusy, setBusy } from "./state";
 import { isLoggedIn } from "./auth";
+import { activePanel, openPanel, closePanel, confirmInPanel } from "./panels";
 
 type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string };
-const saveModal = document.getElementById("saveModal") as HTMLDialogElement;
+const savePanel = document.getElementById("savePanel")!;
 const saveTitle = document.getElementById("saveTitle") as HTMLInputElement;
-const deleteModal = document.getElementById("deleteConfirmModal") as HTMLDialogElement;
 const entryList = document.getElementById("entryList")!;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 let selected: Entry | null = null;
@@ -15,8 +15,8 @@ let listRequest = 0;
 let openRequest = 0;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
 const isDirty = () => getCurrentText() !== savedText;
-export function confirmReplace(): boolean {
-  return !isDirty() || window.confirm("This page has unsaved changes. Replace it with another article?");
+export async function confirmReplace(action = "Replace article", message = "This article has unsaved changes across its pages. Replace it without saving these changes to your collection?"): Promise<boolean> {
+  return !isDirty() || await confirmInPanel(message, action);
 }
 function updateSelection() {
   for (const li of entryList.querySelectorAll<HTMLElement>("li[data-id]")) {
@@ -25,14 +25,14 @@ function updateSelection() {
     const button = li.querySelector(".entry-open");
     if (active) button?.setAttribute("aria-current", "true"); else button?.removeAttribute("aria-current");
   }
-  document.getElementById("readerTitle")!.textContent = selected?.title ?? "A fresh page";
-  saveBtn.textContent = selected && canEdit(selected) ? "Save changes" : "Save page";
+  document.getElementById("readerTitle")!.textContent = selected?.title ?? "A fresh article";
+  saveBtn.textContent = selected && canEdit(selected) ? "Save changes" : "Save article";
 }
 export function deselectEntry() { openRequest++; selected = null; savedText = ""; updateSelection(); }
 function showError(id: string, message: string) { const element = document.getElementById(id)!; element.textContent = message; element.hidden = !message; }
 
 async function openEntry(entry: Entry) {
-  if (isBusy() || !confirmReplace()) return;
+  if (isBusy() || !(await confirmReplace()) || isBusy()) return;
   const request = ++openRequest;
   const startingText = getCurrentText();
   setStatus(`Opening “${entry.title}”…`);
@@ -40,6 +40,7 @@ async function openEntry(entry: Entry) {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
     if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
     render(data.entry.content);
+    openPanel("readPanel", false);
     selected = data.entry;
     savedText = getCurrentText();
     updateSelection();
@@ -56,19 +57,20 @@ export async function refreshList() {
     if (!data.entries.length) fragment.append(el("li", "entry-empty", "No pages yet. Save a story to begin the collection."));
     for (const entry of data.entries) {
       const li = el("li"); li.dataset.id = String(entry.id);
-      const open = el("button", "entry-open"); open.type = "button";
+      const open = el("button", "entry-open tape-button tape-clear"); open.type = "button";
       open.append(el("span", "entry-title", entry.title));
       const date = new Date(entry.created_at.replace(" ", "T") + "Z");
       open.append(el("span", "entry-date", Number.isNaN(date.getTime()) ? "Saved page" : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })));
       open.addEventListener("click", () => { void openEntry(entry); });
       li.append(open);
       if (canEdit(entry)) {
-        const remove = el("button", "entry-del", "×"); remove.type = "button"; remove.setAttribute("aria-label", `Delete ${entry.title}`);
+        const remove = el("button", "entry-del btn btn-danger tape-icon", "×"); remove.type = "button"; remove.setAttribute("aria-label", `Delete ${entry.title}`);
         remove.addEventListener("click", () => {
           if (isBusy()) return;
           pendingDelete = entry;
           showError("deleteMsg", "");
-          deleteModal.showModal();
+          document.getElementById("deleteDescription")!.textContent = `Delete “${entry.title}” and all its saved pages? The text in your notebook will be kept.`;
+          openPanel("deletePanel");
         });
         li.append(remove);
       }
@@ -98,12 +100,12 @@ async function save(title?: string) {
     });
     selected = overwrite ? entry : { id: data.id, title: title!, can_edit: true, created_at: "" };
     savedText = text;
-    saveModal.close();
+    closePanel("savePanel");
     updateSelection();
-    setStatus("Page saved, including your definitions.", "ok");
+    setStatus("All pages saved together, including your definitions.", "ok");
     void refreshList();
   } catch (error) {
-    if (saveModal.open) showError("saveMsg", errorMessage(error)); else setStatus(errorMessage(error), "error");
+    if (activePanel() === savePanel.id) showError("saveMsg", errorMessage(error)); else setStatus(errorMessage(error), "error");
   } finally { setBusy(false); confirmButton.disabled = false; }
 }
 export function initDb() {
@@ -114,7 +116,7 @@ export function initDb() {
     if (selected && canEdit(selected)) { void save(); return; }
     saveTitle.value = "";
     showError("saveMsg", "");
-    saveModal.showModal();
+    openPanel("savePanel");
   });
   document.getElementById("saveForm")!.addEventListener("submit", event => {
     event.preventDefault();
@@ -132,7 +134,7 @@ export function initDb() {
     try {
       await api(`/api/entries/${entry.id}`, { method: "DELETE" });
       if (selected?.id === entry.id) deselectEntry();
-      deleteModal.close();
+      closePanel("deletePanel");
       setStatus("Saved page deleted. Text in your notebook has been kept.", "ok");
       void refreshList();
     } catch (error) { showError("deleteMsg", errorMessage(error)); }
@@ -144,6 +146,10 @@ export function initDb() {
     updateSelection();
     void refreshList();
   });
-  window.addEventListener("beforeunload", event => { if (isDirty()) { event.preventDefault(); event.returnValue = ""; } });
-  for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href='/']")) link.addEventListener("click", event => { if (!confirmReplace()) event.preventDefault(); });
+  // Never trigger a native confirmation popup; drafts cover refresh and tab navigation.
+  for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href='/']")) link.addEventListener("click", async event => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (await confirmReplace("Go to home", "This article has unsaved changes. Leave the notebook? A working copy remains in this tab, but it is not saved to your collection.")) window.location.assign(link.href);
+  });
 }

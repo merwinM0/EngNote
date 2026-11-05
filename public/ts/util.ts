@@ -15,18 +15,6 @@ export function setStatus(msg: string, type: "info" | "ok" | "error" = "info") {
   bar.classList.toggle("ok", type === "ok");
 }
 
-export function initDialogs() {
-  for (const dialog of document.querySelectorAll("dialog")) {
-    dialog.addEventListener("click", event => {
-      if (event.target instanceof Element && event.target.closest("[data-close]")) dialog.close();
-      if (event.target === dialog) {
-        const rect = dialog.getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
-      }
-    });
-  }
-}
-
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong. Please try again.";
 }

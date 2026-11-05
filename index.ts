@@ -8,7 +8,7 @@ const port = /^\d+$/.test(rawPort) ? Number(rawPort) : NaN;
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be an integer between 1 and 65535.");
 const db = openDatabase();
 const server = createServer({ db, port });
-console.log(`English Reading · http://localhost:${server.port}`);
+console.log(`EngNote · http://localhost:${server.port}`);
 console.log(process.env.NODE_ENV === "production" ? "Production mode · source execution" : "Development mode · Bun frontend HMR enabled");
 if (server.hostname === "0.0.0.0") {
   for (const interfaces of Object.values(networkInterfaces())) {

@@ -19,6 +19,20 @@
   --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --sans: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
   --paper-shadow: 0 3px 0 #d8dfdb, 0 8px 20px #293e3b08;
+  --handwriting: "Segoe Print", "Bradley Hand", "Chalkboard SE", "Comic Sans MS", var(--serif);
+  /* Added translucent stationery colors; ink stays opaque for readability. */
+  --tape-sage: #a9c6b6a8;
+  --tape-mist: #adc3d3a3;
+  --tape-wheat: #dbc795a3;
+  --tape-lilac: #c6b9d2a3;
+  --tape-rose: #d9b0a7a3;
+  --tape-clear: #c4cfca8c;
+  --tape-danger-ink: #7f3532;
+  --sticky-paper: #f5f4e9;
+  /* Added translucent layers derived from the existing ink color. */
+  --note-backdrop: #293e3b52;
+  --note-shadow: 0 16px 48px #293e3b26;
+  --pencil: #788c87;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

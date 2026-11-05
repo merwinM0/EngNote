@@ -18,3 +18,8 @@ export function splitParagraph(text: string): Piece[] {
       : { type: "plain", text: part });
 }
 export const WORD_PATTERN = /[A-Za-z]+(?:['’\-][A-Za-z]+)*/g;
+
+/** Local import reflow: preserve punctuation/numbers/Unicode, join broken lines. */
+export function reflowText(text: string): string {
+  return parseParagraphs(text.replace(/\u0000/g, "")).join("\n\n");
+}

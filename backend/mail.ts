@@ -17,7 +17,7 @@ const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
 const SMTP_USER = process.env.SMTP_USER ?? process.env.SMTP_USERNAME ?? "";
 const SMTP_PASS = process.env.SMTP_PASS ?? process.env.SMTP_PASSWORD ?? "";
 const SMTP_FROM = process.env.SMTP_FROM ?? SMTP_USER;
-// Optional display name, e.g. SMTP_FROM_NAME="English Reading"
+// Optional display name, e.g. SMTP_FROM_NAME="EngNote"
 const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME ?? "";
 
 let transporter: nodemailer.Transporter | null = null;
@@ -66,7 +66,7 @@ export async function sendVerificationEmail(
     await tr.sendMail({
       from: SMTP_FROM_NAME ? { name: SMTP_FROM_NAME, address: SMTP_FROM } : SMTP_FROM,
       to,
-      subject: "Your English Reading verification code",
+      subject: "Your EngNote verification code",
       text: `Your verification code is: ${code}\nIt expires in 5 minutes.`,
       html: `<p>Your verification code is: <strong>${code}</strong></p><p>It expires in 5 minutes.</p>`,
     });

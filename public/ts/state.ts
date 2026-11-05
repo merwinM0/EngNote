@@ -1,17 +1,18 @@
 import { el } from "./util";
-import { parseParagraphs, splitParagraph, WORD_PATTERN } from "./text";
+import { splitParagraph, WORD_PATTERN } from "./text";
+import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
 
+export const documentModel = new ReadingDocument();
 export const content = document.getElementById("content") as HTMLDivElement;
-export const pasteBtn = document.getElementById("pasteBtn") as HTMLButtonElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
 export const translateBtn = document.getElementById("translateBtn") as HTMLButtonElement;
 export const deleteBtn = document.getElementById("deleteBtn") as HTMLButtonElement;
 export const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 export const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
 export const modeHint = document.getElementById("modeHint")!;
-export type WordInfo = { id: number; text: string; el: HTMLElement };
+const defineSelectedBtn = document.getElementById("defineSelectedBtn") as HTMLButtonElement;
+export type WordInfo = { id: number; text: string; el: HTMLElement; start: number; end: number };
 export const wordsById = new Map<number, WordInfo>();
-export const loadingNotes = new Map<number, HTMLElement>();
 const pickedIds = new Set<number>();
 let translateMode = false;
 let deleteMode = false;
@@ -22,60 +23,115 @@ export const isTranslateMode = () => translateMode;
 export const isDeleteMode = () => deleteMode;
 export const isBusy = () => busy;
 export const getRevision = () => revision;
+export const getCurrentText = () => documentModel.text;
+export const getPageText = () => documentModel.page.text;
 
+function updateNavigation() {
+  (document.getElementById("previousPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === 0;
+  (document.getElementById("nextPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === documentModel.pages.length - 1;
+  const select = document.getElementById("pageSelect") as HTMLSelectElement;
+  select.disabled = busy;
+  select.replaceChildren(...documentModel.pages.map((_, index) => {
+    const option = el("option", "", `${index + 1} / ${documentModel.pages.length}`);
+    option.value = String(index);
+    return option;
+  }));
+  select.value = String(documentModel.index);
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-page-step]")) {
+    button.disabled = busy || (Number(button.dataset.pageStep) < 0 ? documentModel.index === 0 : documentModel.index === documentModel.pages.length - 1);
+  }
+  document.querySelector("[data-page-position]")!.textContent = `${documentModel.index + 1} / ${documentModel.pages.length}`;
+  document.getElementById("pageSummary")!.textContent = `${documentModel.page.count.toLocaleString()} / ${PAGE_LIMIT.toLocaleString()} characters`;
+  document.getElementById("documentSummary")!.textContent = `${characterCount(documentModel.text).toLocaleString()} characters · ${documentModel.pages.length} page(s) in this article`;
+}
 export function setBusy(on: boolean) {
   busy = on;
-  for (const button of [pasteBtn, formatBtn, translateBtn, deleteBtn, saveBtn, clearBtn]) button.disabled = on;
+  for (const id of ["editorBtn", "wordBtn", "formatBtn", "deleteBtn", "saveBtn", "clearBtn", "editorText", "wordFile", "editorApplyBtn"]) {
+    const control = document.getElementById(id);
+    if (control instanceof HTMLButtonElement || control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) control.disabled = on;
+  }
   content.setAttribute("aria-busy", String(on));
+  updateNavigation();
+  updateDefinitionControls();
 }
 
-export function render(text: string) {
+function paint(changed = false) {
   revision++;
   clearPicked();
-  loadingNotes.clear();
   setTranslateMode(false);
   setDeleteMode(false);
-  const fragment = document.createDocumentFragment();
   wordsById.clear();
+  const fragment = document.createDocumentFragment();
+  const page = documentModel.page;
   let cursor = 0;
-  for (const para of parseParagraphs(text)) {
+  for (const match of page.text.matchAll(/[^\n]+(?:\n(?!\n)[^\n]+)*/g)) {
     const p = el("p");
-    for (const piece of splitParagraph(para)) {
-      if (piece.type === "note") { p.append(el("span", "note", piece.text)); continue; }
+    let offset = page.start + match.index;
+    for (const piece of splitParagraph(match[0])) {
+      if (piece.type === "note") {
+        const note = el("span", "note", piece.text);
+        note.dataset.start = String(offset);
+        note.dataset.end = String(offset + piece.text.length + 2);
+        p.append(note);
+        offset += piece.text.length + 2;
+        continue;
+      }
       let position = 0;
-      for (const match of piece.text.matchAll(WORD_PATTERN)) {
-        p.append(document.createTextNode(piece.text.slice(position, match.index)));
-        const word = el("span", "term", match[0]);
+      for (const wordMatch of piece.text.matchAll(WORD_PATTERN)) {
+        p.append(document.createTextNode(piece.text.slice(position, wordMatch.index)));
+        const word = el("span", "term", wordMatch[0]);
         const id = cursor++;
         word.dataset.wordId = String(id);
-        wordsById.set(id, { id, text: match[0], el: word });
+        const start = offset + wordMatch.index;
+        wordsById.set(id, { id, text: wordMatch[0], el: word, start, end: start + wordMatch[0].length });
         p.append(word);
-        position = match.index + match[0].length;
+        position = wordMatch.index + wordMatch[0].length;
       }
       p.append(document.createTextNode(piece.text.slice(position)));
+      offset += piece.text.length;
     }
     fragment.append(p);
   }
   content.replaceChildren(fragment);
-  document.getElementById("wordCount")!.textContent = `${cursor.toLocaleString()} ${cursor === 1 ? "word" : "words"}`;
+  document.getElementById("wordCount")!.textContent = `${cursor.toLocaleString()} words on this page`;
+  updateNavigation();
+  window.dispatchEvent(new Event("document-view-changed"));
+  if (changed) window.dispatchEvent(new Event("document-changed"));
 }
 
-export function getCurrentText(): string {
-  return Array.from(content.querySelectorAll("p"), p => Array.from(p.childNodes, node => {
-    if (node instanceof HTMLElement && node.classList.contains("note")) {
-      return node.matches(".loading, .error") ? "" : `『${node.textContent ?? ""}』`;
-    }
-    return node.textContent ?? "";
-  }).join("").trim()).filter(Boolean).join("\n\n");
+export function render(text: string, page: number | "last" = 0) { documentModel.setText(text, page); paint(true); }
+export function goToPage(index: number) {
+  if (busy) return;
+  documentModel.select(index);
+  paint();
+}
+export function editCurrentPage(value: string, cursor: number) {
+  const result = documentModel.editPage(value, cursor);
+  paint(true);
+  return result;
+}
+export function addDefinitions(definitions: Array<{ offset: number; meaning: string }>) {
+  if (!definitions.length) return;
+  const edits = definitions.map(item => ({ offset: item.offset, value: `『${item.meaning}』` })).sort((a, b) => b.offset - a.offset);
+  let text = documentModel.text;
+  for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset);
+  const anchor = Math.max(...edits.map(edit => edit.offset));
+  const focus = anchor + edits.reduce((total, edit) => total + edit.value.length, 0);
+  documentModel.setText(text);
+  documentModel.select(documentModel.locate(focus));
+  paint(true);
+}
+export function removeDefinition(note: HTMLElement) {
+  const start = Number(note.dataset.start), end = Number(note.dataset.end);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${note.textContent}』`) return;
+  documentModel.replaceRange(start, end, "", start);
+  paint(true);
 }
 
 export function clearPicked() {
-  for (const id of pickedIds) {
-    const word = wordsById.get(id)?.el;
-    word?.classList.remove("picked");
-    word?.setAttribute("aria-pressed", "false");
-  }
+  for (const id of pickedIds) { const word = wordsById.get(id)?.el; word?.classList.remove("picked"); word?.setAttribute("aria-pressed", "false"); }
   pickedIds.clear();
+  updateDefinitionControls();
 }
 export function togglePick(id: number) {
   if (busy || !translateMode) return;
@@ -84,38 +140,42 @@ export function togglePick(id: number) {
   if (pickedIds.has(id)) pickedIds.delete(id); else pickedIds.add(id);
   word.classList.toggle("picked", pickedIds.has(id));
   word.setAttribute("aria-pressed", String(pickedIds.has(id)));
+  updateDefinitionControls();
 }
 export const collectPickedIds = () => Array.from(pickedIds).sort((a, b) => a - b);
-
-/** Consecutive IDs alone are not enough: never cross paragraphs, punctuation or notes. */
 export function groupIds(ids: number[]): number[][] {
   const groups: number[][] = [];
   for (const id of ids) {
-    const last = groups.at(-1);
-    const prevId = last?.at(-1);
-    const prev = prevId === undefined ? undefined : wordsById.get(prevId)?.el;
-    const current = wordsById.get(id)?.el;
-    let adjacent = !!prev && !!current && prevId === id - 1 && prev.parentNode === current.parentNode;
-    if (adjacent && prev && current) {
-      for (let node = prev.nextSibling; node && node !== current; node = node.nextSibling) {
-        if (node.nodeType !== Node.TEXT_NODE || /\S/.test(node.textContent ?? "")) adjacent = false;
-      }
-    }
+    const last = groups.at(-1), previousId = last?.at(-1);
+    const prev = previousId === undefined ? undefined : wordsById.get(previousId);
+    const current = wordsById.get(id);
+    const adjacent = prev && current && previousId === id - 1 && prev.el.parentNode === current.el.parentNode
+      && !/\S/.test(documentModel.text.slice(prev.end, current.start));
     if (adjacent && last) last.push(id); else groups.push([id]);
   }
   return groups;
 }
 export const groupText = (group: number[]) => group.map(id => wordsById.get(id)?.text ?? "").join(" ");
 
+function updateDefinitionControls() {
+  defineSelectedBtn.hidden = !translateMode;
+  translateBtn.disabled = busy && !translateMode;
+  translateBtn.textContent = translateMode ? "✕ Cancel" : "✎ Add definitions";
+  translateBtn.setAttribute("aria-label", translateMode ? "Cancel definitions" : "Add definitions");
+  translateBtn.title = translateMode ? "Click again to cancel selection or stop the definition request" : "Select words to define";
+  defineSelectedBtn.textContent = `Define selected (${pickedIds.size})`;
+  defineSelectedBtn.disabled = busy || pickedIds.size === 0;
+}
 function updateModes() {
-  translateBtn.textContent = translateMode ? "Define selected words →" : "✎ Add definitions";
+  updateDefinitionControls();
+  document.getElementById("readBtn")!.setAttribute("aria-pressed", String(!translateMode && !deleteMode && !document.getElementById("readPanel")!.hidden));
   translateBtn.setAttribute("aria-pressed", String(translateMode));
   deleteBtn.classList.toggle("active-delete", deleteMode);
   deleteBtn.setAttribute("aria-pressed", String(deleteMode));
   content.classList.toggle("select-mode", translateMode);
   content.classList.toggle("delete-mode", deleteMode);
-  modeHint.textContent = translateMode ? "Select words with a click or Enter, then choose Define selected words. Esc exits."
-    : deleteMode ? "Select a note, then select it again to remove it. Esc exits." : "";
+  modeHint.textContent = translateMode ? "Select words, then choose Define selected. Click the definitions button again, Read, or Esc to cancel."
+    : deleteMode ? "Select a note, then select it again to remove it. Read or Esc exits." : "";
   for (const word of wordsById.values()) {
     if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }
     else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
@@ -127,8 +187,7 @@ function updateModes() {
 }
 export function setTranslateMode(on: boolean) {
   translateMode = on;
-  if (on) { deleteMode = false; clearDeleteSelection(); }
-  else clearPicked();
+  if (on) { deleteMode = false; clearDeleteSelection(); } else clearPicked();
   updateModes();
 }
 export function setDeleteMode(on: boolean) {

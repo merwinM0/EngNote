@@ -1,6 +1,8 @@
 import { api, jsonBody, setStatus, errorMessage } from "./util";
-const authModal = document.getElementById("authModal") as HTMLDialogElement;
-const authBtn = document.getElementById("authBtn") as HTMLButtonElement;
+import { closePanel } from "./panels";
+const authPanel = document.getElementById("authPanel") as HTMLDialogElement;
+const logoutBtn = document.getElementById("logoutBtn") as HTMLButtonElement;
+const accountButton = document.getElementById("authBtn") as HTMLButtonElement;
 const tabLogin = document.getElementById("tabLogin") as HTMLButtonElement;
 const tabRegister = document.getElementById("tabRegister") as HTMLButtonElement;
 const authEmail = document.getElementById("authEmail") as HTMLInputElement;
@@ -19,8 +21,12 @@ export const isLoggedIn = () => email !== null;
 export const getEmail = () => email;
 function applySession(value: string | null) {
   email = value;
-  authBtn.textContent = value ? "Logout" : "Login";
-  authBtn.title = value ?? "Sign in to save your pages";
+  document.getElementById("signedInAccount")!.hidden = !value;
+  document.getElementById("accountEmail")!.textContent = value ?? "";
+  (document.getElementById("authForm") as HTMLFormElement).hidden = !!value;
+  document.getElementById("authMethodTabs")!.hidden = !!value;
+  accountButton.textContent = value ? "Account" : "Login";
+  accountButton.title = value ? `Signed in as ${value}` : "Sign in to save your articles";
   window.dispatchEvent(new Event("session-changed"));
 }
 function flash(message: string, ok = false) {
@@ -50,7 +56,7 @@ function updateCooldown() {
   if (!remaining) clearInterval(cooldownTimer);
 }
 async function requestCode() {
-  if (!authEmail.reportValidity()) return;
+  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash("Enter a valid email address first."); authEmail.focus(); return; }
   sendCodeBtn.disabled = true;
   sendCodeBtn.textContent = "Sending…";
   try {
@@ -64,6 +70,9 @@ async function requestCode() {
 async function submit(event: SubmitEvent) {
   event.preventDefault();
   if (submitting) return;
+  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash("Enter a valid email address."); authEmail.focus(); return; }
+  if (authPassword.value.length < 6 || authPassword.value.length > 128) { flash("Use a password of 6–128 characters."); authPassword.focus(); return; }
+  if (mode === "register" && !/^\d{6}$/.test(authCode.value.trim())) { flash("Enter the 6-digit verification code."); authCode.focus(); return; }
   submitting = true;
   confirmAuthBtn.disabled = true;
   tabLogin.disabled = tabRegister.disabled = true;
@@ -73,7 +82,7 @@ async function submit(event: SubmitEvent) {
     const data = await api<{ email: string }>(`/api/auth/${currentMode}`, { method: "POST", ...jsonBody({ email: authEmail.value, password: authPassword.value, code: authCode.value }) });
     if (currentMode === "login") {
       applySession(data.email);
-      authModal.close();
+      closePanel("authPanel");
       setStatus(`Welcome back, ${data.email}.`, "ok");
     } else {
       submitting = false;
@@ -94,18 +103,22 @@ async function submit(event: SubmitEvent) {
 export function initAuth() {
   // Old bearer tokens are deliberately retired; sessions now use HttpOnly cookies.
   try { localStorage.removeItem("er_auth_token"); localStorage.removeItem("er_auth_email"); } catch { /* storage can be blocked */ }
-  authBtn.addEventListener("click", async () => {
-    if (!email) { setMode("login"); authModal.showModal(); return; }
-    authBtn.disabled = true;
-    try { await api("/api/auth/logout", { method: "POST" }); applySession(null); setStatus("You are logged out.", "ok"); }
-    catch (error) { setStatus(errorMessage(error), "error"); }
-    finally { authBtn.disabled = false; }
+  logoutBtn.addEventListener("click", async () => {
+    if (!email) return;
+    logoutBtn.disabled = true;
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+      applySession(null); setMode("login");
+      if (authPanel.open) authEmail.focus();
+      setStatus("You are logged out.", "ok");
+    } catch (error) { setStatus(errorMessage(error), "error"); }
+    finally { logoutBtn.disabled = false; }
   });
   tabLogin.addEventListener("click", () => setMode("login"));
   tabRegister.addEventListener("click", () => setMode("register"));
   sendCodeBtn.addEventListener("click", requestCode);
   document.getElementById("authForm")!.addEventListener("submit", event => { void submit(event as SubmitEvent); });
-  authModal.addEventListener("close", () => { authPassword.value = ""; authCode.value = ""; });
+  authPanel.addEventListener("panel-close", () => { authPassword.value = ""; authCode.value = ""; });
   for (const input of [authEmail, authPassword]) input.addEventListener("input", () => { authPwdError.hidden = true; });
   window.addEventListener("session-expired", () => { if (email) { applySession(null); setStatus("Your session has expired. Please log in again.", "error"); } });
   void api<{ email: string }>("/api/auth/me").then(data => applySession(data.email)).catch(() => applySession(null));

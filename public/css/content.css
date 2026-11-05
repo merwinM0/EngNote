@@ -14,7 +14,6 @@
 .content .note { color: var(--note-text); background: var(--note-bg); font: .8em/1.7 var(--sans); padding: 2px 3px; border-radius: 2px; }
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
-.content .note.loading { color: var(--muted); font-style: italic; }
-.content .note.error { color: var(--danger); background: var(--danger-bg); }
+.content .term.defining { text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }
 .content .note.delete-selected { color: var(--danger); background: var(--danger-bg); outline: 1px dashed var(--danger); }
 .paper-footer { border-top: 1px solid var(--border); margin: 0 28px 0 44px; padding: 12px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--muted); }

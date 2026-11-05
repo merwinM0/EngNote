@@ -3,86 +3,110 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your notebook · English Reading</title>
+  <meta name="application-name" content="EngNote" />
+  <title>EngNote</title>
   <link rel="stylesheet" href="./css/reader.css" />
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to notebook</a>
-  <header class="topbar">
-    <div class="topbar-row">
-      <a class="brand" href="/">
-        <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 7c5-1 9 0 13 3 4-3 8-4 13-3v22c-5-1-9 0-13 3-4-3-8-4-13-3zM18 10v22M9 13l5 1m-5 4 5 1m8-5 5-1m-5 6 5-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="brand-name">English Reading</span>
-      </a>
-      <div class="topbar-actions"><a class="home-link" href="/">Home</a><button id="authBtn" class="btn btn-primary" type="button">Login</button></div>
+  <header class="topbar"><div class="topbar-row">
+    <a class="brand" href="/" aria-label="EngNote home" title="Back to home">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 7c5-1 9 0 13 3 4-3 8-4 13-3v22c-5-1-9 0-13 3-4-3-8-4-13-3zM18 10v22M9 13l5 1m-5 4 5 1m8-5 5-1m-5 6 5-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-name">EngNote</span>
+    </a>
+    <div class="topbar-actions" role="group" aria-label="Settings and account">
+      <button id="aiSettingsBtn" class="btn tape-mist" type="button" data-open-panel="aiPanel" aria-haspopup="dialog" aria-controls="aiPanel" aria-expanded="false">AI setup</button>
+      <button id="authBtn" class="btn tape-wheat" type="button" data-open-panel="authPanel" aria-haspopup="dialog" aria-controls="authPanel" aria-expanded="false">Login</button>
     </div>
-  </header>
+  </div></header>
   <main id="main">
-    <div class="notebook-heading"><div><p class="eyebrow">Your reading journal</p><h1>Make room for a good story.</h1></div><span class="page-stamp">Read. Notice. Remember.</span></div>
-    <details class="api-settings">
-      <summary>AI tools <span class="hint">/ Set up your DeepSeek key</span></summary>
-      <div class="api-row">
-        <label for="apiKey">DeepSeek API key</label>
-        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-…" spellcheck="false" aria-describedby="keyHint" />
-        <button id="saveKeyBtn" class="btn" type="button">Keep for this tab</button>
-        <button id="forgetKeyBtn" class="btn btn-ghost" type="button">Forget key</button>
-        <span id="keyHint" class="hint">Sent only to DeepSeek. Kept in this tab, never in a cookie.</span>
-      </div>
-    </details>
+    <div class="notebook-heading"><div><p class="eyebrow">Your reading journal</p><h1>Make room for a good story.</h1></div><span class="page-stamp">One page. 3,000 characters.</span></div>
     <div class="toolbar" role="group" aria-label="Reading tools">
-      <button id="pasteBtn" class="btn" type="button">↳ Paste text</button>
-      <button id="formatBtn" class="btn" type="button">✦ Tidy paragraphs</button>
-      <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false">✎ Add definitions</button>
-      <button id="deleteBtn" class="btn" type="button" aria-pressed="false">Remove a note</button>
-      <button id="saveBtn" class="btn btn-primary" type="button">Save page</button>
-      <button id="clearBtn" class="btn btn-ghost" type="button">Clear</button>
-      <span id="modeHint" class="mode-hint" aria-live="polite"></span>
+      <div class="toolbar-row">
+        <button id="readBtn" class="btn tape-sage" type="button" data-open-panel="readPanel" aria-controls="readPanel" aria-pressed="true">Read</button>
+        <button id="editorBtn" class="btn tape-wheat" type="button" aria-controls="editorPanel" aria-expanded="false">Paste text</button>
+        <button id="wordBtn" class="btn tape-mist" type="button">Import Word</button>
+        <button id="formatBtn" class="btn tape-lilac" type="button">✦ Tidy this page</button>
+        <button id="defineSelectedBtn" class="btn btn-primary" type="button" disabled hidden>Define selected (0)</button>
+      </div>
+      <div class="toolbar-row">
+        <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false">✎ Add definitions</button>
+        <button id="deleteBtn" class="btn tape-rose" type="button" aria-pressed="false">Remove a note</button>
+        <button id="saveBtn" class="btn btn-primary" type="button">Save article</button>
+        <button id="clearBtn" class="btn btn-ghost" type="button">Clear</button>
+      </div>
     </div>
-    <div class="layout">
-      <section class="editor-card main-col" aria-labelledby="readerTitle">
-        <div class="card-head"><h2 id="readerTitle">A fresh page</h2><button id="fontSizeBtn" class="btn btn-ghost" type="button" title="Change reading font size">Aa · M</button></div>
-        <div id="content" class="content" tabindex="0" aria-label="Article text" data-placeholder="Your next story starts here. Use Paste text to bring an English article into your notebook."></div>
-        <div class="paper-footer"><span id="wordCount">0 words</span><span>English only, one page at a time.</span></div>
-      </section>
-      <aside class="sidebar" aria-labelledby="savedTitle">
-        <div class="sidebar-head"><div><p class="eyebrow">The collection</p><h2 id="savedTitle">Saved pages</h2></div><button id="refreshListBtn" class="btn btn-ghost" type="button" aria-label="Refresh saved pages">↻</button></div>
-        <p class="sidebar-hint">Public reading shelf. Only the author can change a page.</p>
-        <ul id="entryList" class="entry-list"><li class="entry-empty">Loading your reading shelf…</li></ul>
-      </aside>
-    </div>
+    <p id="modeHint" class="mode-hint" aria-live="polite"></p>
     <section id="statusBar" class="status-bar" role="status" aria-live="polite" hidden></section>
+    <div class="layout">
+      <div class="workspace main-col">
+        <div id="notebookTabs" class="notebook-tabs" role="tablist" aria-label="Article actions" hidden>
+          <button id="saveTab" class="btn tape-sage" type="button" role="tab" aria-selected="false" aria-controls="savePanel" tabindex="-1" hidden>Save</button>
+          <button id="deleteTab" class="btn tape-rose" type="button" role="tab" aria-selected="false" aria-controls="deletePanel" tabindex="-1" hidden>Delete</button>
+          <button id="confirmTab" class="btn tape-rose" type="button" role="tab" aria-selected="false" aria-controls="confirmPanel" tabindex="-1" hidden>Unsaved changes</button>
+        </div>
+        <nav class="page-navigation" aria-label="Article pagination">
+          <button id="previousPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Previous page">← Previous</button>
+          <label for="pageSelect">Page <select id="pageSelect" aria-label="Choose page"><option value="0">1 / 1</option></select></label>
+          <button id="nextPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Next page">Next →</button>
+          <span id="pageSummary" class="hint" aria-live="polite">0 / 3,000 characters</span>
+        </nav>
+        <section id="readPanel" class="editor-card" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
+          <div class="card-head"><h2 id="readerTitle">A fresh article</h2><button id="fontSizeBtn" class="btn btn-ghost tape-small" type="button" title="Change reading font size">Aa · M</button></div>
+          <div id="content" class="content" tabindex="0" aria-label="Current article page" data-placeholder="Your next story starts here. Choose Paste text, then use Ctrl / Cmd + V, or import a Word document."></div>
+          <div class="paper-footer"><span id="wordCount">0 words on this page</span><span id="documentSummary">0 characters in this article</span></div>
+          <nav class="page-bottom" aria-label="Continue reading"><button class="btn tape-clear tape-small" type="button" data-page-step="-1">← Previous page</button><span data-page-position class="hint">1 / 1</span><button class="btn tape-sage tape-small" type="button" data-page-step="1">Next page →</button></nav>
+        </section>
+        <section id="editorPanel" class="panel-sheet" role="region" aria-labelledby="editorTitle" data-panel-entry="editorBtn" hidden>
+          <p class="eyebrow">In your own words</p><h2 id="editorTitle">Text in. A few new pages.</h2>
+          <p id="editorDescription" class="panel-description">Paste with Ctrl / Cmd + V below. We never request clipboard access. Text is reflowed and split into pages of at most 3,000 characters.</p>
+          <form id="editorForm" novalidate>
+            <label id="editorLabel" for="editorText">English article</label><textarea id="editorText" rows="13" spellcheck="false" placeholder="Click here, then press Ctrl / Cmd + V…" data-panel-focus></textarea>
+            <p id="editorPreview" class="hint">Punctuation, spaces and line breaks all count.</p>
+            <p id="editorMsg" class="form-message" role="status" hidden></p><p id="draftHint" class="hint">A working draft is kept in this tab. Use Save article for permanent storage.</p>
+            <div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel>Back to reading</button><button id="editorApplyBtn" class="btn btn-primary" type="submit">Reflow &amp; start reading</button></div>
+          </form>
+          <div class="word-import"><label for="wordFile">Or import a Word document (.docx, up to 5 MB)</label><input id="wordFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /><p class="hint">Extracted on your device. Importing Word replaces the whole article after confirmation. Save old .doc files as .docx first.</p></div>
+        </section>
+        <section id="savePanel" class="panel-sheet" role="tabpanel" aria-labelledby="saveTab" data-transient hidden>
+          <form id="saveForm" novalidate><p class="eyebrow">Worth keeping</p><h2>Save the whole article.</h2><p class="panel-description">Every page and definition is saved together.</p><label for="saveTitle">English title · up to 20 characters</label><input id="saveTitle" type="text" maxlength="20" placeholder="A name for this story" spellcheck="false" data-panel-focus /><p id="saveMsg" class="form-message error" role="status" hidden></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel>Cancel</button><button id="confirmSaveBtn" class="btn btn-primary" type="submit">Save article</button></div></form>
+        </section>
+        <section id="deletePanel" class="panel-sheet" role="tabpanel" aria-labelledby="deleteTab" data-transient hidden>
+          <p class="eyebrow">The collection</p><h2>Let this article go?</h2><p id="deleteDescription" class="panel-description">All its saved pages will be deleted. The text in your notebook will be kept.</p><p id="deleteMsg" class="form-message error" role="status" hidden></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel data-panel-focus>Keep it</button><button id="confirmDeleteBtn" class="btn btn-danger" type="button">Delete article</button></div>
+        </section>
+        <section id="confirmPanel" class="panel-sheet" role="tabpanel" aria-labelledby="confirmTab" data-transient hidden>
+          <p class="eyebrow">Before you turn the page</p><h2>Keep your changes?</h2><p id="confirmMessage" class="panel-description"></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel data-panel-focus>Keep editing</button><button id="acceptChangeBtn" class="btn btn-danger" type="button">Continue</button></div>
+        </section>
+      </div>
+      <aside class="sidebar" aria-labelledby="savedTitle"><div class="sidebar-head"><div><p class="eyebrow">The collection</p><h2 id="savedTitle">Saved articles</h2></div><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div><p class="sidebar-hint">Public reading shelf. Only the author can change an article.</p><ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul></aside>
+    </div>
   </main>
-  <dialog id="pasteModal" class="modal" aria-labelledby="pasteTitle">
-    <form id="pasteForm">
-      <p class="eyebrow">A fresh page</p><h2 id="pasteTitle">Bring your own story.</h2>
-      <p class="modal-body">If clipboard access is unavailable, paste your English text here.</p>
-      <label for="pasteText">English article</label><textarea id="pasteText" rows="8" required maxlength="100000" placeholder="Paste your article here…"></textarea>
-      <div class="modal-actions"><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Start reading</button></div>
-    </form>
+  <dialog id="aiPanel" class="note-window" aria-labelledby="aiTitle" data-note-entry="aiSettingsBtn">
+    <div class="panel-sheet note-panel">
+      <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close AI setup" data-close-note>×</button>
+      <p class="eyebrow">A little help in the margins</p><h2 id="aiTitle">A note for your<br /><em>reading companion.</em></h2>
+      <p class="panel-description">Bring your own DeepSeek key for tidy paragraphs and little English definitions.</p>
+      <form id="aiForm" novalidate>
+        <label for="apiKey" class="key-label">Write your API key here <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" spellcheck="false" autocapitalize="off" aria-describedby="keyHint" data-panel-focus /></div>
+        <button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><p id="keyHint" class="hint">Just for this tab. Sent only to DeepSeek, never to our server.</p><p id="aiMessage" class="form-message" role="status" hidden></p>
+        <div class="panel-actions"><button id="forgetKeyBtn" class="btn tape-rose" type="button">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit">Keep for this tab</button></div>
+      </form><p class="ai-footnote">a small tool, a quieter page.</p>
+    </div>
   </dialog>
-  <dialog id="saveModal" class="modal" aria-labelledby="saveHeading">
-    <form id="saveForm">
-      <p class="eyebrow">Worth keeping</p><h2 id="saveHeading">Save this page.</h2>
-      <label for="saveTitle">English title · up to 20 characters</label><input id="saveTitle" type="text" required maxlength="20" placeholder="A name for this story" spellcheck="false" />
-      <p id="saveMsg" class="auth-msg error" role="alert" hidden></p>
-      <div class="modal-actions"><button id="cancelSaveBtn" class="btn" type="button" data-close>Cancel</button><button id="confirmSaveBtn" class="btn btn-primary" type="submit">Save page</button></div>
-    </form>
-  </dialog>
-  <dialog id="deleteConfirmModal" class="modal" aria-labelledby="deleteHeading">
-    <h2 id="deleteHeading">Let this page go?</h2><p class="modal-body">This deletes the saved article. It cannot be undone.</p>
-    <p id="deleteMsg" class="auth-msg error" role="alert" hidden></p>
-    <div class="modal-actions"><button id="cancelDeleteBtn" class="btn" type="button" data-close>Keep it</button><button id="confirmDeleteBtn" class="btn btn-danger" type="button">Delete page</button></div>
-  </dialog>
-  <dialog id="authModal" class="modal" aria-labelledby="authTitle">
-    <div class="auth-tabs" role="group" aria-label="Account action"><button id="tabLogin" class="auth-tab active" type="button" aria-pressed="true">Login</button><button id="tabRegister" class="auth-tab" type="button" aria-pressed="false">Register</button></div>
-    <form id="authForm">
-      <h2 id="authTitle">Welcome back.</h2>
-      <div class="modal-field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="254" placeholder="you@example.com" autocomplete="email" /></div>
-      <div class="modal-field" id="authCodeField" hidden><label for="authCode">Verification code</label><div class="code-row"><input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" /><button id="sendCodeBtn" class="btn btn-ghost" type="button">Send code</button></div></div>
-      <div class="modal-field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="128" placeholder="At least 6 characters" autocomplete="current-password" aria-describedby="authPwdError" /><div id="authPwdError" class="auth-pwd-error" role="alert" hidden></div></div>
-      <div id="authMsg" class="auth-msg" role="status" hidden></div>
-      <div class="modal-actions"><button id="cancelAuthBtn" class="btn" type="button" data-close>Cancel</button><button id="confirmAuthBtn" class="btn btn-primary" type="submit">Login</button></div>
-    </form>
+  <dialog id="authPanel" class="note-window" aria-labelledby="accountTitle" data-note-entry="authBtn">
+    <div class="panel-sheet note-panel">
+      <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close account" data-close-note>×</button>
+      <p class="eyebrow">Your reading collection</p><h2 id="accountTitle">A place for your stories.</h2>
+      <div id="signedInAccount" hidden><p>You're signed in.</p><p id="accountEmail" class="panel-description"></p><button id="logoutBtn" class="btn tape-rose" type="button" data-panel-focus>Logout</button></div>
+      <div id="authMethodTabs" class="auth-tabs" role="group" aria-label="Account action"><button id="tabLogin" class="auth-tab btn tape-mist active" type="button" aria-pressed="true">Login</button><button id="tabRegister" class="auth-tab btn tape-wheat" type="button" aria-pressed="false">Register</button></div>
+      <form id="authForm" novalidate>
+        <h3 id="authTitle">Welcome back.</h3>
+        <div class="modal-field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="254" placeholder="you@example.com" autocomplete="email" data-panel-focus /></div>
+        <div class="modal-field" id="authCodeField" hidden><label for="authCode">Verification code</label><div class="code-row"><input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" /><button id="sendCodeBtn" class="btn btn-ghost" type="button">Send code</button></div></div>
+        <div class="modal-field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="128" placeholder="At least 6 characters" autocomplete="current-password" aria-describedby="authPwdError" /><div id="authPwdError" class="form-message error" role="status" hidden></div></div>
+        <div id="authMsg" class="form-message" role="status" hidden></div><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-note>Back</button><button id="confirmAuthBtn" class="btn btn-primary" type="submit">Login</button></div>
+      </form>
+    </div>
   </dialog>
   <script type="module" src="./ts/main.ts"></script>
 </body>

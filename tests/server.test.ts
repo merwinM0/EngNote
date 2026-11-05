@@ -48,6 +48,16 @@ describe("source server", () => {
     const missing = await request("/api/missing");
     expect(missing.status).toBe(404); expect(missing.headers.get("content-type")).toContain("application/json");
   });
+  test("serves EngNote branding on both pages", async () => {
+    for (const path of ["/", "/index.html"]) {
+      const html = await (await request(path)).text();
+      expect(html).toContain("<title>EngNote</title>");
+      expect(html).toContain('name="application-name" content="EngNote"');
+      expect(html).toContain('<span class="brand-name">EngNote</span>');
+      expect(html).toContain('aria-label="EngNote home"');
+      expect(html).not.toMatch(/english[ _-]*reading/i);
+    }
+  });
   test("requires a real session for writes", async () => {
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
     expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);
@@ -63,6 +73,16 @@ describe("source server", () => {
     expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe("Updated.");
     expect((await request(`/api/entries/${id}`, "DELETE", undefined, alice)).status).toBe(200);
     expect((await request(`/api/entries/${id}`)).status).toBe(404);
+  });
+  test("saves and loads every page as one lossless article", async () => {
+    const content = "  " + "A fox『an animal』 in 2026!\n\n".repeat(300) + "\t ";
+    const saved = await request("/api/entries", "POST", { title: "Many pages", content }, alice);
+    expect(saved.status).toBe(201);
+    const id = (await saved.json()).id;
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe(content);
+    expect((await request(`/api/entries/${id}`, "PUT", { content: content + "\nLast page." }, alice)).status).toBe(200);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe(content + "\nLast page.");
+    expect((await request(`/api/entries/${id}`, "PUT", { content: "  \n " }, alice)).status).toBe(400);
   });
   test("historical articles stay readable but cannot be claimed or deleted", async () => {
     const info = db.query("INSERT INTO entries (title, content) VALUES ('Legacy', 'Keep me')").run();
@@ -102,7 +122,7 @@ describe("source server", () => {
 });
 
 test("migrates the old schema without losing articles", () => {
-  const dir = mkdtempSync(join(tmpdir(), "english-reading-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "engnote-test-"));
   const path = join(dir, "legacy.db");
   const old = new Database(path);
   old.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now'))); INSERT INTO entries (title, content) VALUES ('Old story', 'Original text.');");

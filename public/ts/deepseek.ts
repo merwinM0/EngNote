@@ -1,13 +1,15 @@
+import { getApiKey, openAISettings } from "./aiSettings";
+
 export const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-export const KEY_STORAGE = "er_deepseek_tab_key";
-export function getStoredApiKey(): string {
-  return (document.getElementById("apiKey") as HTMLInputElement).value.trim();
-}
-export async function callDeepSeek(system: string, userMessage: string): Promise<string> {
+export const getStoredApiKey = getApiKey;
+export async function callDeepSeek(system: string, userMessage: string, signal?: AbortSignal): Promise<string> {
   const key = getStoredApiKey();
-  if (!key) throw new Error("Open AI tools and enter your DeepSeek API key first.");
+  if (!key) {
+    openAISettings();
+    throw new Error("Use AI setup to add your DeepSeek API key first.");
+  }
   const res = await fetch(DEEPSEEK_URL, {
-    method: "POST", signal: AbortSignal.timeout(90000),
+    method: "POST", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000),
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: system }, { role: "user", content: userMessage }], temperature: 0.3, stream: false }),
   });

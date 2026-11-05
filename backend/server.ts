@@ -101,7 +101,8 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       const data = await body(req);
       const title = text(data.title, "Title", 20);
       if (/\p{Script=Han}/u.test(title)) throw new HttpError("Use an English title.", 400);
-      const content = text(data.content, "Content", 100000);
+      const content = text(data.content, "Content", 100000, false);
+      if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
       const result = db.query("INSERT INTO entries (title, content, owner_email) VALUES (?, ?, ?)").run(title, content, email);
       return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
     }
@@ -124,7 +125,8 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (req.method === "DELETE") db.query("DELETE FROM entries WHERE id = ? AND owner_email = ?").run(id, email);
       else {
         const data = await body(req);
-        const content = text(data.content, "Content", 100000);
+        const content = text(data.content, "Content", 100000, false);
+        if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
         db.query("UPDATE entries SET content = ? WHERE id = ? AND owner_email = ?").run(content, id, email);
       }
       return json({ ok: true, id });
