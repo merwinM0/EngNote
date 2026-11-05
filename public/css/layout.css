@@ -3,7 +3,7 @@ main { width: 100%; padding: 32px; margin: 0 0 40px; }
 .workspace { min-width: 0; }
 .status-bar { margin: 0 0 20px; }
 .main-col { flex: 1; min-width: 0; }
-.toolbar { display: grid; gap: 8px; margin-bottom: 16px; }
+.toolbar { display: grid; gap: 8px; max-width: 1040px; margin-bottom: 16px; }
 .toolbar-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .toolbar .btn { min-width: 0; padding-inline: 8px; overflow-wrap: anywhere; }
 .toolbar [aria-expanded="true"] { font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
