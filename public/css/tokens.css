@@ -33,6 +33,9 @@
   --note-backdrop: #293e3b52;
   --note-shadow: 0 16px 48px #293e3b26;
   --pencil: #788c87;
+  /* Added neutral whiteboard surface and a soft frame, not source palette swatches. */
+  --board-surface: #ffffff;
+  --board-frame: #d9e3de;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

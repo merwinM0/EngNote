@@ -1,26 +1,26 @@
 /** Native modal notes leave the current article/editor mounted and unchanged. */
-let current: HTMLDialogElement | null = null;
-let returnFocus: HTMLElement | null = null;
 type Cursor = { start: number; end: number; direction: "forward" | "backward" | "none"; top: number; left: number };
-let returnCursor: Cursor | null = null;
+type NoteFrame = { note: HTMLDialogElement; target: HTMLElement | null; cursor: Cursor | null };
+// A confirmation can sit above the collection without dismissing the whiteboard.
+const stack: NoteFrame[] = [];
 function rememberCursor(element: HTMLElement | null): Cursor | null {
   if (!(element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) || element.selectionStart === null || element.selectionEnd === null) return null;
   return { start: element.selectionStart, end: element.selectionEnd, direction: element.selectionDirection ?? "none", top: element.scrollTop, left: element.scrollLeft };
 }
-export const hasOpenNote = () => current?.open === true;
+export const hasOpenNote = () => stack.length > 0;
 
 function finish(note: HTMLDialogElement, restoreFocus = true) {
-  if (current !== note) return;
-  const target = returnFocus, cursor = returnCursor;
-  current = null;
-  returnFocus = null;
-  returnCursor = null;
-  document.getElementById(note.dataset.noteEntry!)?.setAttribute("aria-expanded", "false");
+  const index = stack.findIndex(frame => frame.note === note);
+  if (index < 0) return;
+  const wasTop = index === stack.length - 1;
+  const { target, cursor } = stack.splice(index, 1)[0]!;
+  document.getElementById(note.dataset.noteEntry ?? "")?.setAttribute("aria-expanded", "false");
   note.dispatchEvent(new Event("panel-close"));
-  if (!restoreFocus) return;
+  if (!restoreFocus || !wasTop) return;
   const enabled = target && !(target instanceof HTMLButtonElement && target.disabled);
-  const fallback = document.getElementById(note.dataset.noteEntry!) ?? document.getElementById("readBtn");
-  const destination = enabled && target.getClientRects().length ? target : fallback;
+  const fallback = stack.at(-1)?.note.querySelector<HTMLElement>("[data-panel-focus]")
+    ?? document.getElementById(note.dataset.noteEntry ?? "") ?? document.getElementById("readBtn");
+  const destination = enabled && target.isConnected && target.getClientRects().length ? target : fallback;
   destination?.focus({ preventScroll: true });
   // Native close() may collapse the editor's selection while restoring focus.
   if (destination === target && cursor && (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement)) {
@@ -30,22 +30,22 @@ function finish(note: HTMLDialogElement, restoreFocus = true) {
 }
 
 export function closeNote(id: string, restoreFocus = true) {
-  if (!current || current.id !== id) return;
-  const note = current;
-  note.close();
-  finish(note, restoreFocus);
+  const index = stack.findIndex(frame => frame.note.id === id);
+  if (index < 0) return;
+  while (stack.length > index) {
+    const note = stack.at(-1)!.note;
+    note.close();
+    finish(note, restoreFocus && note.id === id);
+  }
 }
 
 export function openNote(note: HTMLDialogElement) {
-  if (current === note && note.open) return;
-  const opener = current ? returnFocus : document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const cursor = current ? returnCursor : rememberCursor(opener);
-  if (current) closeNote(current.id, false);
-  current = note;
-  returnFocus = opener;
-  returnCursor = cursor;
+  if (note.open) return;
+  const target = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const cursor = rememberCursor(target);
   note.showModal();
-  document.getElementById(note.dataset.noteEntry!)?.setAttribute("aria-expanded", "true");
+  stack.push({ note, target, cursor });
+  document.getElementById(note.dataset.noteEntry ?? "")?.setAttribute("aria-expanded", "true");
   note.dispatchEvent(new Event("panel-open"));
   const field = Array.from(note.querySelectorAll<HTMLElement>("[data-panel-focus]")).find(element => !element.closest("[hidden]"));
   field?.focus({ preventScroll: true });

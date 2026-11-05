@@ -1,8 +1,8 @@
 main { width: 100%; padding: 32px; margin: 0 0 40px; }
-.layout { display: flex; align-items: flex-start; gap: 28px; }
+.layout { width: 100%; }
 .workspace { min-width: 0; }
 .status-bar { margin: 0 0 20px; }
-.main-col { flex: 1; min-width: 0; }
+.main-col { width: 100%; min-width: 0; }
 .toolbar { display: grid; gap: 8px; max-width: 1040px; margin-bottom: 16px; }
 .toolbar-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .toolbar .btn { min-width: 0; padding-inline: 8px; overflow-wrap: anywhere; }

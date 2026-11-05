@@ -1,16 +1,12 @@
-@media (max-width: 900px) {
-  .layout { gap: 20px; }
-  .sidebar { width: 220px; }
-}
 @media (max-width: 700px) {
   main { padding: 24px 16px; }
   .topbar-row { padding: 16px; }
   .brand-name { font-size: 18px; }
   .brand-mark { width: 28px; height: 28px; }
   .brand { gap: 8px; }
-  .layout { flex-direction: column; }
-  .main-col, .sidebar { width: 100%; }
-  .sidebar { max-height: 380px; }
+  .topbar-row { flex-wrap: wrap; }
+  .topbar-actions { flex-wrap: wrap; gap: 4px; }
+  .topbar-actions .btn { padding-inline: 12px; font-size: 13px; }
   .toolbar-row { gap: 4px; }
   .toolbar .btn { min-height: 52px; padding: 8px 4px; font-size: 12px; line-height: 1.4; }
   .card-head { margin: 0 16px 0 28px; }

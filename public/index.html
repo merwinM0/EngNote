@@ -14,7 +14,8 @@
       <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 7c5-1 9 0 13 3 4-3 8-4 13-3v22c-5-1-9 0-13 3-4-3-8-4-13-3zM18 10v22M9 13l5 1m-5 4 5 1m8-5 5-1m-5 6 5-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="brand-name">EngNote</span>
     </a>
-    <div class="topbar-actions" role="group" aria-label="Settings and account">
+    <div class="topbar-actions" role="group" aria-label="Collection, settings and account">
+      <button id="collectionBtn" class="btn tape-sage" type="button" data-open-panel="collectionPanel" aria-haspopup="dialog" aria-controls="collectionPanel" aria-expanded="false">Saved articles</button>
       <button id="aiSettingsBtn" class="btn tape-mist" type="button" data-open-panel="aiPanel" aria-haspopup="dialog" aria-controls="aiPanel" aria-expanded="false">AI setup</button>
       <button id="authBtn" class="btn tape-wheat" type="button" data-open-panel="authPanel" aria-haspopup="dialog" aria-controls="authPanel" aria-expanded="false">Login</button>
     </div>
@@ -32,7 +33,7 @@
       <div class="toolbar-row">
         <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false">✎ Add definitions</button>
         <button id="deleteBtn" class="btn tape-rose" type="button" aria-pressed="false">Remove a note</button>
-        <button id="saveBtn" class="btn btn-primary" type="button">Save article</button>
+        <button id="saveBtn" class="btn btn-primary" type="button" aria-haspopup="dialog" aria-controls="savePanel" aria-expanded="false">Save article</button>
         <button id="clearBtn" class="btn btn-ghost" type="button">Clear</button>
       </div>
     </div>
@@ -40,11 +41,6 @@
     <section id="statusBar" class="status-bar" role="status" aria-live="polite" hidden></section>
     <div class="layout">
       <div class="workspace main-col">
-        <div id="notebookTabs" class="notebook-tabs" role="tablist" aria-label="Article actions" hidden>
-          <button id="saveTab" class="btn tape-sage" type="button" role="tab" aria-selected="false" aria-controls="savePanel" tabindex="-1" hidden>Save</button>
-          <button id="deleteTab" class="btn tape-rose" type="button" role="tab" aria-selected="false" aria-controls="deletePanel" tabindex="-1" hidden>Delete</button>
-          <button id="confirmTab" class="btn tape-rose" type="button" role="tab" aria-selected="false" aria-controls="confirmPanel" tabindex="-1" hidden>Unsaved changes</button>
-        </div>
         <nav class="page-navigation" aria-label="Article pagination">
           <button id="previousPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Previous page">← Previous</button>
           <label for="pageSelect">Page <select id="pageSelect" aria-label="Choose page"><option value="0">1 / 1</option></select></label>
@@ -68,24 +64,49 @@
           </form>
           <div class="word-import"><label for="wordFile">Or import a Word document (.docx, up to 5 MB)</label><input id="wordFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /><p class="hint">Extracted on your device. Importing Word replaces the whole article after confirmation. Save old .doc files as .docx first.</p></div>
         </section>
-        <section id="savePanel" class="panel-sheet" role="tabpanel" aria-labelledby="saveTab" data-transient hidden>
-          <form id="saveForm" novalidate><p class="eyebrow">Worth keeping</p><h2>Save the whole article.</h2><p class="panel-description">Every page and definition is saved together.</p><label for="saveTitle">English title · up to 20 characters</label><input id="saveTitle" type="text" maxlength="20" placeholder="A name for this story" spellcheck="false" data-panel-focus /><p id="saveMsg" class="form-message error" role="status" hidden></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel>Cancel</button><button id="confirmSaveBtn" class="btn btn-primary" type="submit">Save article</button></div></form>
-        </section>
-        <section id="deletePanel" class="panel-sheet" role="tabpanel" aria-labelledby="deleteTab" data-transient hidden>
-          <p class="eyebrow">The collection</p><h2>Let this article go?</h2><p id="deleteDescription" class="panel-description">All its saved pages will be deleted. The text in your notebook will be kept.</p><p id="deleteMsg" class="form-message error" role="status" hidden></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel data-panel-focus>Keep it</button><button id="confirmDeleteBtn" class="btn btn-danger" type="button">Delete article</button></div>
-        </section>
-        <section id="confirmPanel" class="panel-sheet" role="tabpanel" aria-labelledby="confirmTab" data-transient hidden>
-          <p class="eyebrow">Before you turn the page</p><h2>Keep your changes?</h2><p id="confirmMessage" class="panel-description"></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-panel data-panel-focus>Keep editing</button><button id="acceptChangeBtn" class="btn btn-danger" type="button">Continue</button></div>
-        </section>
       </div>
-      <aside class="sidebar" aria-labelledby="savedTitle"><div class="sidebar-head"><div><p class="eyebrow">The collection</p><h2 id="savedTitle">Saved articles</h2></div><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div><p class="sidebar-hint">Public reading shelf. Only the author can change an article.</p><ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul></aside>
     </div>
   </main>
+  <dialog id="savePanel" class="note-window" aria-labelledby="saveHeading" data-note-entry="saveBtn">
+    <div class="panel-sheet note-panel">
+      <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close save article" data-close-note>×</button>
+      <form id="saveForm" novalidate>
+        <p class="eyebrow">Worth keeping</p><h2 id="saveHeading">Save the whole article.</h2>
+        <p id="saveDescription" class="panel-description">Leave the title blank and AI will sum up your article in a short English title.</p>
+        <label for="saveTitle">English title · up to 20 characters</label><input id="saveTitle" type="text" maxlength="20" placeholder="Your title, or let AI find one…" spellcheck="false" aria-describedby="saveDescription saveMsg" data-panel-focus />
+        <div id="titleProgress" class="title-progress" role="status" hidden><div class="title-tape-track" aria-hidden="true"><div class="title-tape-reveal"><span class="tape title-tape-strip"></span></div></div><p>Finding a title, one piece of tape at a time…</p></div>
+        <p id="saveMsg" class="form-message error" role="status" hidden></p>
+        <div class="panel-actions"><button class="btn tape-clear" type="button" data-close-note>Cancel</button><button id="confirmSaveBtn" class="btn btn-primary" type="submit">Save article</button></div>
+      </form>
+    </div>
+  </dialog>
+  <dialog id="collectionPanel" class="note-window collection-window" aria-labelledby="savedTitle" data-note-entry="collectionBtn">
+    <div class="panel-sheet collection-board">
+      <span class="tape board-tape-left" aria-hidden="true"></span><span class="tape board-tape-right" aria-hidden="true"></span>
+      <button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close saved articles" data-close-note data-panel-focus>×</button>
+      <div class="collection-head"><div><p class="eyebrow">The collection</p><h2 id="savedTitle">Saved articles</h2></div><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div>
+      <p class="collection-hint">A public reading shelf. Only the author can change an article.</p><p class="board-scribble" aria-hidden="true">little stories, worth another read ↴</p>
+      <p id="collectionMsg" class="form-message" role="status" hidden></p>
+      <ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul>
+      <div class="board-footer" aria-hidden="true"><span>keep a few good words.</span><svg class="board-doodle" viewBox="0 0 132 64" fill="none"><path d="M6 49c17 10 33 9 45 0M14 43c9 6 20 6 28 1m24 5 2-29c8-4 17-2 23 3 7-5 16-6 24-2l-1 29c-9-4-17-2-23 2-7-4-16-6-25-3Zm25-26v29m-17-22 10 2m-10 7 10 2m14-9 10-2m-10 9 10-2M46 8l2 6 7 1-6 4 1 7-5-5-7 3 3-7-5-4 8-1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </dialog>
+  <dialog id="deletePanel" class="note-window" aria-labelledby="deleteHeading">
+    <div class="panel-sheet note-panel"><span class="tape tape-rose" aria-hidden="true"></span>
+      <button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close delete article" data-close-note>×</button>
+      <p class="eyebrow">The collection</p><h2 id="deleteHeading">Let this article go?</h2><p id="deleteDescription" class="panel-description">All its saved pages will be deleted. The text in your notebook will be kept.</p><p id="deleteMsg" class="form-message error" role="status" hidden></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-note data-panel-focus>Keep it</button><button id="confirmDeleteBtn" class="btn btn-danger" type="button">Delete article</button></div>
+    </div>
+  </dialog>
+  <dialog id="confirmPanel" class="note-window" aria-labelledby="confirmHeading">
+    <div class="panel-sheet note-panel"><span class="tape" aria-hidden="true"></span>
+      <p class="eyebrow">Before you turn the page</p><h2 id="confirmHeading">Keep your changes?</h2><p id="confirmMessage" class="panel-description"></p><div class="panel-actions"><button class="btn tape-clear" type="button" data-close-note data-panel-focus>Keep editing</button><button id="acceptChangeBtn" class="btn btn-danger" type="button">Continue</button></div>
+    </div>
+  </dialog>
   <dialog id="aiPanel" class="note-window" aria-labelledby="aiTitle" data-note-entry="aiSettingsBtn">
     <div class="panel-sheet note-panel">
       <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close AI setup" data-close-note>×</button>
       <p class="eyebrow">A little help in the margins</p><h2 id="aiTitle">A note for your<br /><em>reading companion.</em></h2>
-      <p class="panel-description">Bring your own DeepSeek key for tidy paragraphs and little English definitions.</p>
+      <p class="panel-description">Bring your own DeepSeek key for tidy paragraphs, little English definitions and article titles.</p>
       <form id="aiForm" novalidate>
         <label for="apiKey" class="key-label">Write your API key here <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" spellcheck="false" autocapitalize="off" aria-describedby="keyHint" data-panel-focus /></div>
         <button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><p id="keyHint" class="hint">Just for this tab. Sent only to DeepSeek, never to our server.</p><p id="aiMessage" class="form-message" role="status" hidden></p>

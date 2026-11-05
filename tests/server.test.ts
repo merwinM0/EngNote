@@ -74,6 +74,20 @@ describe("source server", () => {
     expect(html).toContain('<h1 class="sr-only">Reading notebook</h1>');
     expect(html).toContain('aria-label="Reading tools"');
   });
+  test("reader keeps saved articles and saving in modal notes, outside the reading layout", async () => {
+    const html = await (await request("/index.html")).text();
+    const main = html.match(/<main\b[\s\S]*?<\/main>/)?.[0] ?? "";
+    const header = html.match(/<header\b[\s\S]*?<\/header>/)?.[0] ?? "";
+    expect(header).toContain('id="collectionBtn"');
+    expect(header).toContain('aria-controls="collectionPanel"');
+    expect(main).not.toContain('id="entryList"');
+    expect(main).not.toContain('id="saveTitle"');
+    expect(main).not.toContain('class="sidebar"');
+    for (const id of ["savePanel", "collectionPanel", "deletePanel", "confirmPanel"]) expect(html).toContain(`<dialog id="${id}"`);
+    expect(html).toContain("Leave the title blank and AI will sum up your article");
+    expect(html).not.toContain("Every page and definition is saved together.");
+    expect(html).toContain('id="titleProgress"');
+  });
   test("requires a real session for writes", async () => {
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
     expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);
