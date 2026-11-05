@@ -1,7 +1,6 @@
 @media (max-width: 900px) {
   .layout { gap: 20px; }
   .sidebar { width: 220px; }
-  .page-stamp { display: none; }
 }
 @media (max-width: 700px) {
   main { padding: 24px 16px; }
@@ -9,8 +8,6 @@
   .brand-name { font-size: 18px; }
   .brand-mark { width: 28px; height: 28px; }
   .brand { gap: 8px; }
-  .notebook-heading { margin-bottom: 20px; }
-  .notebook-heading h1 { font-size: 28px; }
   .layout { flex-direction: column; }
   .main-col, .sidebar { width: 100%; }
   .sidebar { max-height: 380px; }

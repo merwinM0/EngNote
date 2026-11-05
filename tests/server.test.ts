@@ -58,6 +58,22 @@ describe("source server", () => {
       expect(html).not.toMatch(/english[ _-]*reading/i);
     }
   });
+  test("home explains English immersion without a footer", async () => {
+    const html = await (await request("/")).text();
+    expect(html).toContain('<h1 class="hero-title">Use English <em>exclusively</em></h1>');
+    expect(html).toContain("Understand English through English.");
+    expect(html).toContain("without translating into another language.");
+    expect(html).not.toContain("Stay in English. Slow down");
+    expect(html).not.toMatch(/<footer\b/);
+    expect(html).not.toContain('class="page-note"');
+  });
+  test("reader starts with tools rather than a visible promotional heading", async () => {
+    const html = await (await request("/index.html")).text();
+    expect(html).not.toContain("Make room for a good story.");
+    expect(html).not.toContain('class="notebook-heading"');
+    expect(html).toContain('<h1 class="sr-only">Reading notebook</h1>');
+    expect(html).toContain('aria-label="Reading tools"');
+  });
   test("requires a real session for writes", async () => {
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
     expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);

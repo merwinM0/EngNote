@@ -31,6 +31,7 @@ bun dev
 - 文章仍是**公开阅读书架**，不是私密笔记；只有作者可更新/删除。旧表自动追加 `owner_email`，历史文章不猜测作者，保留公开只读，可另存为自己的副本。API 不公开作者邮箱。
 - 静态资源通过 HTML 入口与明确白名单提供，不再拼接任意文件路径；接口校验 JSON 类型、长度、方法与请求来源。
 - 首页三张胶带便签，阅读页为笔记纸；`public/css/tokens.css` 统一水灰中性色，`public/css/tape.css` 提供不同颜色、半透明撕边的胶带按钮。按钮装饰与焦点轮廓分离，键盘和触摸操作不受剪裁影响。
+- 首页与阅读页的顶栏、主区域均使用全宽布局，仅保留响应式边距；首页标题为 “Use English exclusively”，以英文释义和上下文理解英文，不再保留首页页尾；阅读页移除宣传大标题，直接显示工具栏与文章。
 - 顶栏保留 Logo、AI setup 和 Login / Account；设置与账户只有这一处入口，密钥输入区保留 SVG 铅笔横线与手写风排版。
 - 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时执行释义按钮加入第一行，仍保持两行。
 - 取消重复的 Add text / Edit page 标签和两枚独立工具按钮，只保留一个正文入口：无正文时显示 Paste text，有正文时显示 Edit page，共用一个文本编辑区。
