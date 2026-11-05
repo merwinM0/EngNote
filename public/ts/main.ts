@@ -1,135 +1,81 @@
-/**
- * main.ts - Assembly entry point: binds global events and initialises
- */
-import { setStatus, sanitizeEnglish, readCookie, writeCookie } from "./util";
-import {
-  content,
-  pasteBtn,
-  clearBtn,
-  translateBtn,
-  setTranslateMode,
-  setDeleteMode,
-  isTranslateMode,
-  isDeleteMode,
-  render,
-} from "./state";
-import { COOKIE_KEY } from "./deepseek";
+import { setStatus, sanitizeEnglish, initDialogs } from "./util";
+import { content, pasteBtn, clearBtn, translateBtn, setTranslateMode, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, setBusy, render } from "./state";
+import { KEY_STORAGE } from "./deepseek";
 import { onFormat } from "./format";
 import { onTranslateClick, onTermClick } from "./translate";
 import { handleDeleteNote, toggleDeleteMode } from "./deleteNote";
-import { refreshList, initDb, deselectEntry } from "./db";
+import { refreshList, initDb, deselectEntry, confirmReplace } from "./db";
 import { initAuth } from "./auth";
 
-const apiKeyInput = document.getElementById("apiKey") as HTMLInputElement;
-const saveKeyBtn = document.getElementById("saveKeyBtn") as HTMLButtonElement;
+const apiKey = document.getElementById("apiKey") as HTMLInputElement;
 const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
-
-// Font size cycling: starts at M, then L, then S
-const FONT_PRESETS = ["Large", "Medium", "Small"] as const;
-let fontSizeIndex = 1; // start at Medium
-const FONT_SIZES: Record<string, string> = { Large: "23px", Medium: "20px", Small: "17px" };
-
-function setFontSize(label: string) {
-  content.style.fontSize = FONT_SIZES[label] ?? "20px";
-  fontSizeBtn.textContent = "Aa · " + label.charAt(0);
-}
-
+const pasteModal = document.getElementById("pasteModal") as HTMLDialogElement;
+const pasteText = document.getElementById("pasteText") as HTMLTextAreaElement;
+const fonts = [{ label: "M", size: "20px" }, { label: "L", size: "23px" }, { label: "S", size: "17px" }];
+let fontIndex = 0;
 fontSizeBtn.addEventListener("click", () => {
-  fontSizeIndex = (fontSizeIndex + 1) % FONT_PRESETS.length;
-  setFontSize(FONT_PRESETS[fontSizeIndex] ?? "Medium");
+  fontIndex = (fontIndex + 1) % fonts.length;
+  const font = fonts[fontIndex]!;
+  content.style.fontSize = font.size;
+  fontSizeBtn.textContent = `Aa · ${font.label}`;
+  fontSizeBtn.setAttribute("aria-label", `Reading size ${font.label}. Click for next size.`);
 });
-
-// ---------------- Paste ----------------
-// Single click pastes directly (no confirmation modal). Pasting is treated as
-// "new content": it deselects any selected saved article to avoid overwriting it.
+function importText(text: string) {
+  if (text.length > 100000) return setStatus("Please use an article shorter than 100,000 characters.", "error");
+  const { clean, hadBad } = sanitizeEnglish(text);
+  if (!/[A-Za-z]/.test(clean)) return setStatus("No English text found. Paste an English article to begin.", "error");
+  render(clean);
+  deselectEntry();
+  pasteModal.close();
+  setStatus(hadBad ? "Article added. Unsupported characters were removed; numbers and punctuation were kept." : "A fresh page is ready. Save will create a new article.", "ok");
+}
 pasteBtn.addEventListener("click", async () => {
+  if (isBusy() || !confirmReplace()) return;
+  setBusy(true);
   try {
     const text = await navigator.clipboard.readText();
-    const { clean } = sanitizeEnglish(text);
-    if (!clean) {
-      setStatus("Clipboard is empty or contains no English", "error");
-      return;
-    }
-    render(clean);
-    deselectEntry(); // new content: deselect any selected saved article
-    setStatus("✅ Pasted from clipboard and divided into paragraphs (new content; Save will create a new article)", "ok");
-    setTimeout(() => setStatus(""), 2500);
-  } catch {
-    setStatus("Cannot read clipboard — check browser permission and retry", "error");
-  }
+    if (text.trim()) importText(text);
+    else { pasteText.value = ""; pasteModal.showModal(); }
+  } catch { pasteText.value = ""; pasteModal.showModal(); }
+  finally { setBusy(false); }
 });
-
-// ---------------- Clear ----------------
+document.getElementById("pasteForm")!.addEventListener("submit", event => { event.preventDefault(); if (!isBusy()) importText(pasteText.value); });
 clearBtn.addEventListener("click", () => {
-  content.textContent = "";
-  setDeleteMode(false);
-  setTranslateMode(false);
-  deselectEntry(); // after clearing, it's new-content state
-  setStatus("Cleared (Save will create a new article instead of overwriting)", "ok");
-  setTimeout(() => setStatus(""), 2000);
+  if (isBusy() || !confirmReplace()) return;
+  render(""); deselectEntry(); setStatus("A fresh page. Your saved collection has not been changed.", "ok");
+});
+function activateTerm(target: EventTarget | null) {
+  if (isBusy() || !(target instanceof Element)) return;
+  const term = target.closest<HTMLElement>(".term, .note");
+  if (!term) return;
+  if (isDeleteMode() && term.classList.contains("note")) { handleDeleteNote(term); return; }
+  if (isTranslateMode() && term.classList.contains("term")) onTermClick(Number(term.dataset.wordId));
+}
+content.addEventListener("click", event => activateTerm(event.target));
+content.addEventListener("keydown", event => {
+  if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.matches(".term, .note")) { event.preventDefault(); activateTerm(event.target); }
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !isBusy()) { setTranslateMode(false); setDeleteMode(false); }
 });
 
-// ---------------- Content click dispatch ----------------
-content.addEventListener("click", (ev) => {
-  const target = (ev.target as HTMLElement)?.closest<HTMLElement>(
-    ".term, .note"
-  );
-  if (!target) return;
-
-  // Delete-translation mode: handle 『』 notes
-  if (isDeleteMode() && target.classList.contains("note")) {
-    ev.preventDefault();
-    // Only allow removing finished translations (skip loading / error markers)
-    if (!target.classList.contains("loading") && !target.classList.contains("error")) {
-      handleDeleteNote(target as HTMLElement);
-    }
-    return;
-  }
-
-  // Select mode: select a word
-  if (isTranslateMode() && target.classList.contains("term")) {
-    ev.preventDefault();
-    const id = Number(target.dataset.wordId);
-    if (!Number.isNaN(id)) onTermClick(id);
-  }
+// Migrate the old cookie to tab-scoped storage, then remove it. It must not be sent to our server.
+try {
+  const oldKey = document.cookie.split("; ").find(cookie => cookie.startsWith("deepseek_api_key="));
+  apiKey.value = sessionStorage.getItem(KEY_STORAGE) ?? (oldKey ? decodeURIComponent(oldKey.slice("deepseek_api_key=".length)) : "");
+  if (oldKey) { sessionStorage.setItem(KEY_STORAGE, apiKey.value); document.cookie = "deepseek_api_key=; path=/; max-age=0; SameSite=Lax"; }
+} catch { /* Optional storage; the key input still works. */ }
+document.getElementById("saveKeyBtn")!.addEventListener("click", () => {
+  if (!apiKey.value.trim()) return setStatus("Enter a DeepSeek key first.", "error");
+  try { sessionStorage.setItem(KEY_STORAGE, apiKey.value.trim()); setStatus("Key kept for this tab. It is sent only to DeepSeek.", "ok"); }
+  catch { setStatus("Tab storage is unavailable. You can still use the key until this page is refreshed.", "error"); }
 });
-
-// ---------------- API Key cookie ----------------
-apiKeyInput.addEventListener("input", () => {
-  if (apiKeyInput.value !== readCookie(COOKIE_KEY)) {
-    (document.getElementById("modeHint") as HTMLElement).textContent =
-      "API Key changed — click 'Save Key' to store it in the cookie";
-  }
+document.getElementById("forgetKeyBtn")!.addEventListener("click", () => {
+  apiKey.value = "";
+  try { sessionStorage.removeItem(KEY_STORAGE); } catch { /* optional */ }
+  setStatus("Key forgotten.", "ok");
 });
-
-saveKeyBtn.addEventListener("click", () => {
-  const key = apiKeyInput.value.trim();
-  if (!key) {
-    setStatus("Please enter an API Key before saving", "error");
-    return;
-  }
-  writeCookie(COOKIE_KEY, key);
-  setStatus("✅ API Key saved to browser cookie", "ok");
-  (document.getElementById("modeHint") as HTMLElement).textContent = "";
-  setTimeout(() => setStatus(""), 2500);
-});
-
-// ---------------- Feature buttons ----------------
 document.getElementById("formatBtn")!.addEventListener("click", onFormat);
 translateBtn.addEventListener("click", onTranslateClick);
-document.getElementById("deleteBtn")!.addEventListener("click", toggleDeleteMode);
-
-// ---------------- Initialisation ----------------
-function init() {
-  const savedKey = readCookie(COOKIE_KEY) ?? "";
-  if (savedKey) {
-    apiKeyInput.value = savedKey;
-    setStatus("Loaded API Key from cookie", "ok");
-    setTimeout(() => setStatus(""), 2500);
-  }
-  initDb();
-  initAuth();
-  refreshList();
-  setFontSize("Medium");
-}
-init();
+document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) toggleDeleteMode(); });
+initDialogs(); initDb(); initAuth(); void refreshList();

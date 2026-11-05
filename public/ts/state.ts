@@ -1,9 +1,6 @@
-/**
- * state.ts - Global element refs, shared state, rendering & mode management
- */
-import { el, setStatus } from "./util";
+import { el } from "./util";
+import { parseParagraphs, splitParagraph, WORD_PATTERN } from "./text";
 
-// ---------------- Element refs ----------------
 export const content = document.getElementById("content") as HTMLDivElement;
 export const pasteBtn = document.getElementById("pasteBtn") as HTMLButtonElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
@@ -11,216 +8,134 @@ export const translateBtn = document.getElementById("translateBtn") as HTMLButto
 export const deleteBtn = document.getElementById("deleteBtn") as HTMLButtonElement;
 export const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 export const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
-export const modeHint = document.getElementById("modeHint") as HTMLSpanElement;
-
-// ---------------- State ----------------
+export const modeHint = document.getElementById("modeHint")!;
 export type WordInfo = { id: number; text: string; el: HTMLElement };
 export const wordsById = new Map<number, WordInfo>();
 export const loadingNotes = new Map<number, HTMLElement>();
 const pickedIds = new Set<number>();
 let translateMode = false;
 let deleteMode = false;
+let busy = false;
+let revision = 0;
 let deletePending: HTMLElement | null = null;
+export const isTranslateMode = () => translateMode;
+export const isDeleteMode = () => deleteMode;
+export const isBusy = () => busy;
+export const getRevision = () => revision;
 
-export function isTranslateMode() {
-  return translateMode;
-}
-export function isDeleteMode() {
-  return deleteMode;
-}
-
-// ---------------- Text parsing: split into paragraphs by blank lines ----------------
-export function parseParagraphs(text: string): string[] {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => p.replace(/\s*\n\s*/g, " ").trim())
-    .filter((p) => p.length > 0);
+export function setBusy(on: boolean) {
+  busy = on;
+  for (const button of [pasteBtn, formatBtn, translateBtn, deleteBtn, saveBtn, clearBtn]) button.disabled = on;
+  content.setAttribute("aria-busy", String(on));
 }
 
-// Split a paragraph into "plain text" and "『』 translation" pieces
-function splitParagraph(para: string): Array<{ type: "plain" | "note"; text: string }> {
-  const pieces: Array<{ type: "plain" | "note"; text: string }> = [];
-  const re = /『([^』]*)』/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(para))) {
-    if (m.index > last) pieces.push({ type: "plain", text: para.slice(last, m.index) });
-    pieces.push({ type: "note", text: m[1]! });
-    last = m.index + m[0].length;
-  }
-  if (last < para.length) pieces.push({ type: "plain", text: para.slice(last) });
-  return pieces.filter((p) => p.text.length > 0);
-}
-
-// ---------------- Rendering ----------------
 export function render(text: string) {
+  revision++;
+  clearPicked();
+  loadingNotes.clear();
+  setTranslateMode(false);
+  setDeleteMode(false);
+  const fragment = document.createDocumentFragment();
   wordsById.clear();
-  // Exit delete mode when rebuilding (avoid dangling pending reference)
-  if (deleteMode) {
-    deleteMode = false;
-    deleteBtn.classList.remove("active-delete");
-  }
-  deletePending = null;
-  content.textContent = "";
-
-  const paragraphs = parseParagraphs(text);
   let cursor = 0;
-
-  for (const para of paragraphs) {
+  for (const para of parseParagraphs(text)) {
     const p = el("p");
-
     for (const piece of splitParagraph(para)) {
-      if (piece.type === "note") {
-        // 『…』 translation → rebuild as .note (CSS adds the 『 』 border & font style)
-        const note = el("span", "note", piece.text);
-        note.dataset.deletable = "1";
-        p.appendChild(note);
-        continue;
-      }
-      // Plain text: split into words and whitespace
-      const tokens = piece.text.match(/[A-Za-z'’\-–—]+|[^\s]/g) ?? [];
-      let pos = 0;
-      for (const tok of tokens) {
-        if (pos < piece.text.length) {
-          const ws = piece.text.slice(pos, piece.text.length).match(/^\s+/)?.[0] ?? "";
-          if (ws) {
-            p.appendChild(document.createTextNode(ws));
-            pos += ws.length;
-          }
-        }
-        const span = el("span", "term", tok);
+      if (piece.type === "note") { p.append(el("span", "note", piece.text)); continue; }
+      let position = 0;
+      for (const match of piece.text.matchAll(WORD_PATTERN)) {
+        p.append(document.createTextNode(piece.text.slice(position, match.index)));
+        const word = el("span", "term", match[0]);
         const id = cursor++;
-        span.dataset.wordId = String(id);
-        span.title = "Click to select";
-        wordsById.set(id, { id, text: tok, el: span });
-        p.appendChild(span);
-        pos += tok.length;
+        word.dataset.wordId = String(id);
+        wordsById.set(id, { id, text: match[0], el: word });
+        p.append(word);
+        position = match.index + match[0].length;
       }
+      p.append(document.createTextNode(piece.text.slice(position)));
     }
-
-    content.appendChild(p);
+    fragment.append(p);
   }
-
-  setStatus("Rendered into paragraphs", "ok");
-  setTimeout(() => setStatus(""), 2500);
+  content.replaceChildren(fragment);
+  document.getElementById("wordCount")!.textContent = `${cursor.toLocaleString()} ${cursor === 1 ? "word" : "words"}`;
 }
 
-// ---------------- Current full text (with 『』 translation markers) --------------
 export function getCurrentText(): string {
-  const paras = Array.from(content.querySelectorAll("p"));
-  return paras
-    .map((p) => {
-      let out = "";
-      for (const node of p.childNodes) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          out += node.textContent ?? "";
-        } else {
-          const h = node as HTMLElement;
-          if (h.classList?.contains("note")) {
-            // Wrap translations in 『』 so re-render can rebuild them as .note
-            out += "『" + (h.textContent ?? "") + "』";
-          } else {
-            out += h.textContent ?? "";
-          }
-        }
-      }
-      return out.replace(/\s+/g, " ").trim();
-    })
-    .filter(Boolean)
-    .join("\n\n");
+  return Array.from(content.querySelectorAll("p"), p => Array.from(p.childNodes, node => {
+    if (node instanceof HTMLElement && node.classList.contains("note")) {
+      return node.matches(".loading, .error") ? "" : `『${node.textContent ?? ""}』`;
+    }
+    return node.textContent ?? "";
+  }).join("").trim()).filter(Boolean).join("\n\n");
 }
 
-// ---------------- Clear all selected highlights ----------------
 export function clearPicked() {
-  pickedIds.forEach((id) => {
-    const info = wordsById.get(id);
-    info?.el.classList.remove("picked");
-  });
+  for (const id of pickedIds) {
+    const word = wordsById.get(id)?.el;
+    word?.classList.remove("picked");
+    word?.setAttribute("aria-pressed", "false");
+  }
   pickedIds.clear();
 }
-
-// ---------------- Toggle a single word's selection ----------------
 export function togglePick(id: number) {
-  const info = wordsById.get(id);
-  if (!info) return;
-  if (pickedIds.has(id)) {
-    pickedIds.delete(id);
-    info.el.classList.remove("picked");
-  } else {
-    pickedIds.add(id);
-    info.el.classList.add("picked");
-  }
+  if (busy || !translateMode) return;
+  const word = wordsById.get(id)?.el;
+  if (!word) return;
+  if (pickedIds.has(id)) pickedIds.delete(id); else pickedIds.add(id);
+  word.classList.toggle("picked", pickedIds.has(id));
+  word.setAttribute("aria-pressed", String(pickedIds.has(id)));
 }
+export const collectPickedIds = () => Array.from(pickedIds).sort((a, b) => a - b);
 
-export function selectPick(id: number) {
-  const info = wordsById.get(id);
-  if (!info) return;
-  pickedIds.add(id);
-  info.el.classList.add("picked");
-}
-
-export function collectPickedIds(): number[] {
-  return Array.from(pickedIds).sort((a, b) => a - b);
-}
-
-// ---------------- Merge adjacent word ids into a phrase ----------------
+/** Consecutive IDs alone are not enough: never cross paragraphs, punctuation or notes. */
 export function groupIds(ids: number[]): number[][] {
   const groups: number[][] = [];
   for (const id of ids) {
-    const last = groups[groups.length - 1];
-    if (last && id === last[last.length - 1]! + 1) {
-      last.push(id);
-    } else {
-      groups.push([id]);
+    const last = groups.at(-1);
+    const prevId = last?.at(-1);
+    const prev = prevId === undefined ? undefined : wordsById.get(prevId)?.el;
+    const current = wordsById.get(id)?.el;
+    let adjacent = !!prev && !!current && prevId === id - 1 && prev.parentNode === current.parentNode;
+    if (adjacent && prev && current) {
+      for (let node = prev.nextSibling; node && node !== current; node = node.nextSibling) {
+        if (node.nodeType !== Node.TEXT_NODE || /\S/.test(node.textContent ?? "")) adjacent = false;
+      }
     }
+    if (adjacent && last) last.push(id); else groups.push([id]);
   }
   return groups;
 }
+export const groupText = (group: number[]) => group.map(id => wordsById.get(id)?.text ?? "").join(" ");
 
-export function groupText(group: number[]): string {
-  return group
-    .map((id) => wordsById.get(id)?.text ?? "")
-    .filter(Boolean)
-    .join(" ");
+function updateModes() {
+  translateBtn.textContent = translateMode ? "Define selected words →" : "✎ Add definitions";
+  translateBtn.setAttribute("aria-pressed", String(translateMode));
+  deleteBtn.classList.toggle("active-delete", deleteMode);
+  deleteBtn.setAttribute("aria-pressed", String(deleteMode));
+  content.classList.toggle("select-mode", translateMode);
+  content.classList.toggle("delete-mode", deleteMode);
+  modeHint.textContent = translateMode ? "Select words with a click or Enter, then choose Define selected words. Esc exits."
+    : deleteMode ? "Select a note, then select it again to remove it. Esc exits." : "";
+  for (const word of wordsById.values()) {
+    if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }
+    else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
+  }
+  for (const note of content.querySelectorAll<HTMLElement>(".note")) {
+    if (deleteMode) { note.tabIndex = 0; note.setAttribute("role", "button"); }
+    else { note.removeAttribute("tabindex"); note.removeAttribute("role"); }
+  }
 }
-
-// ---------------- Mode management (mutually exclusive) ----------------
 export function setTranslateMode(on: boolean) {
   translateMode = on;
-  translateBtn.textContent = on ? "➜ Translate Selected" : "✎ Translate";
-  modeHint.textContent = on
-    ? "Mode: click words to select (click again to deselect), then hit 'Translate Selected'"
-    : "";
-  // Exit delete mode when entering translate
-  if (on && deleteMode) setDeleteMode(false);
-  // Clear selected highlights when exiting select mode
-  if (!on && pickedIds.size) clearPicked();
+  if (on) { deleteMode = false; clearDeleteSelection(); }
+  else clearPicked();
+  updateModes();
 }
-
 export function setDeleteMode(on: boolean) {
   deleteMode = on;
-  deletePending = null;
-  deleteBtn.classList.toggle("active-delete", on);
-  // Clear any existing selected state
-  content
-    .querySelectorAll(".note.delete-selected")
-    .forEach((n) => n.classList.remove("delete-selected"));
-  // Mark all translations as clickable for deletion
-  content.querySelectorAll<HTMLElement>(".note").forEach((n) => {
-    n.dataset.deletable = on ? "1" : "0";
-  });
-  if (on && translateMode) setTranslateMode(false);
-  modeHint.textContent = on
-    ? "Delete mode: click a 『』 note to select it, click it again to remove the translation"
-    : "";
-  if (!on) setStatus("");
+  clearDeleteSelection();
+  if (on) { translateMode = false; clearPicked(); }
+  updateModes();
 }
-
-export function clearDeleteSelection() {
-  if (deletePending) deletePending.classList.remove("delete-selected");
-  deletePending = null;
-}
-
-export function setDeletePending(note: HTMLElement) {
-  deletePending = note;
-}
+export function clearDeleteSelection() { deletePending?.classList.remove("delete-selected"); deletePending = null; }
+export function setDeletePending(note: HTMLElement) { deletePending = note; }

@@ -3,48 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>English Reading</title>
-  <link rel="stylesheet" href="/css/home.css" />
-  <link rel="stylesheet" href="/css/responsive.css" />
+  <meta name="description" content="A quiet place to read English, collect new words, and keep the stories you love." />
+  <title>English Reading · A little reading, every day</title>
+  <link rel="stylesheet" href="./css/home.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="home-wrap">
     <header class="nav">
-      <div class="brand">English Reading</div>
-      <a class="nav-link" href="/index.html">Open Reader</a>
+      <a class="brand" href="/" aria-label="English Reading home">
+        <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 7c5-1 9 0 13 3 4-3 8-4 13-3v22c-5-1-9 0-13 3-4-3-8-4-13-3zM18 10v22M9 13l5 1m-5 4 5 1m8-5 5-1m-5 6 5-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="brand-name">English Reading</span>
+      </a>
+      <a class="nav-link" href="/index.html">Open your notebook <span aria-hidden="true">↗</span></a>
     </header>
-
-    <main class="hero">
-      <h1 class="hero-title">Read English Smarter</h1>
-      <p class="hero-sub">
-        Paste any English text, format it into clean paragraphs, look up words
-        with instant English definitions, and keep your favorite articles saved.
-      </p>
-
-      <div class="features">
-        <div class="feature">
-          <div class="feature-ico">📋</div>
-          <h3>Paste &amp; Format</h3>
-          <p>One-click paste from the clipboard, then AI formats it into properly laid-out paragraphs.</p>
+    <main id="main" class="hero">
+      <div class="hero-intro">
+        <div class="hero-copy">
+          <p class="eyebrow">A small habit. A world of words.</p>
+          <h1 class="hero-title">A little reading,<br /><em>every day.</em></h1>
+          <p class="hero-sub">Stay in English. Slow down with a good paragraph, make sense of a new word, and keep a page for later.</p>
+          <a class="start-btn" href="/index.html">Start a new page <span aria-hidden="true">→</span></a>
+          <p class="start-hint">Read without an account · Sign in to save your pages</p>
         </div>
-        <div class="feature">
-          <div class="feature-ico">✎</div>
-          <h3>Word Lookup</h3>
-          <p>Click a word to translate it. Get concise English-only definitions inline with one tap.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-ico">💾</div>
-          <h3>Save &amp; Revisit</h3>
-          <p>Save translated articles to the database and reopen them anytime from the sidebar.</p>
-        </div>
+        <figure class="hero-art">
+          <img src="./icons/reading-sketch.svg" alt="" width="360" height="240" />
+          <figcaption>one page at a time</figcaption>
+        </figure>
       </div>
-
-      <a class="start-btn" href="/index.html">🚀 Start</a>
-      <p class="start-hint">No sign-up needed. Runs entirely in your browser.</p>
+      <section class="notebook-section" aria-labelledby="notes-title">
+        <div class="section-label"><h2 id="notes-title">Inside your notebook</h2><span>three little things to help you read</span></div>
+        <div class="features">
+          <article class="feature feature-paste">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="note-top"><span class="note-number">01 / A fresh page</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M12 7h17l3 5v23H9V7h3m3-3h11v7H15zM15 19h11m-11 6h11m-11 5h7"/></svg></div>
+            <h3>Bring a story.</h3>
+            <p>Paste an English article. Let AI tidy the paragraphs, then settle into a calmer reading space.</p>
+            <span class="handwritten">less clutter, more reading</span>
+          </article>
+          <article class="feature feature-words">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="note-top"><span class="note-number">02 / In the margins</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="m10 29 17-21 6 5-17 21-8 2 2-7m14-17 6 5M6 9h11M6 15h7M6 21h3m17 12h9"/></svg></div>
+            <h3>Meet a new word.</h3>
+            <p>Select a word or a phrase. Add a short English definition right beside it, without losing your place.</p>
+            <span class="handwritten">a note, not a distraction</span>
+          </article>
+          <article class="feature feature-save">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="note-top"><span class="note-number">03 / Worth keeping</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5h21v31l-10-7-11 7zM16 12h9m-9 6h9"/></svg></div>
+            <h3>Keep the good pages.</h3>
+            <p>Sign in to save your article and its notes. Find it in your reading collection whenever you return.</p>
+            <span class="handwritten">something to come back to</span>
+          </article>
+        </div>
+      </section>
+      <p class="page-note"><span aria-hidden="true">✧</span> A quiet space for English-only reading. AI features use your own DeepSeek key.</p>
     </main>
-
     <footer class="foot">
-      <span>English Reading · Powered by DeepSeek AI</span>
+      <span>English Reading <span aria-hidden="true">/</span> Your everyday reading journal</span>
+      <div class="beian-bar">
+        <img class="beian-icon" src="./icons/official" alt="" width="16" height="16" />
+        <a href="https://beian.mps.gov.cn/#/query/webSearch?code=11011402055180" rel="noreferrer" target="_blank" class="beian-link" lang="zh-CN">京公网安备11011402055180号</a>
+      </div>
     </footer>
   </div>
 </body>

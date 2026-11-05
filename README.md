@@ -2,6 +2,34 @@
 
 一个基于 **HTML + TypeScript + CSS** 的英文阅读网页应用。用户点击「粘贴」按钮从剪贴板读取英文文本，页面按正确段落展示；支持调用 DeepSeek API 进行「AI 整理」排版与「AI 翻译」单词注释；可将内容**保存到 SQLite 数据库**并在右侧边栏读取；支持**邮箱注册/登录**（带验证码）。
 
+## 快速启动（源码脚本模式）
+
+```bash
+bun install --frozen-lockfile
+cp .env.example .env   # 已有 .env 请保留，不要覆盖
+bun dev
+```
+
+打开 `http://localhost:3000`。已验证 Bun **1.3.14**。无需编译可执行文件，也不再依赖 `public/dist/app.js`：Bun 原生 HTML 入口负责前端 TS / CSS 打包与开发热更新，服务端修改由 `--watch` 重启。
+
+- `bun start`：生产模式直接运行源码（关闭 HMR），仍需保留源码、依赖与静态资源；生产认证需要 Redis、SMTP。
+- `bun run typecheck`：分别检查前后端类型；`bun test`：运行文本规则、接口与数据库迁移测试。
+- `bun run build`：可选，仅导出前端到 `dist/` 用于检查，不是可单独部署的完整应用；SQLite / 登录仍需 Bun 后端。
+- 默认绑定 `127.0.0.1`。局域网访问设 `HOST=0.0.0.0`；手机非 HTTPS 环境的剪贴板不可用时可使用粘贴窗口。
+- 原 `Engreading` / `index.js.map` 不再使用，也不会自动删除；现有 `.env` 与 `data.db` 保留。
+
+### 代码逻辑与本次调整
+
+`index.ts` 管理启动和退出 → `backend/server.ts` 初始化 SQLite、挂载两页 HTML、校验 API → `backend/auth.ts` / `redis.ts` / `mail.ts` 处理登录、验证码和会话。前端 `main.ts` 装配事件，`state.ts` 管理段落与选词，`db.ts` 管理保存/列表，`format.ts` 与 `translate.ts` 调用 DeepSeek。
+
+- 修复全局正则反复校验不稳定、粘贴丢失数字、标点也被选中、跨段落合并短语等问题。
+- AI 期间锁定冲突操作，使用页面版本及请求序号防止过期结果覆盖新内容；加载/失败标记不写入文章。先排版后注释，避免 AI 排版移动已有释义。
+- 保存/删除有等待与错误反馈，失败保留标题和正文；切换/离开时提醒未保存内容；弹窗使用原生 `dialog`，支持键盘与焦点管理。
+- 会话改为 HttpOnly / SameSite Cookie，不再在 localStorage 保存 Token；API Key 从 Cookie 迁移为当前标签页的 sessionStorage，并可随时清除。
+- 文章仍是**公开阅读书架**，不是私密笔记；只有作者可更新/删除。旧表自动追加 `owner_email`，历史文章不猜测作者，保留公开只读，可另存为自己的副本。API 不公开作者邮箱。
+- 静态资源通过 HTML 入口与明确白名单提供，不再拼接任意文件路径；接口校验 JSON 类型、长度、方法与请求来源。
+- 首页三张胶带便签，阅读页为笔记纸；`public/css/tokens.css` 统一水灰中性色和克制青色强调，`public/icons/reading-sketch.svg` 为本地线稿。无外部字体或 UI 框架。
+
 ---
 
 ## 技术栈
@@ -9,7 +37,7 @@
 | 层 | 技术 |
 | --- | --- |
 | 前端 | HTML5 + TypeScript + CSS |
-| 构建/运行 | Bun（`bun run index.ts` 启动本地服务） |
+| 构建/运行 | Bun（`bun dev` 启动源码与开发热更新） |
 | AI 能力 | DeepSeek API（OpenAI 兼容接口） |
 | 存储 | SQLite（Bun 内置 `bun:sqlite`，本地 `data.db`） |
 | 密码哈希 | **慢哈希**：`argon2id`（内存/时间硬度高），经 Bun `Bun.password` 加密 |
@@ -33,14 +61,14 @@
 
 ### 2. 只读展示（无独立文本编辑区）
 - 页面不设独立的文本编辑区/富文本，**移除「修改」功能**（与单击选词冲突），避免双编辑源导致一致性问题。
-- 获取新文本统一通过「粘贴」按钮完成。
+- 获取新文本统一通过「粘贴」按钮完成；剪贴板不可用时打开临时粘贴窗口，提交后仍回到只读阅读区。
 
 ### 3. 保存到数据库（SQLite）
 - 点击「**保存**」按钮：
-  - **若已选中一篇保存的文章**（右侧边栏有高亮项，例如从边栏加载后）→ **直接覆盖更新**该文章，**不再弹出窗口**（保留原标题，只更新内容）。
+  - **若已选中本人保存的文章** → **直接覆盖更新**，**不再弹窗**（保留原标题，只更新内容）；他人的文章及无作者的历史文章保存为自己的新副本。
   - **若未选中**（例如刚粘贴/清空的新内容）→ 弹出保存窗口，输入**标题**新建一篇；新建成功后自动成为选中项。
 - 说明：**粘贴或清空会重置为“新内容”状态**，从而保存时新建，不会误覆盖先前选中的文章。
-- 标题**不允许输入中文**（自动剔除中文字符并提示），且**长度限制 20 个字符**（超出自动截断）。
+- 标题**不允许输入中文**，且**长度限制 20 个字符**；前后端均校验，无效时提示修正，不静默保存错误标题。
 - 保存内容：**若已翻译，则保存带 `『』` 译文的内容**（即当前展示区的完整文本，含释义标记）；未翻译则保存原文。
 - 数据写入 **SQLite**（`data.db`），浏览器刷新后仍保留。
 
@@ -50,7 +78,7 @@
   1. 修正错误断行、多余空行；
   2. 统一段落分隔（段落之间一个空行）；
   3. 修正英文标点（`, . ? ! ' "` 等）前后的空格错误；
-  4. 首字母大小写与句首大写规范化（保留专有名词）；
+  4. 保留原文中的事实、数字与单词，不主动改写内容；
   5. 返回纯文本，不包含任何解释性内容。
 - 返回结果替换当前文本并重新按段落渲染。
 
@@ -70,9 +98,9 @@
 1. 点击「AI 翻译」按钮 → 进入**选词模式**，直接在页面单击选词。
 2. 用户在文本中**单击单词**选中并高亮背景色（再单击取消，可多选相邻或不相邻的单词/短语）。
 3. 选词完成后，**再次点击「AI 翻译」按钮**（此时按钮语义变为「开始翻译」）触发翻译，选中高亮随即清除并插入翻译标记。
-4. 翻译进行中，在每个被选中片段的原文后方立即追加 `『Translating...』`，`...` 为**动态加载动画**（`Translating.` → `Translating..` → `Translating...` 循环闪烁，示意 AI 正在处理）。
-5. API 返回释义后，`『Translating...』` 替换为对应的 `『纯英文释义』`。
-6. 若单个片段翻译失败，保留 `『Translating...』` 并标记错误状态提示用户。
+4. 释义请求期间在选中片段后追加 `『Defining…』`；锁定冲突操作，避免异步结果覆盖其他文章。
+5. API 返回后替换为对应的 `『纯英文释义』`。
+6. 个别词未返回释义时显示可重试提示；整个请求失败时移除加载标记。加载与错误标记不会写入数据库。
 
 ### 5. 删除翻译（删除按钮）
 - 点击「**删除翻译**」按钮进入删除模式（按钮变红）。
@@ -92,7 +120,7 @@
 - API 地址：`https://api.deepseek.com/chat/completions`（OpenAI 兼容）。
 - 模型：`deepseek-chat`。
 - 请求头：`Authorization: Bearer <API_KEY>`。
-- API Key 通过前端配置面板输入，**保存在浏览器 cookie 中**（`document.cookie`），下次访问自动读取填充，无需重复输入。
+- API Key 在「AI tools」中输入，可选择**保留到当前标签页**（`sessionStorage`），刷新后可恢复，关闭标签页后清除。不使用 Cookie，不随本地 API 请求传输；可点击「Forget key」立即清除。
 - API Key 仅存在浏览器端，**不上传**到我们的服务器/数据库。
 - 请求失败（超时、鉴权失败）时页面给出明确错误提示。
 
@@ -101,21 +129,21 @@
 - **注册**需邮箱 + 验证码 + 密码（≥6 位）：
   - 点击「Send Code」→ 后端生成 6 位验证码，存 **Redis**（TTL 5 分钟），并通过 **SMTP**（`.env` 配置）发送到邮箱。
   - 验证码正确且邮箱未注册才算注册成功。
-- **登录**：邮箱 + 密码 → 校验通过后签发会话 Token（存 Redis，7 天有效），前端存 `localStorage`。
+- **登录**：邮箱 + 密码 → 校验通过后签发会话（Redis，7 天有效），通过 HttpOnly / SameSite Cookie 传递，前端启动时向 `/api/auth/me` 校验。
 - 登录界面**无需验证码**（验证码只在注册时要求）。
 - 登录后顶栏按钮变为「Logout」，点击退出登录。
 - **未登录用户**可使用粘贴、AI 整理、翻译等功能，但**不能保存/覆盖/删除文章**（前端阻止并提示「Please log in to save」，后端接口也会校验登录态返回 401）。
 - 密码使用**慢哈希算法（Argon2id）**加密后存 SQLite，绝不存明文。
-- 会话 Token 存 `localStorage`，保存/覆盖/删除时通过 `Authorization: Bearer <token>` 访问受保护接口。
+- 会话 Cookie 由浏览器自动携带，前端不可读取 Token；写请求校验同源，文章写操作校验作者。
 
 ---
 
-## 页面布局（暂不追求样式）
+## 页面结构（示意）
 
 ```
 ┌──────────────────────────────────────────┬──────────────┐
 │  标题栏：English Reading                  │              │
-│  [API Key 输入框]  [保存 Key(cookie)]    │              │
+│  [AI tools: API Key / 当前标签页保存]   │              │
 ├──────────────────────────────────────────┤              │
 │ [粘贴] [AI 整理] [AI 翻译]               │  右侧边栏      │
 │ [删除翻译] [保存] [清空]                 │  已保存列表     │
@@ -181,9 +209,9 @@ type SelectionGroup = {
 ### 选词分组算法
 1. 用户**单击**单词 → 加入选中集（高亮背景，再次单击取消）。
 2. 按单词 id（文档顺序）排序 → 得到有序选中列表 `pickedIds`。
-3. id 相邻（差值为 1，即相邻单词）合并为「连续词组」→ 一个 `『』`。
+3. id 相邻、在同一段落且中间只有空白时，合并为一个词组；不跨标点、注释或段落合并。
 4. 不相邻的单词各自成组 → 各自一个 `『』`。
-5. 确定分组后，**先将每个分组原文后方都标为 `『Translating...』`**（含动态 `...` 动画）。
+5. 确定分组后，先在每个分组后标为 `『Defining…』`。
 6. 将分组发送 DeepSeek，一次请求返回每组的纯英文释义数组（`[{word, meaning}]`）。
 7. 按分组位置以 `『meaning』` **替换**原 `『Translating...』`，更新段落渲染。
 
@@ -235,7 +263,7 @@ type SelectionGroup = {
 ```
 
 - `content` 保存当前展示区文本；**若已翻译，则保存带 `『』` 释义的内容**。
-- 建表语句：`entries(id, title, content, created_at)`，存储于 `data.db`。
+- 文章表：`entries(id, title, content, created_at, owner_email)`，存储于 `data.db`；旧表无损迁移，历史记录作者为空且只读。
 
 ### 认证 API
 
@@ -243,13 +271,13 @@ type SelectionGroup = {
 | --- | --- | --- |
 | POST | `/api/auth/send-code` | 生成验证码存 Redis 并发送到邮箱，`{ email }` |
 | POST | `/api/auth/register` | 邮箱注册，`{ email, password, code }` |
-| POST | `/api/auth/login` | 登录，`{ email, password }` → `{ token }` |
-| POST | `/api/auth/logout` | 注销，`{ token }` |
-| GET | `/api/auth/me` | 校验会话，需 `Authorization: Bearer <token>` |
+| POST | `/api/auth/login` | 登录，`{ email, password }` → HttpOnly 会话 Cookie |
+| POST | `/api/auth/logout` | 注销当前 Cookie 会话 |
+| GET | `/api/auth/me` | 校验当前 Cookie 会话 |
 
 - 密码存入 SQLite 时经 **Argon2id 慢哈希**（`Bun.password`）。
 - 验证码与会话 Token 存 **Redis**（`auth:code:<email>` / `auth:token:<token>`）；Redis 不可用时降级为内存（仅开发）。
-- 文章**写操作**（`POST /api/entries`、`PUT`、`DELETE`）需登录：携带 `Authorization: Bearer <token>`，未登录返回 `401`；`GET` 列表/读取公开。
+- 文章**写操作**需有效会话；未登录 `401`，修改非本人文章 `403`；`GET` 列表/读取公开，仅返回 `can_edit` 权限标记，不泄露作者邮箱。
 
 ### 环境变量（`.env`，已 gitignore，可复制 `.env.example`）
 
@@ -272,12 +300,13 @@ PORT=3000
 
 ---
 
-## 目录结构（规划）
+## 目录结构（主要文件）
 
 ```
 english_reading/
-├── index.ts              # Bun 静态服务器 + SQLite API + 认证路由
-├── backend/              # 后端模块（auth / redis / mail）
+├── index.ts              # 源码服务入口（启动 / 退出）
+├── seed.ts               # 创建三个测试账号（test1/2/3，密码 123456）
+├── backend/              # server.ts 路由与迁移 + auth / redis / mail
 │   ├── auth.ts           # 注册/登录/会话（Argon2id 慢哈希 + Redis 验证码）
 │   ├── redis.ts          # Redis 客户端封装（验证码/会话；不可用时内存降级）
 │   └── mail.ts           # Nodemailer 发信（读 .env SMTP 配置）
@@ -286,9 +315,9 @@ english_reading/
 ├── data.db               # SQLite 数据库（自动创建）
 ├── public/               # 前端静态资源
 │   ├── index.html        # 页面结构
-│   ├── dist/app.js       # 构建产物（自动生成，已 gitignore）
+│   ├── home.html         # 手账便签首页（由 Bun 原生 HTML 入口处理资源）
 │   ├── ts/               # 前端逻辑（多个 TS 模块，由 main.ts 装配）
-│   │   ├── util.ts       # 通用工具（元素/文本/裁剪/cookie）
+│   │   ├── util.ts       # DOM / 状态提示 / dialog / API 请求
 │   │   ├── state.ts      # 元素引用、渲染、状态与模式管理
 │   │   ├── auth.ts       # 前端登录/注册弹窗 UI + 会话
 │   │   ├── deepseek.ts   # DeepSeek API 封装
@@ -323,8 +352,8 @@ english_reading/
 - [x] 「删除翻译」模式：单击选择整条 `『』`，再单击删除
 - [x] 邮箱注册/登录（Argon2id 慢哈希 + Redis 验证码 + SMTP 发信）
 - [x] 首页 + 阅读页导航统一与手机自适应
-- [ ] 错误提示与加载态完善
-- [ ] 样式美化
+- [x] 错误提示、超时、加载态、旧数据迁移及作者权限
+- [x] 水灰手账风、SVG 线稿、便签首页与响应式布局
 
 ---
 
@@ -333,12 +362,26 @@ english_reading/
 ```bash
 bun install
 cp .env.example .env   # 按需填写 SMTP / REDIS_URL
-bun run index.ts
+# 可选，仅本地开发：bun run seed.ts（创建测试账号；不要在生产执行）
+bun dev
 # 浏览器打开 http://localhost:3000（端口以 index.ts / .env 中 PORT 为准）
 ```
 
-首页（`/`）为欢迎页，点击「Start」按钮进入阅读页（`/index.html`）。
+首页（`/`）为手账欢迎页，点击「Start a new page」进入阅读页（`/index.html`）。
 
-两页均**支持手机自适应**（`public/css/responsive.css` + viewport meta）。
+两页均支持手机自适应；阅读页通过 `public/css/reader.css` 按固定顺序导入样式，避免开发热更新时级联顺序不一致。
+
+### 部署到服务器（域名）
+- `PORT` 默认 3000，`HOST` 默认 `127.0.0.1`；可用 Nginx 反向代理到本服务，保留请求 Host，并将 `APP_ORIGIN=https://你的域名` 设为公开源地址。使用 HTTPS 并设置 `COOKIE_SECURE=true`。
+- `bun start` 直接运行源码；配置正确的 SMTP 与 Redis。生产模式不返回开发验证码，Redis 不可用时认证失败而不静默降级。生产启动前请备份 `data.db`，不要执行测试账号 seed。
+
+### 测试账号
+运行 `bun run seed.ts` 会创建三个测试账号（密码均为 `123456`）：
+```
+ test1@test.com     Argon2id 慢哈希入库
+ test2@test.com
+ test3@test.com
+```
+这些账号只在页面用「邮箱+密码」登录，无需验证码。
 
 > **邮件验证码测试**：若 `.env` 未配置 `SMTP_HOST`，应用不会真正发信，而是把 6 位验证码打印到服务器日志（开发模式）。需要真实发信则填入 SMTP 账号；需要 Redis 持久化验证码则启动本地 Redis 并设置 `REDIS_URL`（未启动时自动降级为内存存储）。

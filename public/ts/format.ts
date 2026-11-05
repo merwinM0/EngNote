@@ -1,35 +1,20 @@
-/**
- * format.ts - AI formatting (layout)
- */
-import { setStatus } from "./util";
-import { getCurrentText, render, formatBtn } from "./state";
+import { setStatus, errorMessage } from "./util";
+import { getCurrentText, render, formatBtn, isBusy, setBusy, getRevision } from "./state";
 import { callDeepSeek } from "./deepseek";
 
 export async function onFormat() {
+  if (isBusy()) return;
   const text = getCurrentText();
-  if (!text) {
-    setStatus("Please paste some text first", "error");
-    return;
-  }
-  formatBtn.disabled = true;
-  formatBtn.textContent = "Formatting…";
-  setStatus("Calling DeepSeek to format…");
-
+  if (!text) return setStatus("Paste an English article first.", "error");
+  // Formatting annotated text risks moving definitions away from their words.
+  if (text.includes("『")) return setStatus("Tidy paragraphs before adding definitions. Existing notes have been kept intact.", "error");
+  const revision = getRevision();
+  setBusy(true);
+  formatBtn.textContent = "Tidying…";
+  setStatus("DeepSeek is tidying the paragraphs…");
   try {
-    const system =
-      "You are a text formatting assistant. " +
-      "Reformat the user's English text into properly laid-out plain text. " +
-      "Rules: join broken lines within a paragraph into a single line; separate paragraphs by exactly one blank line; " +
-      "fix spacing around punctuation (, . ? ! ' \" ) ; capitalize the first word of each sentence; keep proper nouns. " +
-      "Output ONLY the reformatted English text, with no explanations or extra text.";
-    const formatted = await callDeepSeek(system, text);
-    render(formatted);
-    setStatus("✅ Formatting complete", "ok");
-    setTimeout(() => setStatus(""), 2500);
-  } catch {
-    /* errors already surfaced above */
-  } finally {
-    formatBtn.disabled = false;
-    formatBtn.textContent = "✦ Format";
-  }
+    const result = await callDeepSeek("You format English text. Join broken lines, separate paragraphs with one blank line, and fix spacing around punctuation. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations.", text);
+    if (getRevision() === revision) { render(result); setStatus("Your paragraphs are ready.", "ok"); }
+  } catch (error) { setStatus(errorMessage(error), "error"); }
+  finally { setBusy(false); formatBtn.textContent = "✦ Tidy paragraphs"; }
 }

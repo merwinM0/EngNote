@@ -1,239 +1,149 @@
-/**
- * db.ts - Save to database / right sidebar
- */
-import { setStatus, sanitizeTitle } from "./util";
-import { content, getCurrentText, render } from "./state";
-import { isLoggedIn as checkLoggedIn, getToken } from "./auth";
+import { api, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
+import { getCurrentText, render, isBusy, setBusy } from "./state";
+import { isLoggedIn } from "./auth";
 
-// JSON header + Bearer token when logged in
-function authJsonHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "content-type": "application/json" };
-  const t = getToken();
-  if (t) h.authorization = `Bearer ${t}`;
-  return h;
-}
-
-// Modal & sidebar elements
-const saveModal = document.getElementById("saveModal") as HTMLDivElement;
-const saveTitleInput = document.getElementById("saveTitle") as HTMLInputElement;
-const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
-const cancelSaveBtn = document.getElementById("cancelSaveBtn") as HTMLButtonElement;
-const deleteConfirmModal = document.getElementById("deleteConfirmModal") as HTMLDivElement;
-const confirmDeleteBtn = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
-const cancelDeleteBtn = document.getElementById("cancelDeleteBtn") as HTMLButtonElement;
-const MAX_TITLE_LEN = 20;
-const entryList = document.getElementById("entryList") as HTMLUListElement;
-const refreshListBtn = document.getElementById("refreshListBtn") as HTMLButtonElement;
+type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string };
+const saveModal = document.getElementById("saveModal") as HTMLDialogElement;
+const saveTitle = document.getElementById("saveTitle") as HTMLInputElement;
+const deleteModal = document.getElementById("deleteConfirmModal") as HTMLDialogElement;
+const entryList = document.getElementById("entryList")!;
 const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
-
-// Currently selected saved article id (for highlight & direct overwrite save)
-let selectedId: number | null = null;
-let selectedTitle = "";
-let pendingDeleteId: number | null = null; // article id pending delete confirmation
-
-/**
- * Deselect the current article. Should be called when pasting new content,
- * so the content is treated as a "new article" rather than overwriting a selection.
- */
-export function deselectEntry() {
-  selectedId = null;
-  selectedTitle = "";
-  entryList.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
+let selected: Entry | null = null;
+let pendingDelete: Entry | null = null;
+let savedText = "";
+let listRequest = 0;
+let openRequest = 0;
+const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
+const isDirty = () => getCurrentText() !== savedText;
+export function confirmReplace(): boolean {
+  return !isDirty() || window.confirm("This page has unsaved changes. Replace it with another article?");
 }
-
-function hasTranslation(): boolean {
-  return content.querySelectorAll(".note[data-deletable='1']").length > 0;
-}
-
-function openSaveModal() {
-  const text = getCurrentText();
-  if (!text) {
-    setStatus("Nothing to save — paste some text first", "error");
-    return;
+function updateSelection() {
+  for (const li of entryList.querySelectorAll<HTMLElement>("li[data-id]")) {
+    const active = Number(li.dataset.id) === selected?.id;
+    li.classList.toggle("active", active);
+    const button = li.querySelector(".entry-open");
+    if (active) button?.setAttribute("aria-current", "true"); else button?.removeAttribute("aria-current");
   }
-  saveTitleInput.value = "";
-  saveModal.hidden = false;
-  saveTitleInput.focus();
+  document.getElementById("readerTitle")!.textContent = selected?.title ?? "A fresh page";
+  saveBtn.textContent = selected && canEdit(selected) ? "Save changes" : "Save page";
 }
+export function deselectEntry() { openRequest++; selected = null; savedText = ""; updateSelection(); }
+function showError(id: string, message: string) { const element = document.getElementById(id)!; element.textContent = message; element.hidden = !message; }
 
-function closeSaveModal() {
-  saveModal.hidden = true;
-  saveTitleInput.value = "";
-}
-
-async function confirmSave() {
-  const title = saveTitleInput.value;
-  const { clean, hadBad } = sanitizeTitle(title);
-  if (hadBad) setStatus("Title cannot contain Chinese; Chinese characters removed", "error");
-  if (!clean) {
-    setStatus("Please enter a non-Chinese title", "error");
-    return;
-  }
-  // Enforce a max title length of 20 characters
-  const finalTitle = Array.from(clean).slice(0, MAX_TITLE_LEN).join("");
-  // If already translated, save the current content with 『』 translations
-  const contentToSave = getCurrentText();
-  closeSaveModal();
+async function openEntry(entry: Entry) {
+  if (isBusy() || !confirmReplace()) return;
+  const request = ++openRequest;
+  const startingText = getCurrentText();
+  setStatus(`Opening “${entry.title}”…`);
   try {
-    const res = await fetch("/api/entries", {
-      method: "POST",
-      headers: authJsonHeaders(),
-      body: JSON.stringify({ title: finalTitle, content: contentToSave }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      setStatus(`Save failed: ${data.error ?? ""}`, "error");
-      return;
-    }
-    // After creating, select it so subsequent saves overwrite directly
-    selectedId = data.id ?? null;
-    selectedTitle = finalTitle;
-    setStatus("✅ Saved to database" + (hasTranslation() ? " (with translations)" : ""), "ok");
-    setTimeout(() => setStatus(""), 2500);
-    refreshList();
-  } catch {
-    setStatus("❌ Save failed — check connection", "error");
-  }
+    const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
+    if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
+    render(data.entry.content);
+    selected = data.entry;
+    savedText = getCurrentText();
+    updateSelection();
+    setStatus(`Opened “${entry.title}”.${canEdit(entry) ? " Save changes to update this page." : " Save page to keep your own copy."}`, "ok");
+  } catch (error) { if (request === openRequest) setStatus(errorMessage(error), "error"); }
 }
-
-// ---------------- Right sidebar ----------------
 export async function refreshList() {
+  const request = ++listRequest;
+  entryList.setAttribute("aria-busy", "true");
   try {
-    const res = await fetch("/api/entries");
-    const data = await res.json();
-    entryList.innerHTML = "";
-    const entries = data.entries ?? [];
-    if (entries.length === 0) {
-      entryList.innerHTML = "<li class='entry-empty'>No saved articles</li>";
-      return;
+    const data = await api<{ entries: Entry[] }>("/api/entries");
+    if (request !== listRequest) return;
+    const fragment = document.createDocumentFragment();
+    if (!data.entries.length) fragment.append(el("li", "entry-empty", "No pages yet. Save a story to begin the collection."));
+    for (const entry of data.entries) {
+      const li = el("li"); li.dataset.id = String(entry.id);
+      const open = el("button", "entry-open"); open.type = "button";
+      open.append(el("span", "entry-title", entry.title));
+      const date = new Date(entry.created_at.replace(" ", "T") + "Z");
+      open.append(el("span", "entry-date", Number.isNaN(date.getTime()) ? "Saved page" : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })));
+      open.addEventListener("click", () => { void openEntry(entry); });
+      li.append(open);
+      if (canEdit(entry)) {
+        const remove = el("button", "entry-del", "×"); remove.type = "button"; remove.setAttribute("aria-label", `Delete ${entry.title}`);
+        remove.addEventListener("click", () => {
+          if (isBusy()) return;
+          pendingDelete = entry;
+          showError("deleteMsg", "");
+          deleteModal.showModal();
+        });
+        li.append(remove);
+      }
+      fragment.append(li);
     }
-    for (const e of entries) {
-      const li = document.createElement("li");
-      if (selectedId === e.id) li.classList.add("active"); // selected highlight
-      const t = document.createElement("span");
-      t.className = "entry-title";
-      t.textContent = e.title;
-      const del = document.createElement("button");
-      del.className = "entry-del";
-      del.textContent = "✕";
-      del.title = "Delete this article";
-      li.appendChild(t);
-      li.appendChild(del);
-
-      li.addEventListener("click", async (ev) => {
-        if ((ev.target as HTMLElement).classList.contains("entry-del")) return;
-        const one = await fetch(`/api/entries/${e.id}`);
-        const od = await one.json();
-        if (od.ok) {
-          // select and highlight
-          selectedId = e.id;
-          selectedTitle = e.title;
-          markActive(li);
-          render(od.entry.content);
-          setStatus(`Loaded: ${e.title} (click Save again to overwrite)`, "ok");
-          setTimeout(() => setStatus(""), 3500);
-        }
-      });
-
-      del.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        // Open the theme-styled delete confirm modal (replaces browser default confirm)
-        pendingDeleteId = e.id;
-        deleteConfirmModal.hidden = false;
-      });
-
-      entryList.appendChild(li);
+    entryList.replaceChildren(fragment);
+    if (selected) {
+      const fresh = data.entries.find(entry => entry.id === selected?.id);
+      if (fresh) selected = { ...selected, can_edit: fresh.can_edit };
     }
-  } catch {
-    entryList.innerHTML = "<li class='entry-empty'>Failed to load</li>";
-  }
+    updateSelection();
+  } catch (error) {
+    if (request === listRequest) { entryList.replaceChildren(el("li", "entry-empty", "Could not load pages. Use ↻ to try again.")); setStatus(errorMessage(error), "error"); }
+  } finally { if (request === listRequest) entryList.setAttribute("aria-busy", "false"); }
 }
-
-// Keep only one list item as the selected (highlighted) state
-function markActive(activeLi: HTMLElement) {
-  entryList.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
-  activeLi.classList.add("active");
-}
-
-// ---------------- Save button: overwrite if selected, else open modal to create ----------------
-async function handleSaveClick() {
-  // 未登录用户可使用翻译等功能，但禁止保存
-  if (!checkLoggedIn()) {
-    setStatus("Please log in to save articles", "error");
-    return;
-  }
+async function save(title?: string) {
+  if (isBusy()) return;
   const text = getCurrentText();
-  if (!text) {
-    setStatus("Nothing to save — paste some text first", "error");
-    return;
-  }
-  // A selected article exists -> overwrite it directly (no modal, keep original title)
-  if (selectedId !== null) {
-    await updateEntryContent(selectedId, text);
-    return;
-  }
-  // No selection -> open the title modal to create a new article
-  openSaveModal();
-}
-
-// Directly overwrite the selected article's content (keeping the original title)
-async function updateEntryContent(id: number, contentToSave: string) {
+  const entry = selected;
+  const overwrite = entry && canEdit(entry) && !title;
+  setBusy(true);
+  const confirmButton = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
+  confirmButton.disabled = true;
   try {
-    const res = await fetch(`/api/entries/${id}`, {
-      method: "PUT",
-      headers: authJsonHeaders(),
-      body: JSON.stringify({ content: contentToSave }),
+    const data = await api<{ id: number }>(overwrite ? `/api/entries/${entry.id}` : "/api/entries", {
+      method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text } : { title, content: text }),
     });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      setStatus(`Overwrite failed: ${data.error ?? ""}`, "error");
-      return;
-    }
-    setStatus("✅ Overwritten \"" + selectedTitle + "\"" + (hasTranslation() ? " (with translations)" : ""));
-    setTimeout(() => setStatus(""), 2500);
-    refreshList();
-  } catch {
-    setStatus("❌ Overwrite failed — check connection", "error");
-  }
+    selected = overwrite ? entry : { id: data.id, title: title!, can_edit: true, created_at: "" };
+    savedText = text;
+    saveModal.close();
+    updateSelection();
+    setStatus("Page saved, including your definitions.", "ok");
+    void refreshList();
+  } catch (error) {
+    if (saveModal.open) showError("saveMsg", errorMessage(error)); else setStatus(errorMessage(error), "error");
+  } finally { setBusy(false); confirmButton.disabled = false; }
 }
-
-// ---------------- Event bindings ----------------
 export function initDb() {
-  saveBtn.addEventListener("click", handleSaveClick);
-  confirmSaveBtn.addEventListener("click", confirmSave);
-  cancelSaveBtn.addEventListener("click", () => {
-    closeSaveModal();
-    setStatus("");
+  saveBtn.addEventListener("click", () => {
+    if (isBusy()) return;
+    if (!isLoggedIn()) return setStatus("Please log in to save a page.", "error");
+    if (!getCurrentText()) return setStatus("Paste an article first.", "error");
+    if (selected && canEdit(selected)) { void save(); return; }
+    saveTitle.value = "";
+    showError("saveMsg", "");
+    saveModal.showModal();
   });
-  saveModal.addEventListener("click", (ev) => {
-    if (ev.target === saveModal) closeSaveModal();
+  document.getElementById("saveForm")!.addEventListener("submit", event => {
+    event.preventDefault();
+    const { clean, hadBad } = sanitizeTitle(saveTitle.value);
+    if (!clean || hadBad || Array.from(clean).length > 20) return showError("saveMsg", "Use an English title of 1–20 characters.");
+    void save(clean);
   });
-  saveTitleInput.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter") confirmSave();
+  document.getElementById("refreshListBtn")!.addEventListener("click", () => { void refreshList(); });
+  document.getElementById("confirmDeleteBtn")!.addEventListener("click", async () => {
+    if (isBusy() || !pendingDelete) return;
+    const entry = pendingDelete;
+    const button = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
+    button.disabled = true;
+    setBusy(true);
+    try {
+      await api(`/api/entries/${entry.id}`, { method: "DELETE" });
+      if (selected?.id === entry.id) deselectEntry();
+      deleteModal.close();
+      setStatus("Saved page deleted. Text in your notebook has been kept.", "ok");
+      void refreshList();
+    } catch (error) { showError("deleteMsg", errorMessage(error)); }
+    finally { setBusy(false); button.disabled = false; }
   });
-  refreshListBtn.addEventListener("click", refreshList);
-
-  // Delete confirm modal
-  confirmDeleteBtn.addEventListener("click", async () => {
-    const id = pendingDeleteId;
-    deleteConfirmModal.hidden = true;
-    pendingDeleteId = null;
-    if (id === null) return;
-    await fetch(`/api/entries/${id}`, { method: "DELETE", headers: authJsonHeaders() });
-    if (selectedId === id) {
-      selectedId = null;
-      selectedTitle = "";
-    }
-    refreshList();
+  window.addEventListener("session-changed", () => {
+    // Never carry the previous account's edit flag into a different session.
+    if (selected) selected.can_edit = false;
+    updateSelection();
+    void refreshList();
   });
-  cancelDeleteBtn.addEventListener("click", () => {
-    deleteConfirmModal.hidden = true;
-    pendingDeleteId = null;
-  });
-  deleteConfirmModal.addEventListener("click", (ev) => {
-    if (ev.target === deleteConfirmModal) {
-      deleteConfirmModal.hidden = true;
-      pendingDeleteId = null;
-    }
-  });
+  window.addEventListener("beforeunload", event => { if (isDirty()) { event.preventDefault(); event.returnValue = ""; } });
+  for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href='/']")) link.addEventListener("click", event => { if (!confirmReplace()) event.preventDefault(); });
 }

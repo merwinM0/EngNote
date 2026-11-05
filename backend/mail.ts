@@ -41,6 +41,9 @@ function getTransporter(): nodemailer.Transporter | null {
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_PORT === 465,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
@@ -56,13 +59,12 @@ export async function sendVerificationEmail(
 ): Promise<boolean> {
   const tr = getTransporter();
   if (!tr) {
-    // Dev / misconfigured mode: no email sent, print the code so it can still be used.
-    console.warn(`⚠ 未发送邮件，验证码 ${code} 将打印到日志（DB:${to}）`);
+    if (process.env.NODE_ENV !== "production" && !SMTP_HOST) console.warn(`Local development verification code: ${code}`);
     return false;
   }
   try {
     await tr.sendMail({
-      from: SMTP_FROM,
+      from: SMTP_FROM_NAME ? { name: SMTP_FROM_NAME, address: SMTP_FROM } : SMTP_FROM,
       to,
       subject: "Your English Reading verification code",
       text: `Your verification code is: ${code}\nIt expires in 5 minutes.`,

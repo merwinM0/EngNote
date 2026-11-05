@@ -1,62 +1,20 @@
-/* content.css - Display card, paragraphs & word-note styles */
-.editor-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.content {
-  padding: 18px 20px;
-  min-height: 220px;
-  font: 16px/1.75 "Georgia", "Times New Roman", serif;
-  cursor: default;
-}
-.content:empty::before {
-  content: attr(data-placeholder);
-  color: var(--muted);
-  font-style: italic;
-}
-.content p { margin: 0 0 16px; }
-.content:focus { outline: none; }
-.content p { white-space: pre-wrap; word-break: break-word; }
-
-/* Word text */
-.content .term { background: #2c3d55; border-radius: 4px; padding: 0 2px; }
-
-/* Selection: single-click highlighted background */
-.content .term.picked {
-  background: #7fc8a9;
-  color: #00261a;
-  box-shadow: 0 0 0 1px #3ddc97 inset;
-}
-
-/* 『definition』 */
-.content .note {
-  color: var(--note-text);
-  font-style: normal;
-  font-size: .85em;
-}
+.editor-card { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; box-shadow: var(--paper-shadow); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 28px 0 44px; padding: 16px 0 12px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.card-head h2 { margin: 0; font: italic 17px var(--serif); overflow-wrap: anywhere; }
+.content { position: relative; padding: 28px 32px 40px 44px; min-height: 420px; font: 20px/1.95 var(--serif); overflow-wrap: anywhere; }
+.editor-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 28px; border-left: 1px solid #bba4a04d; pointer-events: none; }
+.content:empty { background: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px); background-clip: content-box; }
+.content:empty::before { content: attr(data-placeholder); display: block; color: var(--muted); font-style: italic; max-width: 440px; font-size: 20px; }
+.content p { margin: 0 0 24px; white-space: pre-wrap; }
+.content p:last-child { margin-bottom: 0; }
+.content .term { border-radius: 2px; }
+.content.select-mode .term, .content.delete-mode .note { cursor: pointer; }
+.content.select-mode .term:hover { background: var(--panel-2); }
+.content .term.picked { color: var(--accent-2); background: var(--selected); box-shadow: 0 -2px 0 var(--accent) inset; }
+.content .note { color: var(--note-text); background: var(--note-bg); font: .8em/1.7 var(--sans); padding: 2px 3px; border-radius: 2px; }
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
-
-/* Loading animation */
-.content .note.loading { color: #8fb4ff; font-style: italic; }
-.content .note.error { color: var(--danger); }
-
-/* Delete-translation mode: entire 『』 definition */
-.content .note[data-deletable="1"] { cursor: pointer; }
-.content .note.delete-selected {
-  background: rgba(255, 92, 108, .28);
-  box-shadow: 0 0 0 1px var(--danger);
-  color: var(--danger);
-}
+.content .note.loading { color: var(--muted); font-style: italic; }
+.content .note.error { color: var(--danger); background: var(--danger-bg); }
+.content .note.delete-selected { color: var(--danger); background: var(--danger-bg); outline: 1px dashed var(--danger); }
+.paper-footer { border-top: 1px solid var(--border); margin: 0 28px 0 44px; padding: 12px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--muted); }

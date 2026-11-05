@@ -16,9 +16,13 @@ export function handleDeleteNote(note: HTMLElement) {
   // Second click on the same 『』 → delete
   if (isPending(note)) {
     clearDeleteSelection();
+    const previousWord = note.previousElementSibling;
     note.remove();
-    setStatus("✅ Translation note removed", "ok");
-    setTimeout(() => setStatus(""), 2000);
+    if (previousWord instanceof HTMLElement) {
+      const reader = previousWord.closest<HTMLElement>(".content");
+      reader?.focus();
+    }
+    setStatus("Definition removed.", "ok");
     return;
   }
   // First click: select the current 『』, clear other selections

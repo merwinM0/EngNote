@@ -9,6 +9,12 @@ public/dist
 
 # runtime database
 data.db
+data.db-shm
+data.db-wal
+
+# legacy executable build artifacts (source scripts are used instead)
+/Engreading
+/index.js.map
 
 # code coverage
 coverage
