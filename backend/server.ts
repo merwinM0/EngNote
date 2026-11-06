@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import home from "../public/home.html";
 import reader from "../public/index.html";
 import { initAuth, register, login, requestCode, resolveToken, logout, SESSION_TTL } from "./auth";
+import { definitionContent, readDefinitionViews } from "../public/ts/definitionViews";
+import type { DefinitionView } from "../public/ts/definitionViews";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const COOKIE_NAME = "er_session";
@@ -11,10 +13,11 @@ export function openDatabase(path = process.env.DB_PATH || resolve(projectRoot, 
   db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
   db.exec(`CREATE TABLE IF NOT EXISTS entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')), owner_email TEXT
+    created_at TEXT NOT NULL DEFAULT (datetime('now')), owner_email TEXT, definitions TEXT NOT NULL DEFAULT '[]'
   )`);
   const columns = db.query<{ name: string }, []>("PRAGMA table_info(entries)").all();
   if (!columns.some(column => column.name === "owner_email")) db.exec("ALTER TABLE entries ADD COLUMN owner_email TEXT");
+  if (!columns.some(column => column.name === "definitions")) db.exec("ALTER TABLE entries ADD COLUMN definitions TEXT NOT NULL DEFAULT '[]'");
   initAuth(db);
   return db;
 }
@@ -47,7 +50,18 @@ function sessionCookie(req: Request, value: string, age: number) {
 function allow(req: Request, methods: string[]) {
   if (!methods.includes(req.method)) return json({ ok: false, error: "Method not allowed." }, 405, { allow: methods.join(", ") });
 }
-type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null };
+type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null; definitions: string };
+function storedDefinitions(raw: string, content: string): DefinitionView[] {
+  try { return definitionContent(readDefinitionViews(JSON.parse(raw), content)); } catch { return []; }
+}
+function requestDefinitions(value: unknown, content: string): DefinitionView[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new HttpError("Definitions must be an array of bilingual notes.", 400);
+  const normalized = value.map(item => item && typeof item === "object" ? { ...item, language: "en" } : item);
+  const valid = readDefinitionViews(normalized, content);
+  if (valid.length !== value.length) throw new HttpError("Each bilingual definition must match a unique English note in the article and contain valid Chinese.", 400);
+  return definitionContent(valid);
+}
 
 export function createServer(options: { db: Database; port: number; hostname?: string }) {
   const { db } = options;
@@ -92,7 +106,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (req.method === "GET") {
         // Public shelf remains readable. Ownership is computed server-side, never supplied by the client.
         const email = await resolveToken(token(req));
-        const rows = db.query<Omit<StoredEntry, "content">, []>("SELECT id, title, created_at, owner_email FROM entries ORDER BY id DESC").all();
+        const rows = db.query<Omit<StoredEntry, "content" | "definitions">, []>("SELECT id, title, created_at, owner_email FROM entries ORDER BY id DESC").all();
         return json({ ok: true, entries: rows.map(({ owner_email, ...entry }) => ({ ...entry, can_edit: !!email && owner_email === email })) });
       }
       const email = await resolveToken(token(req));
@@ -102,7 +116,8 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (/\p{Script=Han}/u.test(title)) throw new HttpError("Use an English title.", 400);
       const content = text(data.content, "Content", 100000, false);
       if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
-      const result = db.query("INSERT INTO entries (title, content, owner_email) VALUES (?, ?, ?)").run(title, content, email);
+      const definitions = requestDefinitions(data.definitions, content);
+      const result = db.query("INSERT INTO entries (title, content, owner_email, definitions) VALUES (?, ?, ?, ?)").run(title, content, email, JSON.stringify(definitions));
       return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
     }
     const single = path.match(/^\/api\/entries\/(\d+)$/);
@@ -115,8 +130,8 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (!entry) throw new HttpError("Page not found.", 404);
       if (req.method === "GET") {
         const email = await resolveToken(token(req));
-        const { owner_email, ...page } = entry;
-        return json({ ok: true, entry: { ...page, can_edit: !!email && owner_email === email } });
+        const { owner_email, definitions, ...page } = entry;
+        return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), can_edit: !!email && owner_email === email } });
       }
       const email = await resolveToken(token(req));
       if (!email) throw new HttpError("Please log in to change this page.", 401);
@@ -126,7 +141,8 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         const data = await body(req);
         const content = text(data.content, "Content", 100000, false);
         if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
-        db.query("UPDATE entries SET content = ? WHERE id = ? AND owner_email = ?").run(content, id, email);
+        const definitions = "definitions" in data ? requestDefinitions(data.definitions, content) : storedDefinitions(entry.definitions, content);
+        db.query("UPDATE entries SET content = ?, definitions = ? WHERE id = ? AND owner_email = ?").run(content, JSON.stringify(definitions), id, email);
       }
       return json({ ok: true, id });
     }

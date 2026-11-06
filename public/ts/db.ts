@@ -1,12 +1,14 @@
 import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
-import { definitionViews, getCurrentText, render, isBusy, setBusy } from "./state";
+import { definitionViews, definitionViewChanged, getCurrentText, render, isBusy, setBusy } from "./state";
 import { isLoggedIn } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
 import type { DraftEntry } from "./articleDraft";
+import { definitionContent, readDefinitionViews } from "./definitionViews";
+import type { DefinitionView } from "./definitionViews";
 
-type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string };
+type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string; definitions?: DefinitionView[] };
 const savePanel = document.getElementById("savePanel") as HTMLDialogElement;
 const collectionPanel = document.getElementById("collectionPanel") as HTMLDialogElement;
 const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
@@ -18,12 +20,13 @@ const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 let selected: Entry | null = null;
 let pendingDelete: Entry | null = null;
 let savedText = "";
+let savedDefinitions = "[]";
 let selectionStatus: "ready" | "checking" | "retry" = "ready";
 let selectionRequest = 0;
 let listRequest = 0;
 let openRequest = 0;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
-const isDirty = () => getCurrentText() !== savedText;
+const isDirty = () => getCurrentText() !== savedText || JSON.stringify(definitionContent(definitionViews.snapshot())) !== savedDefinitions;
 export async function confirmReplace(action = "Replace article", message = "This article has unsaved changes across its pages. Replace it without saving these changes to your collection?"): Promise<boolean> {
   return !isDirty() || await confirmInPanel(message, action);
 }
@@ -42,6 +45,7 @@ function updateSelection() {
 function selectEntry(entry: Entry | null, baseline = "", status: typeof selectionStatus = "ready") {
   selectionRequest++;
   selected = entry; savedText = baseline; selectionStatus = status;
+  savedDefinitions = JSON.stringify(definitionContent(entry?.definitions ?? []));
   updateSelection();
   window.dispatchEvent(new Event("entry-selection-changed"));
 }
@@ -61,8 +65,10 @@ async function reconnectSelection() {
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${id}`);
     if (request !== selectionRequest) return;
-    // Only reconnect identity. Never replace the working text, definitions or page position.
+    // Keep working text, existing language choices and page position; only fill missing bilingual data.
+    definitionViews.merge(data.entry.definitions);
     selectEntry(data.entry, data.entry.content);
+    definitionViewChanged();
     const message = data.entry.content !== baseline
       ? "The saved text has changed elsewhere. Your working copy is kept; review it before saving."
       : isDirty() ? "Your unsaved changes have been kept." : "Your reading position has been kept.";
@@ -89,7 +95,12 @@ async function openEntry(entry: Entry) {
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
     if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
-    const definitions = selected?.id === entry.id && data.entry.content === getCurrentText() ? definitionViews.snapshot() : [];
+    const preferences = selected?.id === entry.id && data.entry.content === getCurrentText() ? definitionViews.snapshot() : [];
+    const byStart = new Map(preferences.map(view => [view.start, view]));
+    const definitions = readDefinitionViews([...(data.entry.definitions ?? []), ...preferences], data.entry.content).map(view => {
+      const previous = byStart.get(view.start);
+      return { ...view, language: previous?.english === view.english && previous.chinese === view.chinese ? previous.language : "en" };
+    });
     render(data.entry.content, 0, definitions);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
@@ -158,7 +169,7 @@ function titleError(message: string) {
 async function save(title?: string) {
   if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
   if (!isLoggedIn()) return showError("saveMsg", "Please log in again before saving. Your article has been kept.");
-  const text = getCurrentText();
+  const text = getCurrentText(), definitions = definitionContent(definitionViews.snapshot());
   const entry = selected;
   const overwrite = entry && canEdit(entry) && saveTitle.readOnly;
   if (!overwrite && !title && !getStoredApiKey()) {
@@ -180,9 +191,9 @@ async function save(title?: string) {
       updateSaveProgress();
     }
     const data = await api<{ id: number }>(overwrite ? `/api/entries/${entry.id}` : "/api/entries", {
-      method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text } : { title, content: text }),
+      method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text, definitions } : { title, content: text, definitions }),
     });
-    selectEntry(overwrite ? entry : { id: data.id, title: title!, can_edit: true, created_at: "" }, text);
+    selectEntry(overwrite ? { ...entry, definitions } : { id: data.id, title: title!, can_edit: true, created_at: "", definitions }, text);
     saveTask = null;
     setBusy(false);
     updateSaveProgress();

@@ -1,15 +1,22 @@
-/** Presentation-only translations: the canonical article keeps its English 『notes』. */
+/** Bilingual note data is saved separately; the canonical article keeps its English 『notes』. */
 export type DefinitionView = { start: number; english: string; chinese: string; language: "en" | "zh" };
 export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh" };
+export type DefinitionEdit = { offset: number; value: string; deleteCount?: number };
+
+/** Display choices are per reader and never part of an article's dirty/save comparison. */
+export function definitionContent(views: DefinitionView[]): DefinitionView[] {
+  return views.map(view => ({ ...view, language: "en" as const })).sort((a, b) => a.start - b.start);
+}
 
 export function readDefinitionViews(value: unknown, text: string): DefinitionView[] {
-  if (!Array.isArray(value)) return [];
+  if (!Array.isArray(value) || !value.length) return [];
+  const notes = new Map(Array.from(text.matchAll(/『([^』]*)』/g), match => [match.index, match[1]!]));
   const views: DefinitionView[] = [], seen = new Set<number>();
   for (const item of value) {
     if (!item || typeof item !== "object" || typeof item.start !== "number" || !Number.isSafeInteger(item.start) || item.start < 0 || seen.has(item.start)
       || typeof item.english !== "string" || typeof item.chinese !== "string" || !item.chinese.trim() || item.chinese.length > 600
       || !/\p{Script=Han}/u.test(item.chinese) || /[『』\r\n]/.test(item.chinese) || (item.language !== "en" && item.language !== "zh")
-      || text.slice(item.start, item.start + item.english.length + 2) !== `『${item.english}』`) continue;
+      || notes.get(item.start) !== item.english) continue;
     views.push({ start: item.start, english: item.english, chinese: item.chinese, language: item.language });
     seen.add(item.start);
   }
@@ -30,7 +37,13 @@ export class DefinitionViews {
       if (note?.english === view.english) Object.assign(note, view);
     }
   }
-  sync(text: string, insertions?: Array<{ offset: number; value: string }>) {
+  merge(saved: unknown) {
+    for (const view of readDefinitionViews(saved, this.text)) {
+      const note = this.at(view.start);
+      if (note?.english === view.english && !note.chinese) Object.assign(note, view, { language: "en" });
+    }
+  }
+  sync(text: string, insertions?: DefinitionEdit[]) {
     if (text === this.text) return;
     let prefix = 0, suffix = 0;
     while (prefix < this.text.length && prefix < text.length && this.text[prefix] === text[prefix]) prefix++;
@@ -40,8 +53,9 @@ export class DefinitionViews {
       const end = note.start + note.english.length + 2;
       let start: number;
       if (insertions) {
-        if (insertions.some(edit => edit.offset > note.start && edit.offset < end)) continue;
-        start = note.start + insertions.reduce((shift, edit) => shift + (edit.offset <= note.start ? edit.value.length : 0), 0);
+        if (insertions.some(edit => edit.offset < end && edit.offset + (edit.deleteCount ?? 0) > note.start
+          || edit.offset > note.start && edit.offset < end)) continue;
+        start = note.start + insertions.reduce((shift, edit) => shift + (edit.offset + (edit.deleteCount ?? 0) <= note.start ? edit.value.length - (edit.deleteCount ?? 0) : 0), 0);
       } else if (end <= prefix) start = note.start;
       else if (note.start >= this.text.length - suffix) start = note.start + text.length - this.text.length;
       else continue; // Editing a definition itself invalidates its old translation.
@@ -61,14 +75,4 @@ export class DefinitionViews {
     return Array.from(this.notes.values()).filter((note): note is Definition & { chinese: string } => !!note.chinese)
       .map(({ start, english, chinese, language }) => ({ start, english, chinese, language }));
   }
-}
-
-export function parseChineseDefinition(raw: string): string {
-  let value: unknown;
-  try { value = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw); } catch { /* Report one actionable validation error below. */ }
-  const meaning = value && typeof value === "object" && "meaning" in value && typeof value.meaning === "string" ? value.meaning.trim() : "";
-  if (!meaning || meaning.length > 600 || !/\p{Script=Han}/u.test(meaning) || /[『』\r\n]/.test(meaning)) {
-    throw new Error("AI did not return a valid Chinese definition.");
-  }
-  return meaning;
 }

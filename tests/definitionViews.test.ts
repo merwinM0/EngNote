@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DefinitionViews, parseChineseDefinition, readDefinitionViews } from "../public/ts/definitionViews";
+import { definitionContent, DefinitionViews, readDefinitionViews } from "../public/ts/definitionViews";
 import { parseArticleDraft } from "../public/ts/articleDraft";
 
 const text = "A fox『an animal』 walks past a dog『an animal』 and a bird『a flying animal』.";
@@ -76,13 +76,32 @@ describe("independent definition languages", () => {
   });
 });
 
-describe("Chinese dictionary responses", () => {
-  test("accepts concise JSON and common Markdown wrappers", () => {
-    expect(parseChineseDefinition('{"meaning":"一种动物"}')).toBe("一种动物");
-    expect(parseChineseDefinition('```json\n{"meaning":"  在空中飞行  "}\n```')).toBe("在空中飞行");
+describe("saved bilingual content", () => {
+  test("reader language choices are excluded from dirty comparisons and default to English when shared", () => {
+    const views = setup(); chooseChinese(views);
+    const chosen = views.snapshot();
+    expect(chosen[0]!.language).toBe("zh");
+    expect(definitionContent(chosen)[0]!.language).toBe("en");
+    const english = chosen.map(view => ({ ...view, language: "en" as const }));
+    expect(definitionContent(chosen)).toEqual(definitionContent(english));
   });
-  test("rejects empty, English-only, oversized, multiline and malformed responses", () => {
-    for (const raw of ["", "动物", "{}", '{"meaning":"an animal"}', '{"meaning":123}', '{"meaning":"动物\\n解释"}',
-      JSON.stringify({ meaning: "中".repeat(601) }), '{"meaning":"动物『解释』"}']) expect(() => parseChineseDefinition(raw)).toThrow("valid Chinese definition");
+  test("server data fills missing Chinese without changing the reader's existing choices", () => {
+    const views = setup(), first = chooseChinese(views), second = views.at(text.indexOf("『", first.start + 1))!;
+    views.merge([{ start: first.start, english: first.english, chinese: "动物", language: "en" },
+      { start: second.start, english: second.english, chinese: "另一种动物", language: "zh" }]);
+    expect(first.language).toBe("zh");
+    expect(first.chinese).toBe("一种动物");
+    expect(second.language).toBe("en");
+    expect(second.chinese).toBe("另一种动物");
+  });
+  test("replacing a legacy note preserves other bilingual identities and offsets", () => {
+    const views = setup(), bird = views.at(text.lastIndexOf("『"))!;
+    Object.assign(bird, { chinese: "鸟类", language: "zh" });
+    const offset = text.indexOf("『"), value = "『a wild creature』", deleteCount = "『an animal』".length;
+    const updated = text.slice(0, offset) + value + text.slice(offset + deleteCount);
+    views.sync(updated, [{ offset, value, deleteCount }]);
+    expect(views.at(offset)?.english).toBe("a wild creature");
+    expect(views.get(bird.id)?.chinese).toBe("鸟类");
+    expect(views.get(bird.id)?.start).toBe(bird.start + value.length - deleteCount);
   });
 });

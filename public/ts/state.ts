@@ -6,7 +6,6 @@ import type { DefinitionView } from "./definitionViews";
 
 export const documentModel = new ReadingDocument();
 export const definitionViews = new DefinitionViews();
-const loadingDefinitions = new Set<number>();
 export const content = document.getElementById("content") as HTMLDivElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
 export const translateBtn = document.getElementById("translateBtn") as HTMLButtonElement;
@@ -67,19 +66,16 @@ export function refreshDefinitionNotes() {
     const chinese = definition.language === "zh" && !!definition.chinese;
     const text = chinese ? definition.chinese! : definition.english;
     note.textContent = text; note.lang = chinese ? "zh-Hans" : "en";
-    const action = deleteMode ? "Select twice to remove this definition." : "Click to show the " + (chinese ? "English" : "Chinese") + " definition.";
+    const action = deleteMode ? "Select twice to remove this definition." : !definition.chinese
+      ? "English-only note. Use Add definitions to generate both languages."
+      : "Click to show the " + (chinese ? "English" : "Chinese") + " definition.";
     note.title = translateMode ? "Choose Read to switch this definition's language." : action;
     if (!translateMode) {
       note.tabIndex = 0; note.setAttribute("role", "button");
       note.setAttribute("aria-label", `${text}. ${action}`);
     } else { note.removeAttribute("tabindex"); note.removeAttribute("role"); note.removeAttribute("aria-label"); }
-    note.setAttribute("aria-busy", String(loadingDefinitions.has(definition.id)));
-    note.setAttribute("aria-disabled", String(busy || (!deleteMode && loadingDefinitions.has(definition.id))));
+    note.setAttribute("aria-disabled", String(busy));
   }
-}
-export function setDefinitionLoading(id: number, loading: boolean) {
-  if (loading) loadingDefinitions.add(id); else loadingDefinitions.delete(id);
-  refreshDefinitionNotes();
 }
 export function definitionViewChanged() {
   refreshDefinitionNotes();
@@ -146,15 +142,23 @@ export function editCurrentPage(value: string, cursor: number) {
   paint(true);
   return result;
 }
-export function addDefinitions(definitions: Array<{ offset: number; meaning: string }>) {
+export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string }>) {
   if (!definitions.length) return;
-  const edits = definitions.map(item => ({ offset: item.offset, value: `『${item.meaning}』` })).sort((a, b) => b.offset - a.offset);
+  const edits = definitions.map(item => {
+    const previous = definitionViews.at(item.offset);
+    return { offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, deleteCount: previous ? previous.english.length + 2 : 0 };
+  }).sort((a, b) => b.offset - a.offset);
   let text = documentModel.text;
-  for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset);
-  const anchor = Math.max(...edits.map(edit => edit.offset));
-  const focus = anchor + edits.reduce((total, edit) => total + edit.value.length, 0);
+  for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
   documentModel.setText(text);
   definitionViews.sync(text, edits);
+  let shift = 0, focus = 0;
+  for (const edit of [...edits].reverse()) {
+    const start = edit.offset + shift, note = definitionViews.at(start)!;
+    Object.assign(note, { chinese: edit.chinese, language: "en" });
+    focus = start + edit.value.length;
+    shift += edit.value.length - edit.deleteCount;
+  }
   documentModel.select(documentModel.locate(focus));
   paint(true);
 }

@@ -94,6 +94,7 @@ describe("source server", () => {
     expect(html).toContain("Start with clear English definitions");
     expect(html).toContain("click a note in Read to see its Chinese meaning");
     expect(html).toContain("Each note remembers your choice when you refresh.");
+    expect(html).toContain("AI creates English and Chinese definitions together.");
     expect(html).not.toContain("exclusively");
     expect(html).not.toContain("without translating into another language.");
     expect(html).not.toMatch(/\p{Script=Han}/u);
@@ -166,6 +167,44 @@ describe("source server", () => {
     expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe(content + "\nLast page.");
     expect((await request(`/api/entries/${id}`, "PUT", { content: "  \n " }, alice)).status).toBe(400);
   });
+  test("saves bilingual definitions with articles and defaults shared views to English", async () => {
+    const content = "A fox『an animal』 meets a bird『a flying animal』.";
+    const definitions = [{ start: content.indexOf("『"), english: "an animal", chinese: "一种动物", language: "zh" },
+      { start: content.lastIndexOf("『"), english: "a flying animal", chinese: "会飞的动物", language: "en" }];
+    const saved = await request("/api/entries", "POST", { title: "Two languages", content, definitions }, alice);
+    expect(saved.status).toBe(201);
+    const id = (await saved.json()).id;
+    const loaded = (await (await request(`/api/entries/${id}`)).json()).entry;
+    expect(loaded.content).toBe(content);
+    expect(loaded.definitions).toEqual(definitions.map(view => ({ ...view, language: "en" })));
+    const updated = [{ ...definitions[0]!, chinese: "野生动物" }, definitions[1]!];
+    expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, bob)).status).toBe(403);
+    expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, alice)).status).toBe(200);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions[0].chinese).toBe("野生动物");
+    const list = (await (await request("/api/entries")).json()).entries;
+    expect(list.find((entry: { id: number }) => entry.id === id)).not.toHaveProperty("definitions");
+  });
+  test("rejects malformed bilingual metadata atomically", async () => {
+    const content = "A fox『an animal』 reads.", id = await create();
+    const valid = { start: content.indexOf("『"), english: "an animal", chinese: "动物", language: "en" };
+    for (const definitions of [null, {}, [null], [{ ...valid, start: 999 }], [{ ...valid, english: "different" }],
+      [{ ...valid, chinese: "animal" }], [{ ...valid, chinese: "中".repeat(601) }], [valid, valid], [{ ...valid, chinese: "" }]]) {
+      expect((await request(`/api/entries/${id}`, "PUT", { content, definitions }, alice)).status).toBe(400);
+      expect((await request("/api/entries", "POST", { title: "Invalid pair", content, definitions }, alice)).status).toBe(400);
+    }
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe("A fox『an animal』 in 2025.");
+  });
+  test("older clients keep valid pairs and discard metadata for removed notes", async () => {
+    const content = "A fox『an animal』 reads.", definitions = [{ start: 5, english: "an animal", chinese: "动物" }];
+    const saved = await request("/api/entries", "POST", { title: "Compatibility", content, definitions }, alice);
+    const id = (await saved.json()).id;
+    expect((await request(`/api/entries/${id}`, "PUT", { content: content + " More." }, alice)).status).toBe(200);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toHaveLength(1);
+    expect((await request(`/api/entries/${id}`, "PUT", { content: "No annotations." }, alice)).status).toBe(200);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual([]);
+    db.query("UPDATE entries SET definitions = 'invalid JSON' WHERE id = ?").run(id);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe("No annotations.");
+  });
   test("historical articles stay readable but cannot be claimed or deleted", async () => {
     const info = db.query("INSERT INTO entries (title, content) VALUES ('Legacy', 'Keep me')").run();
     const id = Number(info.lastInsertRowid);
@@ -226,6 +265,19 @@ test("migrates the old schema without losing articles", () => {
   old.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now'))); INSERT INTO entries (title, content) VALUES ('Old story', 'Original text.');");
   old.close();
   const migrated = openDatabase(path);
-  try { expect(migrated.query("SELECT title, content, owner_email FROM entries").get()).toEqual({ title: "Old story", content: "Original text.", owner_email: null }); }
+  try { expect(migrated.query("SELECT title, content, owner_email, definitions FROM entries").get()).toEqual({ title: "Old story", content: "Original text.", owner_email: null, definitions: "[]" }); }
   finally { migrated.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("adds bilingual storage without changing existing ownership or annotations", () => {
+  const dir = mkdtempSync(join(tmpdir(), "engnote-owned-migration-")), path = join(dir, "legacy.db");
+  const old = new Database(path);
+  old.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), owner_email TEXT); INSERT INTO entries (title, content, owner_email) VALUES ('Owned story', 'A fox『an animal』 reads.', 'alice@example.com');");
+  old.close();
+  const migrated = openDatabase(path);
+  try {
+    expect(migrated.query("SELECT title, content, owner_email, definitions FROM entries").get()).toEqual({
+      title: "Owned story", content: "A fox『an animal』 reads.", owner_email: "alice@example.com", definitions: "[]",
+    });
+  } finally { migrated.close(); rmSync(dir, { recursive: true, force: true }); }
 });

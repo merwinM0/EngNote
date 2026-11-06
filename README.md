@@ -23,7 +23,7 @@ bun dev
 
 ### 代码逻辑与本次调整
 
-`index.ts` 管理启动和退出 → `backend/server.ts` 初始化 SQLite、挂载两页 HTML、校验 API → `backend/auth.ts` / `redis.ts` / `mail.ts` 处理登录、验证码和会话。前端 `main.ts` 装配事件，`state.ts` 管理段落与选词，`db.ts` 管理保存/列表，`format.ts` 与 `translate.ts` 调用 DeepSeek。新增 `pagination.ts` 管理无损正文与分页，`editor.ts` 处理导入、实时编辑和草稿，`panels.ts` 管理文章内面板，`notes.ts` 管理保存 / 收藏 / 确认 / API / 账号弹窗的叠放、焦点与关闭行为，`articleTitle.ts` 管理 AI 标题总结、格式兼容与一次短标题修正，`collectionCanvas.ts` / `boardGeometry.ts` 管理收藏画布与可测试的缩放几何，`word.ts` 在浏览器提取 Word 正文，`definitionViews.ts` / `definitionLanguage.ts` 管理每条释义的独立中英文显示、缓存及按需翻译。
+`index.ts` 管理启动和退出 → `backend/server.ts` 初始化 SQLite、挂载两页 HTML、校验 API → `backend/auth.ts` / `redis.ts` / `mail.ts` 处理登录、验证码和会话。前端 `main.ts` 装配事件，`state.ts` 管理段落与选词，`db.ts` 管理保存/列表，`format.ts` 与 `translate.ts` 调用 DeepSeek。新增 `pagination.ts` 管理无损正文与分页，`editor.ts` 处理导入、实时编辑和草稿，`panels.ts` 管理文章内面板，`notes.ts` 管理保存 / 收藏 / 确认 / API / 账号弹窗的叠放、焦点与关闭行为，`articleTitle.ts` 管理 AI 标题总结、格式兼容与一次短标题修正，`collectionCanvas.ts` / `boardGeometry.ts` 管理收藏画布与可测试的缩放几何，`word.ts` 在浏览器提取 Word 正文，`definitionViews.ts` / `definitionLanguage.ts` 管理每条释义的独立中英文显示及缓存，`dictionary.ts` 校验单次 AI 请求同时返回的中英文释义。
 
 - 修复全局正则反复校验不稳定、粘贴丢失数字、标点也被选中、跨段落合并短语等问题。
 - AI 期间锁定冲突操作，使用页面版本及请求序号防止过期结果覆盖新内容；加载/失败标记不写入文章。先排版后注释，避免 AI 排版移动已有释义。
@@ -108,19 +108,20 @@ bun dev
     - 例：`take off『to leave the ground and begin to fly』`
   - **不连续的多个单词/词组**：每个被选中的片段**分别**在其后方追加各自的 `『』`，逐个用纯英文解释。
     - 例：`The quick『fast』brown fox jumps over the lazy『slow-moving』dog`
-- 新释义**默认显示英文**。在 **Read** 模式点击某条胶带释义，可按需获取并显示其中文释义；再次点击切回英文。每条释义的语言和中文缓存独立保存于当前标签页的工作记录，刷新或从首页返回后保留，不需要重复请求。首次获取中文需配置 DeepSeek key，失败时保留英文并允许重试。
-- 中文仅为阅读展示层，不替换正文中的 `『英文释义』`，不会单独造成文章“未保存修改”或改变分页字数，也不会改变其他读者的文章。关闭标签页会清除工作记录；已有的纯英文释义无需重新生成，也可点击查看中文。
+- **AI 释义一次请求同时返回英文和对应的中文**，两种语言均通过校验后才插入注释；新释义默认显示英文。在 **Read** 模式点击胶带释义即刻切换中文，再次点击切回英文，**切换不发送 AI 请求，也不需要 API key**。各条释义互不影响，当前标签页独立记忆每条的显示语言，刷新或从首页返回后保持。
+- 中英文内容随文章一并保存，重新打开收藏文章也能直接切换；其他读者首次打开仍默认英文。正文保持 `『英文释义』`，中文以匹配正文偏移的附加数据保存，不影响 3000 字符分页。切换显示语言不会造成“未保存修改”，但新增 / 修改双语释义仍需保存。
+- 旧记录如果只有英文且没有缓存中文，点击仅提示使用 Add definitions 重新生成双语释义，不会悄悄请求翻译。重新释义会替换该词的旧注释，不重复叠加；旧文章和旧版草稿继续可读。SQLite 自动新增双语数据列，保留已有正文与作者信息。
 - 翻译前的选中高亮在翻译完成后清除，由 `『释义』` 标记取代。
 
 **翻译交互流程**（两步：先选词，再点翻译）：
 1. 点击「AI 翻译」按钮 → 进入**选词模式**，直接在页面单击选词。
 2. 用户在文本中**单击单词**选中并高亮背景色（再单击取消，可多选相邻或不相邻的单词/短语）。
 3. 点击独立的「Define selected (数量)」执行释义；锁定冲突编辑和翻页操作，待解释单词显示点状下划线，状态栏展示进度，不往正文插入临时占位字符。
-4. API 返回后按正文偏移插入 `『纯英文释义』`，然后自动分页；释义也计入 3000 字符限制。
+4. API 返回 `[{ term, english, chinese }]`；按正文偏移插入 / 更新 `『英文释义』`，同时关联中文并默认显示英文，然后自动分页；正文中的英文释义计入 3000 字符限制。缺少任一语言或超长的结果不截断、不插入，可重新选择缺失词重试。
 5. 未返回的词可重新选择重试；整个请求失败时正文保持原样。
 6. Add definitions 进入模式后仍显示原名称，不改成 Cancel，也不新增取消按钮；重复点击不会退出或清除选词。点击 Read 或按 Esc 恢复普通阅读，清除选词/删除注释的临时状态，但保留已有释义。
 7. 释义请求进行中仍可点击 Read 或按 Esc：中止浏览器请求并释放操作锁，迟到结果不会写入正文，旧请求也不会解锁或重置之后发起的新任务。
-8. Read 模式的释义支持鼠标点击以及 Tab + Enter / Space 切换中英文，各自显示加载状态，不锁住其他释义。选词模式点击旧释义不会切换语言；删除模式仍为两次点击删除，显示中文时也只删除对应的原始英文注释。编辑导致注释偏移时跟踪原注释，移除 / 替换文章后的迟到中文响应不会写回。
+8. Read 模式支持鼠标点击以及 Tab + Enter / Space 本地切换中英文，无额外加载等待。选词模式点击旧释义不会切换语言；删除模式仍为两次点击删除，并同步移除对应中文数据。编辑导致注释偏移时跟踪原注释；取消 AI 释义后迟到的中英文结果都不会写回。
 9. 释义注释使用半透明、带细微反光与撕边的胶带背景；长注释按行续贴，不剪裁文字或焦点轮廓。删除选中时胶带变为浅玫瑰色并显示虚线轮廓，正文和保存格式保持不变。
 
 ### 5. 删除翻译（删除按钮）
@@ -271,9 +272,9 @@ type SelectionGroup = {
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/entries` | 列出已保存文章（id, title, created_at） |
-| POST | `/api/entries` | 保存文章，JSON `{ title, content }` |
-| PUT | `/api/entries/:id` | 覆盖更新文章内容（保留原标题） |
-| GET | `/api/entries/:id` | 获取单篇文章（含 content） |
+| POST | `/api/entries` | 保存文章，JSON `{ title, content, definitions? }`，双语数据与正文同时写入 |
+| PUT | `/api/entries/:id` | 更新正文与双语数据（保留原标题），JSON `{ content, definitions? }` |
+| GET | `/api/entries/:id` | 获取单篇文章（含 content、definitions，显示语言默认英文） |
 | DELETE | `/api/entries/:id` | 删除一篇文章 |
 
 保存请求示例：
@@ -286,7 +287,7 @@ type SelectionGroup = {
 ```
 
 - `content` 保存完整正文（包含全部分页及 `『』` 释义），并保留页面边界的空白字符。
-- 文章表：`entries(id, title, content, created_at, owner_email)`，存储于 `data.db`；旧表无损迁移，历史记录作者为空且只读。
+- 文章表：`entries(id, title, content, created_at, owner_email, definitions)`，存储于 `data.db`；`definitions` 为匹配正文注释的双语 JSON 数组（`start, english, chinese`，服务端规范化为英文显示）。旧表无损追加该列，默认为 `[]`；历史记录作者为空且只读。
 
 ### 认证 API
 

@@ -2,6 +2,7 @@ import { setStatus, errorMessage } from "./util";
 import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions } from "./state";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { openAISettings } from "./aiSettings";
+import { DICTIONARY_PROMPT, parseDictionaryResponse } from "./dictionary";
 let activeRequest: AbortController | null = null;
 export const onTermClick = (id: number) => togglePick(id);
 export function cancelDefinitions(announce = true) {
@@ -35,28 +36,18 @@ export async function translateSelected() {
   clearPicked();
   for (const target of targets) target.word.el.classList.add("defining");
   setBusy(true);
-  setStatus(`Finding English definitions for ${targets.length} term(s)…`);
+  setStatus(`Finding English and Chinese definitions for ${targets.length} term(s)…`);
   try {
-    const raw = await callDeepSeek(
-      'You are an English dictionary assistant. The user provides a JSON array of terms. Return ONLY a JSON array of objects {"term": string, "meaning": string}, one for each term with its exact spelling. Give a short English-only definition. Do not include Chinese, markup, or the characters 『 and 』.',
-      JSON.stringify(targets.map(target => target.term)), request.signal);
-    const result: unknown = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? raw);
-    if (!Array.isArray(result)) throw new Error("The dictionary response was invalid. Please try again.");
-    const meanings = new Map<string, string>();
-    for (const item of result) {
-      if (typeof item === "object" && item !== null && typeof item.term === "string" && typeof item.meaning === "string"
-        && /[A-Za-z]/.test(item.meaning) && !/[^\x20-\x7e\s\u00a0\u2010-\u201f\u2026]/.test(item.meaning)) {
-        meanings.set(item.term.trim().toLowerCase(), item.meaning.trim().slice(0, 600));
-      }
-    }
+    const raw = await callDeepSeek(DICTIONARY_PROMPT, JSON.stringify(targets.map(target => target.term)), request.signal);
+    const meanings = parseDictionaryResponse(raw);
     if (activeRequest !== request || request.signal.aborted || getRevision() !== revision) return;
-    const definitions: Array<{ offset: number; meaning: string }> = [];
+    const definitions: Array<{ offset: number; meaning: string; chinese: string }> = [];
     for (const target of targets) {
       const meaning = meanings.get(target.term.toLowerCase());
-      if (meaning) definitions.push({ offset: target.word.end, meaning });
+      if (meaning) definitions.push({ offset: target.word.end, meaning: meaning.english, chinese: meaning.chinese });
     }
     addDefinitions(definitions);
-    setStatus(`${definitions.length}/${targets.length} definitions added. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
+    setStatus(`${definitions.length}/${targets.length} bilingual definitions added; English is shown first. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
   } catch (error) {
     if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(errorMessage(error), "error");
   } finally {
