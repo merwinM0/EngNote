@@ -19,6 +19,9 @@ export function initCollectionCanvas(): () => void {
   function render(next = view) {
     view = { ...next, scale: clampBoardScale(next.scale) };
     list.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+    viewport.style.setProperty("--board-grid-step", `${40 * view.scale}px`);
+    viewport.style.setProperty("--board-grid-x", `${view.x}px`);
+    viewport.style.setProperty("--board-grid-y", `${view.y}px`);
     const percentage = Math.round(view.scale * 100);
     const limit = view.scale <= MIN_BOARD_SCALE ? " · minimum" : view.scale >= MAX_BOARD_SCALE ? " · maximum" : "";
     const label = `${percentage}%${limit}`;
