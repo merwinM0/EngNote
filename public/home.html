@@ -69,11 +69,10 @@
     <div class="manual-shell">
       <div class="manual-heading">
         <div><p class="eyebrow" data-i18n="manual.eyebrow">A quick, hands-on tour</p><h2 id="manualTitle" data-i18n="manual.title">Your first page, in five steps.</h2></div>
-        <div class="manual-heading-actions"><button class="tape-button tape-clear" type="button" data-ui-language-toggle aria-label="Switch interface to Chinese">EN / ZH</button><button id="manualClose" class="tape-button tape-clear" type="button" aria-label="Close manual" data-i18n-aria-label="manual.close" data-close-note autofocus>×</button></div>
+        <div class="manual-heading-actions"><button id="manualClose" class="tape-button tape-clear" type="button" aria-label="Close manual" data-i18n-aria-label="manual.close" data-close-note autofocus>×</button></div>
       </div>
       <p id="manualDisclaimer" class="manual-disclaimer" data-i18n="manual.disclaimer">A small practice notebook. No AI requests, real keys or saved articles are involved.</p>
-      <div class="manual-progress"><span id="manualProgress" role="status"></span><div class="manual-track" aria-hidden="true"><span id="manualProgressFill"></span></div></div>
-      <div class="manual-instruction"><h3 id="manualStepTitle" tabindex="-1"></h3><p id="manualStepDescription"></p></div>
+      <div id="manualProgressIndicator" class="manual-progress tape-progress" data-progress="determinate"><span id="manualProgress" role="status" tabindex="-1"></span><div id="manualProgressBar" class="tape-progress-track" role="progressbar" aria-labelledby="manualProgress" aria-valuemin="0" aria-valuemax="5" aria-valuenow="1"><div class="tape-progress-reveal" aria-hidden="true"><span class="tape tape-progress-strip"></span></div></div></div>
       <div class="manual-demo">
         <section data-manual-step="0">
           <div class="manual-tools"><span class="tape-button tape-wheat" data-i18n="reader.pasteText">Paste text</span><span class="manual-caption" data-i18n="manual.sampleHint">A short sample is ready. You can edit it, too.</span></div>
@@ -94,21 +93,21 @@
         </section>
         <section data-manual-step="2" hidden>
           <div class="manual-tools"><button id="manualTidy" class="tape-button tape-lilac" type="button" data-i18n="reader.tidy">✦ Tidy this page</button></div>
-          <div class="manual-paper"><h4 lang="en">A little reading</h4><div id="manualTidyText" class="manual-prose" lang="en"></div></div>
+          <div class="manual-paper"><h3 lang="en">A little reading</h3><div id="manualTidyText" class="manual-prose" lang="en"></div></div>
           <p id="manualTidyResult" class="manual-feedback" role="status" hidden data-i18n="manual.tidied">Paragraphs tidied. Do this before adding definitions so your notes stay intact.</p>
         </section>
         <section data-manual-step="3" hidden>
           <div class="manual-tools"><button id="manualRead" class="tape-button tape-sage" type="button" aria-pressed="false" data-i18n="reader.read">Read</button><button id="manualSelect" class="tape-button tape-mist" type="button" aria-pressed="true" data-i18n="reader.addDefinitions">✎ Add definitions</button><button id="manualDefine" class="tape-button tape-wheat" type="button" disabled>Define selected (0)</button></div>
-          <div class="manual-paper"><h4 lang="en">A word in the margins</h4><p class="manual-prose" lang="en">Some stories <button id="manualTerm" class="manual-term" type="button" aria-pressed="false">linger</button><button id="manualNote" class="manual-note" type="button" hidden></button> long after the last page.</p></div>
+          <div class="manual-paper"><h3 lang="en">A word in the margins</h3><p class="manual-prose" lang="en">Some stories <button id="manualTerm" class="manual-term" type="button" aria-pressed="false">linger</button><button id="manualNote" class="manual-note" type="button" hidden></button> long after the last page.</p></div>
           <p id="manualDefinitionHint" class="manual-feedback" role="status"></p>
         </section>
         <section data-manual-step="4" hidden>
           <div class="manual-tools"><button id="manualSave" class="tape-button tape-sage" type="button" data-i18n="reader.saveArticle">Save article</button><button id="manualBackground" class="tape-button tape-wheat" type="button" data-i18n="reader.background">Background</button><button id="manualFont" class="tape-button tape-clear" type="button" data-i18n-aria-label="reader.fontSize" aria-label="Change reading font size">Aa</button></div>
-          <div id="manualReadingPaper" class="manual-paper"><h4 lang="en">A little reading</h4><p id="manualReadingText" class="manual-prose" lang="en"></p><div class="manual-page-tools"><button id="manualPreviousPage" class="tape-button tape-clear" type="button" data-i18n="reader.previous" disabled>← Previous</button><span id="manualPagePosition">1 / 2</span><button id="manualNextPage" class="tape-button tape-clear" type="button" data-i18n="reader.next">Next →</button></div></div>
+          <div id="manualReadingPaper" class="manual-paper"><h3 lang="en">A little reading</h3><p id="manualReadingText" class="manual-prose" lang="en"></p><div class="manual-page-tools"><button id="manualPreviousPage" class="tape-button tape-clear" type="button" data-i18n="reader.previous" disabled>← Previous</button><span id="manualPagePosition">1 / 2</span><button id="manualNextPage" class="tape-button tape-clear" type="button" data-i18n="reader.next">Next →</button></div></div>
           <p id="manualSaveResult" class="manual-feedback" role="status" hidden data-i18n="manual.saved">Practice article saved — just pretend! Sign in on the reading page to save all pages and notes to your collection.</p>
         </section>
       </div>
-      <div class="manual-footer"><button id="manualPrevious" class="tape-button tape-clear" type="button" disabled data-i18n="manual.previous">← Previous step</button><button id="manualNext" class="tape-button tape-sage" type="button" data-i18n="manual.next">Next step →</button></div>
+      <div class="manual-footer"><button id="manualPrevious" class="tape-button tape-clear" type="button" disabled data-i18n="manual.previous">← Previous step</button><button id="manualNext" class="tape-button tape-sage" type="button">Next step →</button></div>
     </div>
   </dialog>
   <script type="module" src="./ts/home.ts"></script>

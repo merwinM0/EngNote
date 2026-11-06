@@ -1,0 +1,30 @@
+/* Shared progress pattern: the AI-title tape is the standard for all progress bars. */
+.tape-progress { margin: 20px 0 0; color: var(--muted); }
+.tape-progress p { margin: 8px 0 0; font: italic 14px/1.7 var(--handwriting); }
+.tape-progress-track { position: relative; width: min(240px, 100%); height: 40px; }
+.tape-progress-reveal { height: 100%; animation: tape-stick 3.4s linear infinite; transition: clip-path .25s; }
+.tape-progress-strip { top: 8px; left: 0; width: 100%; height: 28px; transform: rotate(-2deg); }
+.tape-progress-track::after { content: ""; position: absolute; top: 6px; width: 12px; height: 29px; border-radius: 0 5px 5px 0; background: linear-gradient(90deg, #ffffff99, var(--tape-sage)); box-shadow: 3px 2px 4px #293e3b14; animation: tape-edge 3.4s linear infinite; transition: left .25s; }
+/* Known progress uses the same paper and lifted edge, without an endless loading loop. */
+.tape-progress[data-progress="determinate"] .tape-progress-reveal { animation: none; clip-path: inset(0 calc(100% - var(--progress, 0%)) 0 0); }
+.tape-progress[data-progress="determinate"] .tape-progress-track::after { animation: none; left: clamp(0px, calc(var(--progress, 0%) - 12px), calc(100% - 12px)); }
+@keyframes tape-stick {
+  0%, 6% { clip-path: inset(0 100% 0 0); opacity: 0; }
+  12% { opacity: 1; }
+  78%, 92% { clip-path: inset(0); opacity: 1; }
+  100% { clip-path: inset(0); opacity: 0; }
+}
+@keyframes tape-edge {
+  0%, 6% { left: 0; opacity: 0; transform: rotate(-12deg); }
+  12% { opacity: 1; }
+  78% { left: calc(100% - 12px); opacity: 1; transform: rotate(0); }
+  84%, 100% { left: calc(100% - 12px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape-progress-reveal { animation: none; transition: none; }
+  .tape-progress-track::after { display: none; }
+}
+@media (forced-colors: active) {
+  .tape-progress-strip { background: Highlight; forced-color-adjust: none; }
+  .tape-progress-track::after { display: none; }
+}

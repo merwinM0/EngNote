@@ -7,28 +7,6 @@ html:has(.note-window[open]) { overflow: hidden; }
 .note-window h2 { padding-right: 28px; }
 .note-window h3 { margin: 0 0 16px; font: 400 24px/1.3 var(--serif); }
 .note-close { position: absolute; top: 12px; right: 12px; font-size: 22px; z-index: 1; }
-/* Reveal the tape slowly from left to right, with a small lifted leading edge. */
-.title-progress { margin: 20px 0 0; color: var(--muted); }
-.title-progress p { margin: 8px 0 0; font: italic 14px/1.7 var(--handwriting); }
-.title-tape-track { position: relative; width: min(240px, 100%); height: 40px; }
-.title-tape-reveal { height: 100%; animation: tape-stick 3.4s linear infinite; }
-.title-tape-strip { top: 8px; left: 0; width: 100%; height: 28px; transform: rotate(-2deg); }
-.title-tape-track::after { content: ""; position: absolute; top: 6px; width: 12px; height: 29px; border-radius: 0 5px 5px 0; background: linear-gradient(90deg, #ffffff99, var(--tape-sage)); box-shadow: 3px 2px 4px #293e3b14; animation: tape-edge 3.4s linear infinite; }
-@keyframes tape-stick {
-  0%, 6% { clip-path: inset(0 100% 0 0); opacity: 0; }
-  12% { opacity: 1; }
-  78%, 92% { clip-path: inset(0); opacity: 1; }
-  100% { clip-path: inset(0); opacity: 0; }
-}
-@keyframes tape-edge {
-  0%, 6% { left: 0; opacity: 0; transform: rotate(-12deg); }
-  12% { opacity: 1; }
-  78% { left: calc(100% - 12px); opacity: 1; transform: rotate(0); }
-  84%, 100% { left: calc(100% - 12px); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .title-tape-track::after { display: none; }
-}
 @media (max-width: 700px) {
   .note-window { width: calc(100% - 16px); }
   .note-window .note-panel { padding: 36px 20px 24px; }

@@ -1,13 +1,6 @@
 import { t, type MessageKey } from "./i18n";
 import { openNote, closeNote } from "./notes";
 
-const STEPS = [
-  ["manual.pasteTitle", "manual.pasteDescription"],
-  ["manual.aiTitle", "manual.aiDescription"],
-  ["manual.tidyTitle", "manual.tidyDescription"],
-  ["manual.defineTitle", "manual.defineDescription"],
-  ["manual.saveTitle", "manual.saveDescription"],
-] as const satisfies ReadonlyArray<readonly [MessageKey, MessageKey]>;
 const SAMPLE = "Some stories linger long after the last page. A little reading, every day, opens a new window on the world.";
 const SECOND_PAGE = "One page is a small beginning. Come back tomorrow, and let the next story take you somewhere new.";
 
@@ -30,7 +23,7 @@ export function initManual(): void {
   const text = element("manualText");
   if (!(text instanceof HTMLTextAreaElement)) throw new Error("Missing manual text field");
   const panels = [...root.querySelectorAll<HTMLElement>("[data-manual-step]")];
-  const title = element("manualStepTitle"), description = element("manualStepDescription");
+  const progress = element("manualProgress"), demo = root.querySelector<HTMLElement>(".manual-demo");
   const previous = button("manualPrevious"), next = button("manualNext");
   const term = button("manualTerm"), note = button("manualNote"), define = button("manualDefine");
   let step = 0, page = 0, selected = false, defined = false, reading = false;
@@ -47,16 +40,13 @@ export function initManual(): void {
     }));
   }
   function render(): void {
-    const current = STEPS[step]!;
     panels.forEach((panel, index) => { panel.hidden = index !== step; });
-    title.textContent = t(current[0]);
-    description.textContent = t(current[1]);
-    element("manualProgress").textContent = t("manual.progress", { step: step + 1, total: STEPS.length });
-    element("manualProgressFill").style.width = `${(step + 1) / STEPS.length * 100}%`;
+    progress.textContent = t("manual.progress", { step: step + 1, total: panels.length });
+    element("manualProgressIndicator").style.setProperty("--progress", `${(step + 1) / panels.length * 100}%`);
+    element("manualProgressBar").setAttribute("aria-valuemax", String(panels.length));
+    element("manualProgressBar").setAttribute("aria-valuenow", String(step + 1));
     previous.disabled = step === 0;
-    next.textContent = t(step === STEPS.length - 1 ? "manual.done" : "manual.next");
-    // This button changes label at the final step; it is translated from local state.
-    next.removeAttribute("data-i18n");
+    next.textContent = t(step === panels.length - 1 ? "manual.done" : "manual.next");
     const language = button("manualDefinitionLanguage");
     language.textContent = t(chineseFirst ? "ui.chinese" : "ui.english");
     language.setAttribute("aria-pressed", String(chineseFirst));
@@ -86,9 +76,10 @@ export function initManual(): void {
     element("manualReadingText").textContent = page === 0 ? practiceText : SECOND_PAGE;
   }
   function moveStep(direction: number): void {
-    step = Math.max(0, Math.min(STEPS.length - 1, step + direction));
+    step = Math.max(0, Math.min(panels.length - 1, step + direction));
     render();
-    title.focus();
+    if (demo) demo.scrollTop = 0;
+    progress.focus({ preventScroll: true });
   }
   trigger.addEventListener("click", () => {
     step = 0; page = 0; selected = false; defined = false; reading = false;
@@ -103,7 +94,7 @@ export function initManual(): void {
   });
   root.addEventListener("panel-close", () => document.documentElement.classList.remove("manual-open"));
   previous.addEventListener("click", () => moveStep(-1));
-  next.addEventListener("click", () => step === STEPS.length - 1 ? closeNote(root.id) : moveStep(1));
+  next.addEventListener("click", () => step === panels.length - 1 ? closeNote(root.id) : moveStep(1));
   button("manualPaste").addEventListener("click", () => {
     const value = text.value.trim().replace(/\s+/gu, " ");
     pasteMessage = value ? "manual.pasted" : "manual.empty";

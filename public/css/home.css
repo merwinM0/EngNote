@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./tape.css";
+@import "./progress.css";
 @import "./manual.css";
 
 .home-wrap { width: 100%; padding: 0 32px; }

@@ -132,13 +132,30 @@ describe("source server", () => {
     expect(actions).toContain('data-i18n="manual.button">amnual</button>');
     const manual = html.match(/<dialog id="manualDialog"[\s\S]*?<\/dialog>/)?.[0] ?? "";
     expect(manual).toContain('aria-labelledby="manualTitle"');
-    expect(manual).toContain('data-ui-language-toggle');
+    expect(manual).not.toContain('data-ui-language-toggle');
+    expect(manual).not.toContain('manualStepTitle');
+    expect(manual).not.toContain('manualStepDescription');
+    expect(manual).toContain('class="manual-progress tape-progress"');
+    expect(manual).toContain('data-progress="determinate"');
+    expect(manual).toContain('role="progressbar"');
+    expect(manual).toContain('aria-labelledby="manualProgress"');
+    expect(manual).toContain('class="tape tape-progress-strip"');
     expect(manual).toContain('id="manualPrevious"');
     expect(manual).toContain('id="manualNext"');
     expect([...manual.matchAll(/data-manual-step="(\d+)"/g)].map(match => match[1])).toEqual(["0", "1", "2", "3", "4"]);
     expect(manual).toContain('value="sk-demo-not-a-real-key" readonly');
     for (const id of ["manualPaste", "manualSaveKey", "manualTidy", "manualDefine", "manualNote", "manualSave", "manualNextPage"]) expect(manual).toContain(`id="${id}"`);
     expect(html.match(/<main\b[\s\S]*?<\/main>/)?.[0]).not.toContain('id="manualDialog"');
+  });
+  test("AI article titles and the manual share the standard tape progress structure", async () => {
+    for (const path of ["/", "/index.html"]) {
+      const html = await (await request(path)).text();
+      expect(html).toContain('class="tape-progress-reveal"');
+      expect(html).toContain('class="tape tape-progress-strip"');
+      expect(html).not.toContain('title-tape-track');
+    }
+    const reader = await (await request("/index.html")).text();
+    expect(reader).toContain('id="titleProgress" class="tape-progress" role="status" hidden');
   });
   test("AI setup exposes an independent Zh/Eng default language toggle", async () => {
     const html = await (await request("/index.html")).text();
