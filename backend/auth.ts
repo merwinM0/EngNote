@@ -12,7 +12,7 @@ import { setex, get, delKey } from "./redis";
 import { sendVerificationEmail } from "./mail";
 
 export const CODE_TTL = 300; // seconds (5 min)
-const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days
+export const SESSION_TTL = 60 * 60 * 24; // 24 hours, shared with the browser cookie.
 const CODE_EMAIL_PREFIX = "auth:code:";
 const TOKEN_EMAIL_PREFIX = "auth:token:";
 

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -118,14 +118,20 @@ describe("source server", () => {
     expect(html).not.toContain("Every page and definition is saved together.");
     expect(html).toContain('id="titleProgress"');
   });
-  test("collection keeps its controls without decorative stationery or extra copy", async () => {
+  test("collection pins its tapes and provides a bounded zoomable article canvas", async () => {
     const html = await (await request("/index.html")).text();
     const board = html.match(/<dialog id="collectionPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
     expect(board).toContain('id="savedTitle">Saved articles</h2>');
     expect(board).toContain('id="refreshListBtn"');
     expect(board).toContain('aria-label="Close saved articles"');
     expect(board).toContain('id="entryList"');
-    expect(board).not.toMatch(/board-tape|board-scribble|board-footer|board-doodle|class="eyebrow"|<svg/);
+    expect(board).toContain("board-tape-left");
+    expect(board).toContain("board-tape-right");
+    expect(board).toContain('id="collectionViewport"');
+    expect(board).toContain('id="boardZoomRange"');
+    expect(board).toContain('min="25" max="200"');
+    expect(board).toContain('id="boardFitBtn"');
+    expect(board).not.toMatch(/board-scribble|board-footer|board-doodle|class="eyebrow"|<svg/);
   });
   test("requires a real session for writes", async () => {
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
@@ -180,6 +186,22 @@ describe("source server", () => {
     expect((await request("/api/auth/send-code", "POST", { email })).status).toBe(400);
     expect((await request("/api/auth/register", "POST", { email, password: "password123", code })).status).toBe(201);
     expect((await request("/api/auth/register", "POST", { email, password: "password123", code })).status).toBe(400);
+  });
+  test("browser cookie and server session both expire exactly 24 hours after login", async () => {
+    const now = Date.now();
+    const clock = spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const login = await request("/api/auth/login", "POST", { email: "alice@example.com", password: "password123" });
+      expect(login.status).toBe(200);
+      const header = login.headers.get("set-cookie")!;
+      expect(header).toContain("Max-Age=86400");
+      const cookie = header.split(";")[0]!;
+      clock.mockReturnValue(now + 86400000 - 1);
+      expect((await request("/api/auth/me", "GET", undefined, cookie)).status).toBe(200);
+      clock.mockReturnValue(now + 86400000);
+      expect((await request("/api/auth/me", "GET", undefined, cookie)).status).toBe(401);
+      expect((await request("/api/entries", "POST", { title: "Expired", content: "Keep me" }, cookie)).status).toBe(401);
+    } finally { clock.mockRestore(); }
   });
   test("logout invalidates the session and clears the cookie", async () => {
     const login = await request("/api/auth/login", "POST", { email: "alice@example.com", password: "password123" });

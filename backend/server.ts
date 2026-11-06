@@ -2,11 +2,10 @@ import { Database } from "bun:sqlite";
 import { resolve } from "node:path";
 import home from "../public/home.html";
 import reader from "../public/index.html";
-import { initAuth, register, login, requestCode, resolveToken, logout } from "./auth";
+import { initAuth, register, login, requestCode, resolveToken, logout, SESSION_TTL } from "./auth";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const COOKIE_NAME = "er_session";
-const SESSION_AGE = 7 * 24 * 60 * 60;
 export function openDatabase(path = process.env.DB_PATH || resolve(projectRoot, "data.db")): Database {
   const db = new Database(path, { create: true });
   db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
@@ -85,7 +84,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       const result = await login(email, password);
       if (!result.ok || !result.token) return json({ ok: false, error: result.error }, 401);
       // Do not expose the token to browser JavaScript.
-      return json({ ok: true, email: result.email }, 200, { "set-cookie": sessionCookie(req, result.token, SESSION_AGE) });
+      return json({ ok: true, email: result.email }, 200, { "set-cookie": sessionCookie(req, result.token, SESSION_TTL) });
     }
     if (path === "/api/entries") {
       const invalidMethod = allow(req, ["GET", "POST"]);
