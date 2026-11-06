@@ -2,14 +2,15 @@ import { setStatus, errorMessage } from "./util";
 import { reflowText } from "./text";
 import { characterCount, DOCUMENT_LIMIT, paginate } from "./pagination";
 import { documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
-import { confirmReplace, deselectEntry } from "./db";
+import { confirmReplace, deselectEntry, getDraftEntry, restoreEntrySelection } from "./db";
+import { ARTICLE_DRAFT_KEY, parseArticleDraft } from "./articleDraft";
+import type { ArticleDraft } from "./articleDraft";
 import { activePanel, openPanel } from "./panels";
 
 const editor = document.getElementById("editorText") as HTMLTextAreaElement;
 const entry = document.getElementById("editorBtn") as HTMLButtonElement;
 const wordFile = document.getElementById("wordFile") as HTMLInputElement;
 const applyButton = document.getElementById("editorApplyBtn") as HTMLButtonElement;
-const DRAFT_KEY = "er_article_draft_v1";
 let mode: "paste" | "edit" = "paste";
 let importDraft = "";
 let openingWord = false;
@@ -81,8 +82,11 @@ function onInput() {
 function persistDraft() {
   clearTimeout(draftTimer);
   try {
-    if (!getCurrentText()) sessionStorage.removeItem(DRAFT_KEY);
-    else sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ version: 1, text: getCurrentText(), index: documentModel.index }));
+    if (!getCurrentText()) sessionStorage.removeItem(ARTICLE_DRAFT_KEY);
+    else {
+      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry() };
+      sessionStorage.setItem(ARTICLE_DRAFT_KEY, JSON.stringify(draft));
+    }
   } catch {
     const warning = "Browser storage is unavailable. Use Save article before refreshing or leaving this tab.";
     document.getElementById("draftHint")!.textContent = warning;
@@ -91,15 +95,13 @@ function persistDraft() {
 }
 function restoreDraft() {
   try {
-    const raw = sessionStorage.getItem(DRAFT_KEY);
+    const raw = sessionStorage.getItem(ARTICLE_DRAFT_KEY);
     if (!raw) return;
-    const draft: unknown = JSON.parse(raw);
-    if (!draft || typeof draft !== "object" || !("version" in draft) || draft.version !== 1 || !("text" in draft) || typeof draft.text !== "string"
-      || draft.text.length > DOCUMENT_LIMIT || !("index" in draft) || typeof draft.index !== "number" || !Number.isInteger(draft.index)) {
-      sessionStorage.removeItem(DRAFT_KEY); return;
-    }
-    render(draft.text, draft.index); deselectEntry();
-    setStatus("Your tab's working draft has been restored as an unsaved article. Every page is here; save it to keep it permanently.", "ok");
+    const draft = parseArticleDraft(raw);
+    if (!draft) { sessionStorage.removeItem(ARTICLE_DRAFT_KEY); return; }
+    render(draft.text, draft.index); restoreEntrySelection(draft.entry);
+    setStatus(draft.entry ? "Your article and reading position are restored. Reconnecting to the saved article…"
+      : "Your tab's working draft has been restored as an unsaved article. Every page is here; save it to keep it permanently.", "ok");
   } catch { /* Optional storage must never prevent reading. */ }
 }
 
@@ -125,6 +127,7 @@ export function initEditor() {
   window.addEventListener("document-changed", () => {
     if (!hasContent()) { importDraft = ""; if (mode === "paste") { editor.value = ""; updatePreview(); } }
   });
+  window.addEventListener("entry-selection-changed", persistDraft);
   window.addEventListener("pagehide", persistDraft);
   editor.addEventListener("input", event => { if (!(event instanceof InputEvent) || !event.isComposing) onInput(); });
   editor.addEventListener("compositionend", onInput);

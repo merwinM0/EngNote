@@ -1,9 +1,10 @@
-import { api, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
+import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
 import { getCurrentText, render, isBusy, setBusy } from "./state";
 import { isLoggedIn } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
+import type { DraftEntry } from "./articleDraft";
 
 type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string };
 const savePanel = document.getElementById("savePanel") as HTMLDialogElement;
@@ -17,6 +18,8 @@ const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 let selected: Entry | null = null;
 let pendingDelete: Entry | null = null;
 let savedText = "";
+let selectionStatus: "ready" | "checking" | "retry" = "ready";
+let selectionRequest = 0;
 let listRequest = 0;
 let openRequest = 0;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
@@ -32,9 +35,49 @@ function updateSelection() {
     if (active) button?.setAttribute("aria-current", "true"); else button?.removeAttribute("aria-current");
   }
   document.getElementById("readerTitle")!.textContent = selected?.title ?? "A fresh article";
-  saveBtn.textContent = selected && canEdit(selected) ? "Save changes" : "Save article";
+  saveBtn.textContent = selectionStatus === "checking" ? "Restoring article…" : selectionStatus === "retry" ? "Retry saved article"
+    : selected && canEdit(selected) ? "Save changes" : "Save article";
+  saveBtn.disabled = isBusy() || selectionStatus === "checking";
 }
-export function deselectEntry() { openRequest++; selected = null; savedText = ""; updateSelection(); }
+function selectEntry(entry: Entry | null, baseline = "", status: typeof selectionStatus = "ready") {
+  selectionRequest++;
+  selected = entry; savedText = baseline; selectionStatus = status;
+  updateSelection();
+  window.dispatchEvent(new Event("entry-selection-changed"));
+}
+export function deselectEntry() { openRequest++; selectEntry(null); }
+export function getDraftEntry(): DraftEntry | null {
+  return selected ? { id: selected.id, title: selected.title, savedText } : null;
+}
+export function restoreEntrySelection(entry: DraftEntry | null) {
+  // initAuth's session-changed event will verify the ID after authentication resolves.
+  selectEntry(entry ? { id: entry.id, title: entry.title, can_edit: false, created_at: "" } : null,
+    entry?.savedText ?? "", entry ? "checking" : "ready");
+}
+async function reconnectSelection() {
+  if (!selected) return;
+  const id = selected.id, baseline = savedText, request = ++selectionRequest;
+  selected.can_edit = false; selectionStatus = "checking"; updateSelection();
+  try {
+    const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${id}`);
+    if (request !== selectionRequest) return;
+    // Only reconnect identity. Never replace the working text, definitions or page position.
+    selectEntry(data.entry, data.entry.content);
+    const message = data.entry.content !== baseline
+      ? "The saved text has changed elsewhere. Your working copy is kept; review it before saving."
+      : isDirty() ? "Your unsaved changes have been kept." : "Your reading position has been kept.";
+    setStatus(`Resumed “${data.entry.title}”. ${message}${canEdit(data.entry) ? " Save changes updates the original article." : " Save article keeps your own copy."}`, "ok");
+  } catch (error) {
+    if (request !== selectionRequest) return;
+    if (error instanceof ApiError && error.status === 404) {
+      selectEntry(null);
+      setStatus("The saved article no longer exists. Your working copy and reading position are kept as an unsaved article.", "info");
+    } else {
+      selectionStatus = "retry"; updateSelection();
+      setStatus(`Could not reconnect your saved article. Your working copy is safe. Choose Retry saved article to try again. ${errorMessage(error)}`, "error");
+    }
+  }
+}
 function showError(id: string, message: string) { const element = document.getElementById(id)!; element.textContent = message; element.hidden = !message; }
 
 async function openEntry(entry: Entry) {
@@ -49,9 +92,7 @@ async function openEntry(entry: Entry) {
     render(data.entry.content);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
-    selected = data.entry;
-    savedText = getCurrentText();
-    updateSelection();
+    selectEntry(data.entry, getCurrentText());
     setStatus(`Opened “${entry.title}”.${canEdit(entry) ? " Save changes to update this page." : " Save article to keep your own copy."}`, "ok");
   } catch (error) { if (request === openRequest) showError("collectionMsg", errorMessage(error)); }
 }
@@ -92,7 +133,7 @@ export async function refreshList() {
       const replacement = entryList.querySelector<HTMLElement>(`li[data-id="${focusedEntry.dataset.id}"] ${focused?.classList.contains("entry-del") ? ".entry-del" : ".entry-open"}`);
       (replacement ?? document.getElementById("refreshListBtn"))?.focus({ preventScroll: true });
     }
-    if (selected) {
+    if (selected && selectionStatus === "ready") {
       const fresh = data.entries.find(entry => entry.id === selected?.id);
       if (fresh) selected = { ...selected, can_edit: fresh.can_edit };
     }
@@ -114,7 +155,7 @@ function titleError(message: string) {
   saveTitle.focus({ preventScroll: true });
 }
 async function save(title?: string) {
-  if (isBusy() || !savePanel.open) return;
+  if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
   if (!isLoggedIn()) return showError("saveMsg", "Please log in again before saving. Your article has been kept.");
   const text = getCurrentText();
   const entry = selected;
@@ -140,8 +181,7 @@ async function save(title?: string) {
     const data = await api<{ id: number }>(overwrite ? `/api/entries/${entry.id}` : "/api/entries", {
       method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text } : { title, content: text }),
     });
-    selected = overwrite ? entry : { id: data.id, title: title!, can_edit: true, created_at: "" };
-    savedText = text;
+    selectEntry(overwrite ? entry : { id: data.id, title: title!, can_edit: true, created_at: "" }, text);
     saveTask = null;
     setBusy(false);
     updateSaveProgress();
@@ -169,7 +209,8 @@ async function save(title?: string) {
 }
 export function initDb() {
   saveBtn.addEventListener("click", () => {
-    if (isBusy()) return;
+    if (isBusy() || selectionStatus === "checking") return;
+    if (selectionStatus === "retry") { void reconnectSelection(); return; }
     if (!isLoggedIn()) return setStatus("Please log in to save a page.", "error");
     if (!getCurrentText()) return setStatus("Paste an article first.", "error");
     const overwrite = !!selected && canEdit(selected);
@@ -224,9 +265,9 @@ export function initDb() {
     finally { setBusy(false); button.disabled = false; }
   });
   window.addEventListener("session-changed", () => {
-    // Never carry the previous account's edit flag into a different session.
-    if (selected) selected.can_edit = false;
-    updateSelection();
+    // Recheck ownership with the server, not flags stored by this or a previous account.
+    if (savePanel.open && !saveTask) closePanel("savePanel");
+    if (selected) void reconnectSelection(); else updateSelection();
     void refreshList();
   });
   // Never trigger a native confirmation popup; drafts cover refresh and tab navigation.

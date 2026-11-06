@@ -19,12 +19,16 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong. Please try again.";
 }
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, signal: init?.signal ?? AbortSignal.timeout(20000) });
   const data = await response.json();
   if (!response.ok || data.ok === false) {
     if (response.status === 401) window.dispatchEvent(new Event("session-expired"));
-    throw new Error(typeof data.error === "string" ? data.error : `Request failed (${response.status})`);
+    throw new ApiError(typeof data.error === "string" ? data.error : `Request failed (${response.status})`, response.status);
   }
   return data;
 }
