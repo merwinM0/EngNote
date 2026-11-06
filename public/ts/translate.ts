@@ -1,4 +1,5 @@
 import { setStatus, errorMessage } from "./util";
+import { localizeError, msg, t } from "./i18n";
 import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions, definitionViews } from "./state";
 import { callDeepSeek } from "./deepseek";
 import { DICTIONARY_PROMPT, dictionaryKey, dictionaryTokenBudget } from "./dictionary";
@@ -16,19 +17,19 @@ export function cancelDefinitions(announce = true) {
   content.querySelectorAll(".defining").forEach(word => word.classList.remove("defining"));
   setTranslateMode(false);
   if (request) setBusy(false);
-  if (announce && wasActive) setStatus("Definitions canceled. Existing notes have been kept.");
+  if (announce && wasActive) setStatus(msg("status.definitionsCanceled"));
   return wasActive;
 }
 export function onTranslateClick() {
   if (isBusy() || isTranslateMode()) return;
-  if (!wordsById.size) return setStatus("Paste an English article first.", "error");
+  if (!wordsById.size) return setStatus(msg("status.pasteFirst"), "error");
   setTranslateMode(true);
   setStatus("");
 }
 export async function translateSelected(refresh = false) {
   if (isBusy()) return;
   const ids = collectPickedIds();
-  if (!ids.length) return setStatus("Select a word or phrase first.", "error");
+  if (!ids.length) return setStatus(msg("status.selectFirst"), "error");
   const restoreFocus = ["defineSelectedBtn", "refreshSelectedBtn"].includes(document.activeElement?.id ?? "");
   const request = new AbortController();
   activeRequest = request;
@@ -51,14 +52,16 @@ export async function translateSelected(refresh = false) {
   try {
     const result = await lookupDefinitions(targets, dictionaryCache, (terms, signal) =>
       callDeepSeek(DICTIONARY_PROMPT, JSON.stringify(terms), signal, { jsonObject: true, maxTokens: dictionaryTokenBudget(terms) }),
-    { refresh, signal: request.signal, onBatch: (index, total) => setStatus(`Finding short bilingual definitions · batch ${index}/${total}…`) });
+    { refresh, signal: request.signal, onBatch: (index, total) => setStatus(msg("status.batch", { index, total })) });
     if (activeRequest !== request || request.signal.aborted || getRevision() !== revision) return;
     addDefinitions(result.definitions.map(item => ({ offset: item.offset, meaning: item.english, chinese: item.chinese, term: item.term })), definitionLanguagePreference.language);
     const missing = targets.length - result.kept - result.definitions.length;
-    const summary = `${targets.length - missing}/${targets.length} term(s) ready · ${result.kept} existing note(s) kept · ${result.cached} cached result(s) reused · ${aiUsage.snapshot().requests - requestsBefore} AI request(s).`;
-    setStatus(`${summary}${missing ? " Select only missing terms to retry." : ""}${result.error ? " " + result.error : ""}`, missing ? "error" : "ok");
+    const requests = aiUsage.snapshot().requests - requestsBefore;
+    setStatus(() => t("status.summary", {
+      ready: targets.length - missing, total: targets.length, kept: result.kept, cached: result.cached, requests,
+    }) + (missing ? t("status.missing") : "") + (result.error ? " " + localizeError(result.error) : ""), missing ? "error" : "ok");
   } catch (error) {
-    if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(errorMessage(error), "error");
+    if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(() => errorMessage(error), "error");
   } finally {
     // A canceled request must not unlock or reset a newer task.
     if (activeRequest === request) {

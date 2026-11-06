@@ -1,4 +1,6 @@
 import { openNote, closeNote, initNotes } from "./notes";
+import { msg, setUIText } from "./i18n";
+import type { UIMessage } from "./i18n";
 
 /** Only the reader/editor switch inline; other actions float above the notebook. */
 let active = "readPanel";
@@ -40,11 +42,11 @@ export function closePanel(id: string) {
   else document.getElementById("readBtn")?.focus({ preventScroll: true });
 }
 
-export function confirmInPanel(message: string, action = "Continue"): Promise<boolean> {
+export function confirmInPanel(message: UIMessage, action: UIMessage = msg("confirm.continue")): Promise<boolean> {
   confirmResult?.(false);
   confirmResult = null;
-  document.getElementById("confirmMessage")!.textContent = message;
-  document.getElementById("acceptChangeBtn")!.textContent = action;
+  setUIText(document.getElementById("confirmMessage")!, message);
+  setUIText(document.getElementById("acceptChangeBtn")!, action);
   openPanel("confirmPanel");
   return new Promise(resolve => { confirmResult = resolve; });
 }

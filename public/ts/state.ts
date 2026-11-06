@@ -1,4 +1,5 @@
 import { el } from "./util";
+import { t } from "./i18n";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
 import { DefinitionViews } from "./definitionViews";
@@ -46,8 +47,12 @@ function updateNavigation() {
     button.disabled = busy || (Number(button.dataset.pageStep) < 0 ? documentModel.index === 0 : documentModel.index === documentModel.pages.length - 1);
   }
   document.querySelector("[data-page-position]")!.textContent = `${documentModel.index + 1} / ${documentModel.pages.length}`;
-  document.getElementById("pageSummary")!.textContent = `${documentModel.page.count.toLocaleString()} / ${PAGE_LIMIT.toLocaleString()} characters`;
-  document.getElementById("documentSummary")!.textContent = `${characterCount(documentModel.text).toLocaleString()} characters · ${documentModel.pages.length} page(s) in this article`;
+  refreshReadingCounts();
+}
+function refreshReadingCounts() {
+  document.getElementById("wordCount")!.textContent = t("reader.wordCount", { count: wordsById.size.toLocaleString() });
+  document.getElementById("pageSummary")!.textContent = t("reader.pageSummary", { count: documentModel.page.count.toLocaleString(), limit: PAGE_LIMIT.toLocaleString() });
+  document.getElementById("documentSummary")!.textContent = t("reader.documentSummaryLong", { count: characterCount(documentModel.text).toLocaleString(), pages: documentModel.pages.length });
 }
 export function setBusy(on: boolean) {
   busy = on;
@@ -68,10 +73,10 @@ export function refreshDefinitionNotes() {
     const chinese = definition.language === "zh" && !!definition.chinese;
     const text = chinese ? definition.chinese! : definition.english;
     note.textContent = text; note.lang = chinese ? "zh-Hans" : "en";
-    const action = deleteMode ? "Select twice to remove this definition." : !definition.chinese
-      ? "English-only note. Use Add definitions to generate both languages."
-      : "Click to show the " + (chinese ? "English" : "Chinese") + " definition.";
-    note.title = translateMode ? "Choose Read to switch this definition's language." : action;
+    const action = deleteMode ? t("reader.noteDeleteHint") : !definition.chinese
+      ? t("reader.noteEnglishOnly")
+      : t(chinese ? "reader.noteShowEnglish" : "reader.noteShowChinese");
+    note.title = translateMode ? t("reader.noteReadToSwitch") : action;
     if (!translateMode) {
       note.tabIndex = 0; note.setAttribute("role", "button");
       note.setAttribute("aria-label", `${text}. ${action}`);
@@ -125,7 +130,6 @@ function paint(changed = false) {
   }
   content.replaceChildren(fragment);
   updateModes();
-  document.getElementById("wordCount")!.textContent = `${cursor.toLocaleString()} words on this page`;
   updateNavigation();
   window.dispatchEvent(new Event("document-view-changed"));
   if (changed) window.dispatchEvent(new Event("document-changed"));
@@ -207,11 +211,14 @@ function updateDefinitionControls() {
   defineSelectedBtn.hidden = refreshSelectedBtn.hidden = !translateMode;
   refreshSelectedBtn.disabled = busy || pickedIds.size === 0;
   translateBtn.disabled = busy;
-  translateBtn.textContent = "✎ Add definitions";
-  translateBtn.setAttribute("aria-label", "Add definitions");
-  translateBtn.title = "Select words to define. Choose Read to return to reading.";
-  defineSelectedBtn.textContent = `Define selected (${pickedIds.size})`;
+  translateBtn.textContent = t("reader.addDefinitions");
+  translateBtn.setAttribute("aria-label", t("reader.addDefinitions"));
+  translateBtn.title = t("reader.addDefinitionsTitle");
+  defineSelectedBtn.textContent = t("reader.defineSelected", { count: pickedIds.size });
+  defineSelectedBtn.title = t("reader.defineTitle");
   defineSelectedBtn.disabled = busy || pickedIds.size === 0;
+  refreshSelectedBtn.textContent = t("reader.refreshSelected");
+  refreshSelectedBtn.title = t("reader.refreshTitle");
 }
 function updateModes() {
   updateDefinitionControls();
@@ -221,8 +228,8 @@ function updateModes() {
   deleteBtn.setAttribute("aria-pressed", String(deleteMode));
   content.classList.toggle("select-mode", translateMode);
   content.classList.toggle("delete-mode", deleteMode);
-  modeHint.textContent = translateMode ? "Select words, then Define selected (reuse notes and cache first) or Refresh selected (new AI request). Read or Esc returns."
-    : deleteMode ? "Select a note, then select it again to remove it. Read or Esc exits." : "";
+  modeHint.textContent = translateMode ? t("reader.modeSelect")
+    : deleteMode ? t("reader.modeDelete") : "";
   for (const word of wordsById.values()) {
     if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }
     else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
@@ -242,3 +249,9 @@ export function setDeleteMode(on: boolean) {
 }
 export function clearDeleteSelection() { deletePending?.classList.remove("delete-selected"); deletePending = null; }
 export function setDeletePending(note: HTMLElement) { deletePending = note; }
+
+// Static page labels are handled by i18n.applyTranslations; these are rendered by JS.
+window.addEventListener("ui-language-changed", () => {
+  refreshReadingCounts();
+  updateModes();
+});

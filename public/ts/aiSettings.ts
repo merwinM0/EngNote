@@ -1,8 +1,10 @@
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
 import { definitionLanguagePreference } from "./definitionPreference";
-import { aiUsage, describeAIUsage } from "./aiUsage";
+import { aiUsage } from "./aiUsage";
 import { dictionaryCache } from "./dictionaryCache";
+import { describeAIUsageLocalized, msg, t } from "./i18n";
+import type { MessageKey } from "./i18n";
 
 export const KEY_STORAGE = "er_deepseek_tab_key";
 const panel = document.getElementById("aiPanel")!;
@@ -14,35 +16,48 @@ const languageButton = document.getElementById("definitionLanguageBtn") as HTMLB
 const languageHint = document.getElementById("definitionLanguageHint")!;
 let activeKey = "";
 let languageStored = true;
+let lastFlash: { key: MessageKey; params?: Record<string, string | number>; ok: boolean } | null = null;
+let lastCacheRemoved: boolean | null = null;
 
 /** The open note contains a draft, not the key used by in-flight AI requests. */
 export const getApiKey = () => activeKey;
 
 function updateTrigger() {
-  trigger.textContent = activeKey ? "AI setup ✓" : "AI setup";
-  trigger.title = activeKey ? "DeepSeek key is set for this tab" : "Set up your DeepSeek key";
+  trigger.textContent = activeKey ? `${t("reader.aiSetup")} ✓` : t("reader.aiSetup");
+  trigger.title = t(activeKey ? "ai.triggerSetTitle" : "ai.triggerTitle");
 }
 
 function updateDefinitionLanguage() {
   const language = definitionLanguagePreference.language, chinese = language === "zh";
   languageButton.setAttribute("aria-pressed", String(chinese));
-  languageButton.title = `New AI definitions start in ${chinese ? "Chinese" : "English"}. Click to use ${chinese ? "English" : "Chinese"}.`;
+  languageButton.title = t("ai.definitionToggle", {
+    current: t(chinese ? "ui.chinese" : "ui.english"), next: t(chinese ? "ui.english" : "ui.chinese"),
+  });
+  languageButton.setAttribute("aria-label", languageButton.title);
   for (const choice of languageButton.querySelectorAll<HTMLElement>("[data-definition-language]")) {
     choice.classList.toggle("is-active", choice.dataset.definitionLanguage === language);
   }
-  languageHint.textContent = `New AI definitions start in ${chinese ? "Chinese" : "English"}.`
-    + (languageStored ? "" : " Browser storage is blocked; this choice only lasts until you leave or refresh.");
+  languageHint.textContent = t(chinese ? "ai.definitionHintZh" : "ai.definitionHintEn")
+    + (languageStored ? "" : t("ai.definitionStorage"));
 }
 
-function flash(text: string, ok = false) {
-  message.textContent = text;
-  message.hidden = !text;
+function flash(key: MessageKey | null, params?: Record<string, string | number>, ok = false) {
+  lastFlash = key ? { key, params, ok } : null;
+  message.textContent = key ? t(key, params) : "";
+  message.hidden = !key;
   message.className = `auth-msg ${ok ? "ok" : "error"}`;
+}
+
+function showCacheMessage(removed: boolean | null) {
+  lastCacheRemoved = removed;
+  const element = document.getElementById("dictionaryCacheMessage")!;
+  element.textContent = removed === null ? "" : t(removed ? "ai.cacheCleared" : "ai.cacheClearFailed");
+  element.hidden = removed === null;
 }
 
 function maskKey() {
   input.type = "password";
-  showButton.textContent = "Show key";
+  showButton.textContent = t("ai.showKey");
   showButton.setAttribute("aria-pressed", "false");
 }
 
@@ -69,14 +84,13 @@ function restoreKey() {
 
 export function initAISettings() {
   restoreKey();
+  maskKey();
   dictionaryCache.restore();
   const usageSummary = document.getElementById("aiUsageSummary")!;
-  const updateUsage = () => { usageSummary.textContent = describeAIUsage(aiUsage.snapshot()); };
+  const updateUsage = () => { usageSummary.textContent = describeAIUsageLocalized(aiUsage.snapshot()); };
   aiUsage.restore(); updateUsage(); aiUsage.subscribe(updateUsage);
   document.getElementById("clearDictionaryCacheBtn")!.addEventListener("click", () => {
-    const removed = dictionaryCache.clear(), message = document.getElementById("dictionaryCacheMessage")!;
-    message.textContent = removed ? "Query cache cleared. Saved article notes are unchanged." : "Memory cache cleared. Browser storage could not be cleared; stored entries may return after reload.";
-    message.hidden = false;
+    showCacheMessage(dictionaryCache.clear());
   });
   languageStored = definitionLanguagePreference.restore();
   updateDefinitionLanguage();
@@ -88,14 +102,14 @@ export function initAISettings() {
     input.value = activeKey;
     input.removeAttribute("aria-invalid");
     maskKey();
-    flash("");
+    flash(null);
     updateDefinitionLanguage();
   });
-  input.addEventListener("input", () => { input.removeAttribute("aria-invalid"); flash(""); });
+  input.addEventListener("input", () => { input.removeAttribute("aria-invalid"); flash(null); });
   showButton.addEventListener("click", () => {
     const show = input.type === "password";
     input.type = show ? "text" : "password";
-    showButton.textContent = show ? "Hide key" : "Show key";
+    showButton.textContent = t(show ? "ai.hideKey" : "ai.showKey");
     showButton.setAttribute("aria-pressed", String(show));
   });
   document.getElementById("aiForm")!.addEventListener("submit", event => {
@@ -103,7 +117,7 @@ export function initAISettings() {
     const key = input.value.trim();
     if (!key) {
       input.setAttribute("aria-invalid", "true");
-      flash("Write your DeepSeek key on the line first.");
+      flash("ai.keyMissing");
       input.focus();
       return;
     }
@@ -112,9 +126,9 @@ export function initAISettings() {
     try {
       sessionStorage.setItem(KEY_STORAGE, key);
       closePanel("aiPanel");
-      setStatus("AI key kept for this tab. It will be sent only to DeepSeek.", "ok");
+      setStatus(msg("ai.keySaved"), "ok");
     } catch {
-      flash("Your key is ready for this page, but tab storage is blocked. You will need to enter it again after refreshing.");
+      flash("ai.keySavedStorageBlocked");
     }
   });
   document.getElementById("forgetKeyBtn")!.addEventListener("click", () => {
@@ -125,9 +139,9 @@ export function initAISettings() {
     updateTrigger();
     try {
       sessionStorage.removeItem(KEY_STORAGE);
-      flash("Key forgotten. You can write a new one whenever you need it.", true);
+      flash("ai.keyForgotten", undefined, true);
     } catch {
-      flash("Key cleared for this page. Browser storage could not be cleared; please check this site's storage settings.");
+      flash("ai.keyForgottenBlocked");
     }
     input.focus();
   });
@@ -135,5 +149,13 @@ export function initAISettings() {
     input.value = "";
     input.removeAttribute("aria-invalid");
     maskKey();
+  });
+  window.addEventListener("ui-language-changed", () => {
+    updateTrigger();
+    updateDefinitionLanguage();
+    updateUsage();
+    showButton.textContent = t(input.type === "text" ? "ai.hideKey" : "ai.showKey");
+    if (lastFlash) flash(lastFlash.key, lastFlash.params, lastFlash.ok);
+    showCacheMessage(lastCacheRemoved);
   });
 }

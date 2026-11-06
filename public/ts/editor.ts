@@ -1,4 +1,6 @@
 import { setStatus, errorMessage } from "./util";
+import { msg, setUIText, t } from "./i18n";
+import type { UIMessage } from "./i18n";
 import { reflowText } from "./text";
 import { characterCount, DOCUMENT_LIMIT, paginate } from "./pagination";
 import { definitionViews, documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
@@ -14,41 +16,44 @@ const applyButton = document.getElementById("editorApplyBtn") as HTMLButtonEleme
 let mode: "paste" | "edit" = "paste";
 let importDraft = "";
 let openingWord = false;
+let importingWord = false;
 let draftTimer: ReturnType<typeof setTimeout> | undefined;
 let wordRequest = 0;
 let warnedStorage = false;
 const hasContent = () => !!getCurrentText().trim();
 
-function message(text: string, error = false) {
+function message(text: UIMessage, error = false) {
   const element = document.getElementById("editorMsg")!;
-  element.textContent = text;
-  element.hidden = !text;
+  element.hidden = !setUIText(element, text);
   element.classList.toggle("error", error);
 }
 function updateEntry() {
-  entry.textContent = hasContent() ? "Edit page" : "Paste text";
+  entry.textContent = t(hasContent() ? "reader.editPage" : "reader.pasteText");
 }
 function updatePreview() {
   const preview = document.getElementById("editorPreview")!;
   if (mode === "edit") {
-    preview.textContent = `Page ${documentModel.index + 1} / ${documentModel.pages.length} · ${documentModel.page.count.toLocaleString()} / 3,000 characters. Changes apply as you type.`;
+    preview.textContent = t("editor.previewEdit", { page: documentModel.index + 1, total: documentModel.pages.length, count: documentModel.page.count.toLocaleString() });
     return;
   }
   if (editor.value.length > DOCUMENT_LIMIT) {
-    preview.textContent = "This article exceeds the 100,000-character limit. Shorten it before importing; nothing will be truncated.";
+    preview.textContent = t("editor.previewTooLong");
     return;
   }
   const text = reflowText(editor.value);
-  preview.textContent = `${characterCount(text).toLocaleString()} characters after reflow · ${paginate(text).length} page(s). Punctuation, spaces and line breaks all count.`;
+  preview.textContent = t("editor.previewPaste", { count: characterCount(text).toLocaleString(), pages: paginate(text).length });
 }
-function configureEditor(importingWord = false) {
-  mode = hasContent() && !importingWord ? "edit" : "paste";
+function refreshEditorCopy() {
+  document.getElementById("editorTitle")!.textContent = t(mode === "edit" ? "editor.titleEdit" : importingWord ? "editor.titleWord" : "editor.titlePaste");
+  document.getElementById("editorDescription")!.textContent = t(mode === "edit" ? "editor.descriptionEdit" : "editor.descriptionPaste");
+  document.getElementById("editorLabel")!.textContent = t(mode === "edit" ? "editor.labelEdit" : "editor.labelPaste");
+  document.getElementById("draftHint")!.textContent = t(warnedStorage ? "editor.storageWarning" : "editor.draftHint");
+}
+function configureEditor(word = false) {
+  importingWord = word;
+  mode = hasContent() && !word ? "edit" : "paste";
   editor.value = mode === "edit" ? documentModel.page.text : importDraft;
-  document.getElementById("editorTitle")!.textContent = mode === "edit" ? "Edit the current page." : importingWord ? "Bring a Word article." : "Text in. A few new pages.";
-  document.getElementById("editorDescription")!.textContent = mode === "edit"
-    ? "Edit or paste directly into this page. Overflow moves to following pages and the editor follows your cursor. Definitions are written as 『meaning』."
-    : "Paste with Ctrl / Cmd + V below, or choose a Word document. We never request clipboard access. Importing reflows the article into pages of at most 3,000 characters.";
-  document.getElementById("editorLabel")!.textContent = mode === "edit" ? "Page text" : "English article";
+  refreshEditorCopy();
   applyButton.hidden = mode === "edit";
   message(""); updateEntry(); updatePreview();
 }
@@ -61,12 +66,12 @@ function syncEditor() {
 }
 async function applyImport(raw: string) {
   if (isBusy()) return;
-  if (raw.length > DOCUMENT_LIMIT) return message("Use an article shorter than 100,000 characters. The current article has not changed.", true);
+  if (raw.length > DOCUMENT_LIMIT) return message(msg("editor.tooLong"), true);
   const text = reflowText(raw);
-  if (!text) return message("Paste some text, or choose a readable Word document first.", true);
+  if (!text) return message(msg("editor.empty"), true);
   if (!(await confirmReplace()) || isBusy()) return;
   render(text); deselectEntry(); openPanel("readPanel", false); message("");
-  setStatus(`Article reflowed into ${documentModel.pages.length} page(s). Showing the first page; Save article keeps every page.`, "ok");
+  setStatus(msg("editor.reflowDone", { count: documentModel.pages.length }), "ok");
 }
 function onInput() {
   if (isBusy()) return;
@@ -75,9 +80,9 @@ function onInput() {
     const result = editCurrentPage(editor.value, editor.selectionEnd);
     editor.value = documentModel.page.text;
     editor.setSelectionRange(result.cursor, result.cursor);
-    if (result.changedPage) { editor.scrollTop = 0; message(`Overflow moved forward. Now editing page ${documentModel.index + 1} of ${documentModel.pages.length}.`); }
+    if (result.changedPage) { editor.scrollTop = 0; message(msg("editor.overflow", { page: documentModel.index + 1, total: documentModel.pages.length })); }
     else message("");
-  } catch (error) { editor.value = documentModel.page.text; message(errorMessage(error), true); }
+  } catch (error) { editor.value = documentModel.page.text; message(() => errorMessage(error), true); }
 }
 function persistDraft() {
   clearTimeout(draftTimer);
@@ -88,9 +93,8 @@ function persistDraft() {
       sessionStorage.setItem(ARTICLE_DRAFT_KEY, JSON.stringify(draft));
     }
   } catch {
-    const warning = "Browser storage is unavailable. Use Save article before refreshing or leaving this tab.";
-    document.getElementById("draftHint")!.textContent = warning;
-    if (!warnedStorage) { warnedStorage = true; setStatus(warning, "error"); }
+    document.getElementById("draftHint")!.textContent = t("editor.storageWarning");
+    if (!warnedStorage) { warnedStorage = true; setStatus(msg("editor.storageWarning"), "error"); }
   }
 }
 function restoreDraft() {
@@ -100,8 +104,7 @@ function restoreDraft() {
     const draft = parseArticleDraft(raw);
     if (!draft) { sessionStorage.removeItem(ARTICLE_DRAFT_KEY); return; }
     render(draft.text, draft.index, draft.definitions); restoreEntrySelection(draft.entry);
-    setStatus(draft.entry ? "Your article and reading position are restored. Reconnecting to the saved article…"
-      : "Your tab's working draft has been restored as an unsaved article. Every page is here; save it to keep it permanently.", "ok");
+    setStatus(msg(draft.entry ? "editor.draftRestoredSaved" : "editor.draftRestoredUnsaved"), "ok");
   } catch { /* Optional storage must never prevent reading. */ }
 }
 
@@ -147,17 +150,22 @@ export function initEditor() {
     if (!file || isBusy()) return;
     configureEditor(true);
     const request = ++wordRequest, revision = getRevision();
-    setBusy(true); message("Reading the Word document on your device…");
+    setBusy(true); message(msg("editor.wordReading"));
     let text: string;
     try {
       const { importWord } = await import("./word");
       text = await importWord(file);
       if (request !== wordRequest || revision !== getRevision() || activePanel() !== "editorPanel") return;
       importDraft = editor.value = reflowText(text);
-      updatePreview(); message("Word text is ready. Confirm the replacement, or keep it here for later.");
-    } catch (error) { message(errorMessage(error), true); return; }
+      updatePreview(); message(msg("editor.wordReady"));
+    } catch (error) { message(() => errorMessage(error), true); return; }
     finally { setBusy(false); wordFile.value = ""; }
     await applyImport(text);
   });
-  restoreDraft(); syncEditor(); updateEntry();
+  window.addEventListener("ui-language-changed", () => {
+    refreshEditorCopy();
+    updateEntry();
+    updatePreview();
+  });
+  restoreDraft(); syncEditor(); refreshEditorCopy(); updateEntry(); updatePreview();
 }

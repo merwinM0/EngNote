@@ -1,3 +1,6 @@
+import { localizeError, setUIText, t } from "./i18n";
+import type { UIMessage } from "./i18n";
+
 export { sanitizeEnglish, sanitizeTitle } from "./text";
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text = ""): HTMLElementTagNameMap[K] {
@@ -7,16 +10,15 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ""
   return node;
 }
 
-export function setStatus(msg: string, type: "info" | "ok" | "error" = "info") {
+export function setStatus(message: UIMessage, type: "info" | "ok" | "error" = "info") {
   const bar = document.getElementById("statusBar")!;
-  bar.hidden = !msg;
-  bar.textContent = msg;
+  bar.hidden = !setUIText(bar, message);
   bar.classList.toggle("error", type === "error");
   bar.classList.toggle("ok", type === "ok");
 }
 
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong. Please try again.";
+  return localizeError(error instanceof Error ? error.message : t("status.unknown"));
 }
 
 export class ApiError extends Error {

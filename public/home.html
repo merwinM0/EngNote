@@ -3,63 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Read English with clear definitions, paired Chinese meanings, and a notebook that remembers your place." />
+  <meta name="description" data-i18n-content="home.sub" content="Read English with clear definitions, paired Chinese meanings, and a notebook that remembers your place." />
   <meta name="application-name" content="EngNote" />
   <title>EngNote</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="./icons/favicon.svg" />
   <link rel="stylesheet" href="./css/home.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main" data-i18n="home.skip">Skip to content</a>
   <div class="home-wrap">
     <header class="nav">
-      <a class="brand" href="/" aria-label="EngNote home">
+      <a class="brand" href="/" aria-label="EngNote home" data-i18n-aria-label="home.brandHome">
         <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 7c5-1 9 0 13 3 4-3 8-4 13-3v22c-5-1-9 0-13 3-4-3-8-4-13-3zM18 10v22M9 13l5 1m-5 4 5 1m8-5 5-1m-5 6 5-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="brand-name">EngNote</span>
       </a>
-      <a class="nav-link tape-button tape-mist" href="/index.html">Open your notebook <span aria-hidden="true">↗</span></a>
+      <div class="nav-actions">
+        <button id="uiLangBtn" class="nav-link tape-button tape-clear" type="button" lang="zh-Hans" aria-label="Switch interface to Chinese">中文</button>
+        <a class="nav-link tape-button tape-mist" href="/index.html" data-i18n-html="home.openNotebook">Open your notebook <span aria-hidden="true">↗</span></a>
+      </div>
     </header>
     <main id="main" class="hero">
       <div class="hero-intro">
         <div class="hero-copy">
-          <p class="eyebrow">A small habit. A world of words.</p>
-          <h1 class="hero-title">Read English <em>your way</em></h1>
-          <p class="hero-sub">Stay with the story. Start with clear English definitions, click a note in Read to see its Chinese meaning, and pick up where you left off.</p>
-          <a class="start-btn tape-button tape-sage" href="/index.html">Start a new page <span aria-hidden="true">→</span></a>
-          <p class="start-hint">Read without an account · Sign in to save your pages</p>
+          <p class="eyebrow" data-i18n="home.eyebrow">A small habit. A world of words.</p>
+          <h1 class="hero-title" data-i18n-html="home.titleHtml">Read English <em>your way</em></h1>
+          <p class="hero-sub" data-i18n="home.sub">Stay with the story. Start with clear English definitions, click a note in Read to see its Chinese meaning, and pick up where you left off.</p>
+          <a class="start-btn tape-button tape-sage" href="/index.html" data-i18n-html="home.start">Start a new page <span aria-hidden="true">→</span></a>
+          <p class="start-hint" data-i18n="home.hint">Read without an account · Sign in to save your pages</p>
         </div>
         <figure class="hero-art">
           <img src="./icons/reading-sketch.svg" alt="" width="360" height="240" />
-          <figcaption>one page at a time</figcaption>
+          <figcaption data-i18n="home.figcaption">one page at a time</figcaption>
         </figure>
       </div>
       <section class="notebook-section" aria-labelledby="notes-title">
-        <div class="section-label"><h2 id="notes-title">Inside your notebook</h2><span>three little things to help you read</span></div>
+        <div class="section-label"><h2 id="notes-title" data-i18n="home.notesTitle">Inside your notebook</h2><span data-i18n="home.notesSub">three little things to help you read</span></div>
         <div class="features">
           <article class="feature feature-paste">
             <span class="tape" aria-hidden="true"></span>
-            <div class="note-top"><span class="note-number">01 / A fresh page</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M12 7h17l3 5v23H9V7h3m3-3h11v7H15zM15 19h11m-11 6h11m-11 5h7"/></svg></div>
-            <h3>Bring a story.</h3>
-            <p>Paste an English article. Let AI tidy the paragraphs, then settle into a calmer reading space.</p>
-            <span class="handwritten">less clutter, more reading</span>
+            <div class="note-top"><span class="note-number" data-i18n="home.feature1Number">01 / A fresh page</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M12 7h17l3 5v23H9V7h3m3-3h11v7H15zM15 19h11m-11 6h11m-11 5h7"/></svg></div>
+            <h3 data-i18n="home.feature1Title">Bring a story.</h3>
+            <p data-i18n="home.feature1Body">Paste an English article. Let AI tidy the paragraphs, then settle into a calmer reading space.</p>
+            <span class="handwritten" data-i18n="home.feature1Hand">less clutter, more reading</span>
           </article>
           <article class="feature feature-words">
             <span class="tape" aria-hidden="true"></span>
-            <div class="note-top"><span class="note-number">02 / In the margins</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="m10 29 17-21 6 5-17 21-8 2 2-7m14-17 6 5M6 9h11M6 15h7M6 21h3m17 12h9"/></svg></div>
-            <h3>English first. Chinese when you need it.</h3>
-            <p>AI creates English and Chinese definitions together. Choose your default in AI setup, then click a note in Read to switch. Each note remembers your choice when you refresh.</p>
-            <span class="handwritten">just the help you need</span>
+            <div class="note-top"><span class="note-number" data-i18n="home.feature2Number">02 / In the margins</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="m10 29 17-21 6 5-17 21-8 2 2-7m14-17 6 5M6 9h11M6 15h7M6 21h3m17 12h9"/></svg></div>
+            <h3 data-i18n="home.feature2Title">English first. Chinese when you need it.</h3>
+            <p data-i18n="home.feature2Body">AI creates English and Chinese definitions together. Choose your default in AI setup, then click a note in Read to switch. Each note remembers your choice when you refresh.</p>
+            <span class="handwritten" data-i18n="home.feature2Hand">just the help you need</span>
           </article>
           <article class="feature feature-save">
             <span class="tape" aria-hidden="true"></span>
-            <div class="note-top"><span class="note-number">03 / Worth keeping</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5h21v31l-10-7-11 7zM16 12h9m-9 6h9"/></svg></div>
-            <h3>Keep the good pages.</h3>
-            <p>Keep your articles and notes in one collection. Return to the page you were reading, and save changes to the original story.</p>
-            <span class="handwritten">something to come back to</span>
+            <div class="note-top"><span class="note-number" data-i18n="home.feature3Number">03 / Worth keeping</span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5h21v31l-10-7-11 7zM16 12h9m-9 6h9"/></svg></div>
+            <h3 data-i18n="home.feature3Title">Keep the good pages.</h3>
+            <p data-i18n="home.feature3Body">Keep your articles and notes in one collection. Return to the page you were reading, and save changes to the original story.</p>
+            <span class="handwritten" data-i18n="home.feature3Hand">something to come back to</span>
           </article>
         </div>
       </section>
     </main>
   </div>
+  <script type="module" src="./ts/home.ts"></script>
 </body>
 </html>

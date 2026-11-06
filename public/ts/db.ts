@@ -1,4 +1,6 @@
 import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
+import { msg, setUIText, t, uiLanguage } from "./i18n";
+import type { MessageKey, UIMessage } from "./i18n";
 import { definitionViews, definitionViewChanged, getCurrentText, render, isBusy, setBusy } from "./state";
 import { isLoggedIn } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
@@ -27,7 +29,7 @@ let listRequest = 0;
 let openRequest = 0;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
 const isDirty = () => getCurrentText() !== savedText || JSON.stringify(definitionContent(definitionViews.snapshot())) !== savedDefinitions;
-export async function confirmReplace(action = "Replace article", message = "This article has unsaved changes across its pages. Replace it without saving these changes to your collection?"): Promise<boolean> {
+export async function confirmReplace(action: UIMessage = msg("confirm.replaceArticle"), message: UIMessage = msg("confirm.replaceMessage")): Promise<boolean> {
   return !isDirty() || await confirmInPanel(message, action);
 }
 function updateSelection() {
@@ -37,9 +39,9 @@ function updateSelection() {
     const button = li.querySelector(".entry-open");
     if (active) button?.setAttribute("aria-current", "true"); else button?.removeAttribute("aria-current");
   }
-  document.getElementById("readerTitle")!.textContent = selected?.title ?? "A fresh article";
-  saveBtn.textContent = selectionStatus === "checking" ? "Restoring article…" : selectionStatus === "retry" ? "Retry saved article"
-    : selected && canEdit(selected) ? "Save changes" : "Save article";
+  document.getElementById("readerTitle")!.textContent = selected?.title ?? t("reader.defaultArticle");
+  saveBtn.textContent = selectionStatus === "checking" ? t("reader.restoring") : selectionStatus === "retry" ? t("reader.retrySaved")
+    : selected && canEdit(selected) ? t("reader.saveChanges") : t("reader.saveArticle");
   saveBtn.disabled = isBusy() || selectionStatus === "checking";
 }
 function selectEntry(entry: Entry | null, baseline = "", status: typeof selectionStatus = "ready") {
@@ -69,29 +71,48 @@ async function reconnectSelection() {
     definitionViews.merge(data.entry.definitions);
     selectEntry(data.entry, data.entry.content);
     definitionViewChanged();
-    const message = data.entry.content !== baseline
-      ? "The saved text has changed elsewhere. Your working copy is kept; review it before saving."
-      : isDirty() ? "Your unsaved changes have been kept." : "Your reading position has been kept.";
-    setStatus(`Resumed “${data.entry.title}”. ${message}${canEdit(data.entry) ? " Save changes updates the original article." : " Save article keeps your own copy."}`, "ok");
+    const detail = data.entry.content !== baseline ? "status.resumedChanged" : isDirty() ? "status.resumedUnsaved" : "status.resumedPosition";
+    const action = canEdit(data.entry) ? "status.resumedOwner" : "status.resumedGuest";
+    setStatus(() => t("status.resumed", { title: data.entry.title, detail: t(detail) + t(action) }), "ok");
   } catch (error) {
     if (request !== selectionRequest) return;
     if (error instanceof ApiError && error.status === 404) {
       selectEntry(null);
-      setStatus("The saved article no longer exists. Your working copy and reading position are kept as an unsaved article.", "info");
+      setStatus(msg("status.gone"), "info");
     } else {
       selectionStatus = "retry"; updateSelection();
-      setStatus(`Could not reconnect your saved article. Your working copy is safe. Choose Retry saved article to try again. ${errorMessage(error)}`, "error");
+      setStatus(() => t("status.reconnectFailed", { error: errorMessage(error) }), "error");
     }
   }
 }
-function showError(id: string, message: string) { const element = document.getElementById(id)!; element.textContent = message; element.hidden = !message; }
+function showError(id: string, message: UIMessage) {
+  const element = document.getElementById(id)!;
+  element.hidden = !setUIText(element, message);
+}
+function collectionDate(createdAt: string): string {
+  const date = new Date(createdAt.replace(" ", "T") + "Z");
+  return Number.isNaN(date.getTime()) ? t("collection.savedPage")
+    : date.toLocaleDateString(uiLanguage() === "zh" ? "zh-CN" : "en", { month: "short", day: "numeric", year: "numeric" });
+}
+function emptyCollection(key: MessageKey): HTMLElement {
+  const item = el("li", "entry-empty");
+  setUIText(item, msg(key));
+  return item;
+}
+function refreshCollectionCopy() {
+  // Translate the mounted list in place: switching language must not fetch, move focus or reset the canvas.
+  for (const date of entryList.querySelectorAll<HTMLElement>("[data-created-at]")) date.textContent = collectionDate(date.dataset.createdAt!);
+  for (const item of entryList.querySelectorAll<HTMLElement>("li[data-id]")) {
+    item.querySelector(".entry-del")?.setAttribute("aria-label", t("collection.deleteAria", { title: item.querySelector(".entry-title")!.textContent ?? "" }));
+  }
+}
 
 async function openEntry(entry: Entry) {
   if (isBusy()) return;
   const request = ++openRequest;
   if (!(await confirmReplace()) || request !== openRequest || isBusy() || !collectionPanel.open) return;
   const startingText = getCurrentText();
-  showError("collectionMsg", `Opening “${entry.title}”…`);
+  showError("collectionMsg", msg("status.opening", { title: entry.title }));
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
     if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
@@ -105,8 +126,9 @@ async function openEntry(entry: Entry) {
     closePanel("collectionPanel");
     openPanel("readPanel", false);
     selectEntry(data.entry, getCurrentText());
-    setStatus(`Opened “${entry.title}”.${canEdit(entry) ? " Save changes to update this page." : " Save article to keep your own copy."}`, "ok");
-  } catch (error) { if (request === openRequest) showError("collectionMsg", errorMessage(error)); }
+    const detail = canEdit(entry) ? "status.openedOwner" : "status.openedGuest";
+    setStatus(() => t("status.opened", { title: entry.title, detail: t(detail) }), "ok");
+  } catch (error) { if (request === openRequest) showError("collectionMsg", () => errorMessage(error)); }
 }
 export async function refreshList() {
   const request = ++listRequest;
@@ -115,23 +137,24 @@ export async function refreshList() {
     const data = await api<{ entries: Entry[] }>("/api/entries");
     if (request !== listRequest) return;
     const fragment = document.createDocumentFragment();
-    if (!data.entries.length) fragment.append(el("li", "entry-empty", "No pages yet. Save a story to begin the collection."));
+    if (!data.entries.length) fragment.append(emptyCollection("collection.empty"));
     for (const entry of data.entries) {
       const li = el("li"); li.dataset.id = String(entry.id);
       const open = el("button", "entry-open tape-button tape-clear"); open.type = "button";
       open.append(el("span", "entry-title", entry.title));
-      const date = new Date(entry.created_at.replace(" ", "T") + "Z");
-      open.append(el("span", "entry-date", Number.isNaN(date.getTime()) ? "Saved page" : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })));
+      const date = el("span", "entry-date", collectionDate(entry.created_at));
+      date.dataset.createdAt = entry.created_at;
+      open.append(date);
       open.addEventListener("click", () => { void openEntry(entry); });
       li.append(open);
       if (canEdit(entry)) {
-        const remove = el("button", "entry-del btn btn-danger tape-icon", "×"); remove.type = "button"; remove.setAttribute("aria-label", `Delete ${entry.title}`);
+        const remove = el("button", "entry-del btn btn-danger tape-icon", "×"); remove.type = "button"; remove.setAttribute("aria-label", t("collection.deleteAria", { title: entry.title }));
         remove.addEventListener("click", () => {
           if (isBusy()) return;
           openRequest++; // Do not let an earlier article read complete behind this confirmation.
           pendingDelete = entry;
           showError("deleteMsg", "");
-          document.getElementById("deleteDescription")!.textContent = `Delete “${entry.title}” and all its saved pages? The text in your notebook will be kept.`;
+          setUIText(document.getElementById("deleteDescription")!, msg("collection.deleteDescription", { title: entry.title }));
           openPanel("deletePanel");
         });
         li.append(remove);
@@ -151,7 +174,7 @@ export async function refreshList() {
     }
     updateSelection();
   } catch (error) {
-    if (request === listRequest) { entryList.replaceChildren(el("li", "entry-empty", "Could not load pages. Use ↻ to try again.")); setStatus(errorMessage(error), "error"); }
+    if (request === listRequest) { entryList.replaceChildren(emptyCollection("collection.loadFailed")); setStatus(() => errorMessage(error), "error"); }
   } finally { if (request === listRequest) entryList.setAttribute("aria-busy", "false"); }
 }
 function updateSaveProgress() {
@@ -159,22 +182,22 @@ function updateSaveProgress() {
   document.getElementById("titleProgress")!.hidden = !summarizing;
   confirmSaveBtn.setAttribute("aria-busy", String(!!saveTask));
   saveTitle.disabled = confirmSaveBtn.disabled = !!saveTask;
-  confirmSaveBtn.textContent = summarizing ? "Finding a title…" : saveTask ? "Saving…" : saveTitle.readOnly ? "Save changes" : "Save article";
+  confirmSaveBtn.textContent = t(summarizing ? "save.findingTitle" : saveTask ? "save.saving" : saveTitle.readOnly ? "reader.saveChanges" : "reader.saveArticle");
 }
-function titleError(message: string) {
+function titleError(message: UIMessage) {
   showError("saveMsg", message);
   saveTitle.setAttribute("aria-invalid", "true");
   saveTitle.focus({ preventScroll: true });
 }
 async function save(title?: string) {
   if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
-  if (!isLoggedIn()) return showError("saveMsg", "Please log in again before saving. Your article has been kept.");
+  if (!isLoggedIn()) return showError("saveMsg", msg("save.loginAgain"));
   const text = getCurrentText(), definitions = definitionContent(definitionViews.snapshot());
   const entry = selected;
   const overwrite = entry && canEdit(entry) && saveTitle.readOnly;
   if (!overwrite && !title && !getStoredApiKey()) {
     manualTitleRequired = true;
-    return titleError("AI could not create a title: no key is set in AI setup. Please enter an English title yourself.");
+    return titleError(msg("save.noKey"));
   }
   const task = { request: new AbortController(), phase: !overwrite && !title ? "summarizing" as const : "saving" as const };
   saveTask = task;
@@ -199,16 +222,16 @@ async function save(title?: string) {
     updateSaveProgress();
     closePanel("savePanel");
     updateSelection();
-    setStatus("All pages saved together, including your definitions.", "ok");
+    setStatus(msg("save.saved"), "ok");
     void refreshList();
   } catch (error) {
     if (saveTask !== task || task.request.signal.aborted) return;
     if (task.phase === "summarizing") {
       manualTitleRequired = true;
-      showError("saveMsg", `AI could not create a title. Please enter an English title yourself (1–20 characters). ${errorMessage(error)}`);
+      showError("saveMsg", () => t("save.titleError", { error: errorMessage(error) }));
       saveTitle.setAttribute("aria-invalid", "true");
-    } else if (savePanel.open) showError("saveMsg", errorMessage(error));
-    else setStatus(errorMessage(error), "error");
+    } else if (savePanel.open) showError("saveMsg", () => errorMessage(error));
+    else setStatus(() => errorMessage(error), "error");
   } finally {
     // Closing during AI work releases the lock immediately; late responses cannot save.
     if (saveTask === task) {
@@ -223,17 +246,15 @@ export function initDb() {
   saveBtn.addEventListener("click", () => {
     if (isBusy() || selectionStatus === "checking") return;
     if (selectionStatus === "retry") { void reconnectSelection(); return; }
-    if (!isLoggedIn()) return setStatus("Please log in to save a page.", "error");
-    if (!getCurrentText()) return setStatus("Paste an article first.", "error");
+    if (!isLoggedIn()) return setStatus(msg("status.loginToSave"), "error");
+    if (!getCurrentText()) return setStatus(msg("status.pasteFirst"), "error");
     const overwrite = !!selected && canEdit(selected);
     saveTitle.value = overwrite ? selected!.title : "";
     saveTitle.readOnly = overwrite;
     saveTitle.removeAttribute("aria-invalid");
     manualTitleRequired = false;
-    document.getElementById("saveHeading")!.textContent = overwrite ? "Keep your latest changes." : "Save the whole article.";
-    document.getElementById("saveDescription")!.textContent = overwrite
-      ? "Keep the original title and update every page and definition together."
-      : "Leave the title blank and AI will sum up your article in a short English title.";
+    document.getElementById("saveHeading")!.textContent = t(overwrite ? "save.headingEdit" : "save.headingNew");
+    document.getElementById("saveDescription")!.textContent = t(overwrite ? "save.descriptionEdit" : "save.descriptionNew");
     showError("saveMsg", "");
     updateSaveProgress();
     openPanel("savePanel");
@@ -242,7 +263,7 @@ export function initDb() {
     event.preventDefault();
     if (isBusy()) return;
     const { clean, hadBad } = sanitizeTitle(saveTitle.value);
-    if (hadBad || Array.from(clean).length > 20 || (!clean && manualTitleRequired)) return titleError("Please enter an English title of 1–20 characters.");
+    if (hadBad || Array.from(clean).length > 20 || (!clean && manualTitleRequired)) return titleError(msg("save.invalidTitle"));
     void save(clean || undefined);
   });
   saveTitle.addEventListener("input", () => { saveTitle.removeAttribute("aria-invalid"); showError("saveMsg", ""); });
@@ -267,12 +288,12 @@ export function initDb() {
       await api(`/api/entries/${entry.id}`, { method: "DELETE" });
       if (selected?.id === entry.id) deselectEntry();
       closePanel("deletePanel");
-      setStatus("Saved page deleted. Text in your notebook has been kept.", "ok");
+      setStatus(msg("collection.deleted"), "ok");
       void refreshList();
     } catch (error) {
-      if ((document.getElementById("deletePanel") as HTMLDialogElement).open) showError("deleteMsg", errorMessage(error));
-      else if (collectionPanel.open) showError("collectionMsg", errorMessage(error));
-      else setStatus(errorMessage(error), "error");
+      if ((document.getElementById("deletePanel") as HTMLDialogElement).open) showError("deleteMsg", () => errorMessage(error));
+      else if (collectionPanel.open) showError("collectionMsg", () => errorMessage(error));
+      else setStatus(() => errorMessage(error), "error");
     }
     finally { setBusy(false); button.disabled = false; }
   });
@@ -286,6 +307,17 @@ export function initDb() {
   for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href='/']")) link.addEventListener("click", async event => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
-    if (await confirmReplace("Go to home", "This article has unsaved changes. Leave the notebook? A working copy remains in this tab, but it is not saved to your collection.")) window.location.assign(link.href);
+    if (await confirmReplace(msg("confirm.goHome"), msg("confirm.goHomeMessage"))) window.location.assign(link.href);
   });
 }
+
+window.addEventListener("ui-language-changed", () => {
+  updateSelection();
+  updateSaveProgress();
+  if (savePanel.open) {
+    const overwrite = !!selected && canEdit(selected) && saveTitle.readOnly;
+    document.getElementById("saveHeading")!.textContent = t(overwrite ? "save.headingEdit" : "save.headingNew");
+    document.getElementById("saveDescription")!.textContent = t(overwrite ? "save.descriptionEdit" : "save.descriptionNew");
+  }
+  refreshCollectionCopy();
+});

@@ -9,7 +9,7 @@ function storage(initial: string | null = null) {
 
 describe("reading paper preference", () => {
   test("offers the original and all eight requested paper textures", () => {
-    expect(READING_BACKGROUNDS.map(background => background.name)).toEqual(["原本", "云龙纸", "绵纸", "大地纸", "牛皮纸", "莱尼纸", "艺术纹理纸", "雅纹纸", "皮纹纸"]);
+    expect(READING_BACKGROUNDS.map(background => background.id)).toEqual(["original", "yunlong", "cotton", "earth", "kraft", "linen", "art", "elegant", "leather"]);
     expect(new Set(READING_BACKGROUNDS.map(background => background.id)).size).toBe(9);
   });
   test("starts with the unchanged original and rejects unknown stored values", () => {

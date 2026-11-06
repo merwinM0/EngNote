@@ -3,6 +3,7 @@
 
 .home-wrap { width: 100%; padding: 0 32px; }
 .nav { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--border); }
+.nav-actions { display: flex; align-items: center; gap: 8px; }
 .nav-link { font-size: 13px; padding: 10px 20px; }
 .nav-link span { margin-left: 16px; }
 .nav-link:hover { color: var(--text); }
@@ -49,6 +50,7 @@
   .brand { gap: 8px; }
   .brand-name { font-size: 17px; }
   .brand-mark { width: 28px; height: 28px; }
+  .nav-actions { gap: 4px; }
   .nav-link { font-size: 11px; max-width: 132px; padding: 8px 12px; }
   .nav-link span { margin-left: 4px; }
   .hero-intro { grid-template-columns: 1fr; }

@@ -1,4 +1,5 @@
 import { setStatus } from "./util";
+import { initUILanguage, msg, t } from "./i18n";
 import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render } from "./state";
 import { initAISettings } from "./aiSettings";
 import { onFormat } from "./format";
@@ -16,17 +17,21 @@ import { initReadingBackground } from "./readingBackground";
 const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
 const fonts = [{ label: "M", size: "20px" }, { label: "L", size: "23px" }, { label: "S", size: "17px" }];
 let fontIndex = 0;
+function updateFontLabel() {
+  fontSizeBtn.setAttribute("aria-label", t("reader.fontSizeLabel", { size: fonts[fontIndex]!.label }));
+}
 fontSizeBtn.addEventListener("click", () => {
   fontIndex = (fontIndex + 1) % fonts.length;
   const font = fonts[fontIndex]!;
   content.style.fontSize = font.size;
   fontSizeBtn.textContent = `Aa · ${font.label}`;
-  fontSizeBtn.setAttribute("aria-label", `Reading size ${font.label}. Click for next size.`);
+  updateFontLabel();
 });
+window.addEventListener("ui-language-changed", updateFontLabel);
 clearBtn.addEventListener("click", async () => {
-  if (isBusy() || !(await confirmReplace("Clear article", "Discard this working article and all its pages? Your saved collection will not change.")) || isBusy()) return;
+  if (isBusy() || !(await confirmReplace(msg("confirm.clearArticle"), msg("confirm.clearMessage"))) || isBusy()) return;
   render(""); deselectEntry(); openPanel("readPanel", false);
-  setStatus("A fresh article. Your saved collection has not been changed.", "ok");
+  setStatus(msg("status.freshArticle"), "ok");
 });
 function activateTerm(target: EventTarget | null) {
   if (isBusy() || !(target instanceof Element)) return;
@@ -44,7 +49,7 @@ function resetReadingMode(announce = true) {
   const wasInteractive = isTranslateMode() || isDeleteMode();
   cancelDefinitions(false);
   setDeleteMode(false);
-  if (wasInteractive) setStatus(announce ? "Reading mode. Existing definitions have been kept." : "");
+  if (wasInteractive) setStatus(announce ? msg("status.readingMode") : "");
   if (document.activeElement instanceof Element && document.activeElement.matches(".term, .note")) content.focus({ preventScroll: true });
 }
 const readPanel = document.getElementById("readPanel")!;
@@ -63,4 +68,4 @@ translateBtn.addEventListener("click", () => {
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("refreshSelectedBtn")!.addEventListener("click", () => { void translateSelected(true); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
-initPanels(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); void refreshList();
+initUILanguage(); initPanels(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); void refreshList();

@@ -110,14 +110,16 @@ describe("source server", () => {
   });
   test("home explains English-first reading with optional Chinese in English copy", async () => {
     const html = await (await request("/")).text();
-    expect(html).toContain('<h1 class="hero-title">Read English <em>your way</em></h1>');
+    expect(html).toContain('data-i18n-html="home.titleHtml">Read English <em>your way</em></h1>');
+    expect(html).toContain('id="uiLangBtn"');
     expect(html).toContain("Start with clear English definitions");
     expect(html).toContain("click a note in Read to see its Chinese meaning");
     expect(html).toContain("Each note remembers your choice when you refresh.");
     expect(html).toContain("AI creates English and Chinese definitions together.");
     expect(html).not.toContain("exclusively");
     expect(html).not.toContain("without translating into another language.");
-    expect(html).not.toMatch(/\p{Script=Han}/u);
+    // The English page has a self-labelled Chinese language switch, not Chinese body copy.
+    expect(html.replace(/<button id="uiLangBtn"[^>]*>[\s\S]*?<\/button>/, "")).not.toMatch(/\p{Script=Han}/u);
     expect(html).not.toContain("Stay in English. Slow down");
     expect(html).not.toMatch(/<footer\b/);
     expect(html).not.toContain('class="page-note"');
@@ -146,7 +148,8 @@ describe("source server", () => {
     const html = await (await request("/index.html")).text();
     expect(html).not.toContain("Make room for a good story.");
     expect(html).not.toContain('class="notebook-heading"');
-    expect(html).toContain('<h1 class="sr-only">Reading notebook</h1>');
+    expect(html).toContain('data-i18n="reader.readingNotebook">Reading notebook</h1>');
+    expect(html).toContain('id="uiLangBtn"');
     expect(html).toContain('aria-label="Reading tools"');
   });
   test("reading background opens a modal directly after the top Next button", async () => {
@@ -160,7 +163,7 @@ describe("source server", () => {
     const panel = html.match(/<dialog id="backgroundPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
     expect(panel).toContain('aria-labelledby="backgroundHeading"');
     expect(panel).toContain('data-note-entry="backgroundBtn"');
-    expect(panel).toContain('<legend class="sr-only">Reading background</legend>');
+    expect(panel).toContain('<legend class="sr-only" data-i18n="reader.readingBackgroundLegend">Reading background</legend>');
     expect(panel).toContain('id="backgroundOptions"');
     expect(panel).toContain('id="backgroundMessage"');
     expect(panel).toContain("your article stays untouched");
@@ -183,7 +186,7 @@ describe("source server", () => {
   test("collection pins its tapes and provides a bounded zoomable article canvas", async () => {
     const html = await (await request("/index.html")).text();
     const board = html.match(/<dialog id="collectionPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
-    expect(board).toContain('id="savedTitle">Saved articles</h2>');
+    expect(board).toContain('id="savedTitle" data-i18n="reader.savedArticles">Saved articles</h2>');
     expect(board).toContain('id="refreshListBtn"');
     expect(board).toContain('aria-label="Close saved articles"');
     expect(board).toContain('id="entryList"');

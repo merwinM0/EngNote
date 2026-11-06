@@ -2,6 +2,7 @@
  * deleteNote.ts - Delete note (translation) mode
  */
 import { setStatus } from "./util";
+import { msg } from "./i18n";
 import {
   isDeleteMode,
   setDeleteMode,
@@ -20,14 +21,14 @@ export function handleDeleteNote(note: HTMLElement) {
     clearDeleteSelection();
     removeDefinition(note);
     content.focus();
-    setStatus("Definition removed.", "ok");
+    setStatus(msg("status.definitionRemoved"), "ok");
     return;
   }
   // First click: select the current 『』, clear other selections
   clearDeleteSelection();
   setDeletePending(note);
   note.classList.add("delete-selected");
-  setStatus("Selected this 『』 note — click it once more to remove it");
+  setStatus(msg("status.definitionSelected"));
 }
 
 function isPending(note: HTMLElement): boolean {

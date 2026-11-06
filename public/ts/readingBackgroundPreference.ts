@@ -1,13 +1,13 @@
 export const READING_BACKGROUNDS = [
-  { id: "original", name: "原本", description: "Original notebook" },
-  { id: "yunlong", name: "云龙纸", description: "Long, cloud-like fibres" },
-  { id: "cotton", name: "绵纸", description: "Soft cotton grain" },
-  { id: "earth", name: "大地纸", description: "Natural flecks" },
-  { id: "kraft", name: "牛皮纸", description: "Warm, unbleached kraft" },
-  { id: "linen", name: "莱尼纸", description: "Fine linen weave" },
-  { id: "art", name: "艺术纹理纸", description: "Soft sculpted ripples" },
-  { id: "elegant", name: "雅纹纸", description: "Delicate embossed lines" },
-  { id: "leather", name: "皮纹纸", description: "Supple, pebbled grain" },
+  { id: "original" },
+  { id: "yunlong" },
+  { id: "cotton" },
+  { id: "earth" },
+  { id: "kraft" },
+  { id: "linen" },
+  { id: "art" },
+  { id: "elegant" },
+  { id: "leather" },
 ] as const;
 export type ReadingBackground = typeof READING_BACKGROUNDS[number]["id"];
 export const READING_BACKGROUND_STORAGE = "er_reading_background";

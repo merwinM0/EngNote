@@ -1,4 +1,5 @@
 import { boardColumns, clampBoardScale, fitBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, zoomBoardAt } from "./boardGeometry";
+import { t } from "./i18n";
 import type { BoardView, Point } from "./boardGeometry";
 
 /** The frame stays pinned; only the article world is translated and scaled. */
@@ -23,7 +24,7 @@ export function initCollectionCanvas(): () => void {
     viewport.style.setProperty("--board-grid-x", `${view.x}px`);
     viewport.style.setProperty("--board-grid-y", `${view.y}px`);
     const percentage = Math.round(view.scale * 100);
-    const limit = view.scale <= MIN_BOARD_SCALE ? " · minimum" : view.scale >= MAX_BOARD_SCALE ? " · maximum" : "";
+    const limit = view.scale <= MIN_BOARD_SCALE ? t("collection.minimum") : view.scale >= MAX_BOARD_SCALE ? t("collection.maximum") : "";
     const label = `${percentage}%${limit}`;
     if (value.textContent !== label) value.textContent = label;
   }
@@ -132,6 +133,7 @@ export function initCollectionCanvas(): () => void {
   document.getElementById("boardResetBtn")!.addEventListener("click", reset, options);
   panel.addEventListener("panel-open", measure, options);
   panel.addEventListener("panel-close", clearGesture, options);
+  window.addEventListener("ui-language-changed", () => render(), options);
   const entries = new MutationObserver(measure); entries.observe(list, { childList: true });
   const resize = new ResizeObserver(measure); resize.observe(viewport); resize.observe(list);
   measure(); render();

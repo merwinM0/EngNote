@@ -1,5 +1,7 @@
 import { api, jsonBody, setStatus, errorMessage } from "./util";
 import { closePanel } from "./panels";
+import { msg, setUIText, t } from "./i18n";
+import type { UIMessage } from "./i18n";
 const authPanel = document.getElementById("authPanel") as HTMLDialogElement;
 const logoutBtn = document.getElementById("logoutBtn") as HTMLButtonElement;
 const accountButton = document.getElementById("authBtn") as HTMLButtonElement;
@@ -15,6 +17,7 @@ const confirmAuthBtn = document.getElementById("confirmAuthBtn") as HTMLButtonEl
 let mode: "login" | "register" = "login";
 let email: string | null = null;
 let submitting = false;
+let sendingCode = false;
 let cooldownUntil = 0;
 let cooldownTimer: ReturnType<typeof setInterval> | undefined;
 export const isLoggedIn = () => email !== null;
@@ -25,13 +28,12 @@ function applySession(value: string | null) {
   document.getElementById("accountEmail")!.textContent = value ?? "";
   (document.getElementById("authForm") as HTMLFormElement).hidden = !!value;
   document.getElementById("authMethodTabs")!.hidden = !!value;
-  accountButton.textContent = value ? "Account" : "Login";
-  accountButton.title = value ? `Signed in as ${value}` : "Sign in to save your articles";
+  accountButton.textContent = t(value ? "reader.account" : "reader.login");
+  accountButton.title = t(value ? "auth.signedInAs" : "auth.signInTitle", value ? { email: value } : undefined);
   window.dispatchEvent(new Event("session-changed"));
 }
-function flash(message: string, ok = false) {
-  authMsg.textContent = message;
-  authMsg.hidden = !message;
+function flash(message: UIMessage, ok = false) {
+  authMsg.hidden = !setUIText(authMsg, message);
   authMsg.className = `auth-msg ${ok ? "ok" : "error"}`;
 }
 function setMode(value: typeof mode) {
@@ -41,8 +43,8 @@ function setMode(value: typeof mode) {
   tabRegister.classList.toggle("active", value === "register");
   tabLogin.setAttribute("aria-pressed", String(value === "login"));
   tabRegister.setAttribute("aria-pressed", String(value === "register"));
-  document.getElementById("authTitle")!.textContent = value === "login" ? "Welcome back." : "Start your collection.";
-  confirmAuthBtn.textContent = value === "login" ? "Login" : "Register";
+  document.getElementById("authTitle")!.textContent = t(value === "login" ? "auth.welcomeBack" : "auth.startCollection");
+  confirmAuthBtn.textContent = t(value === "login" ? "auth.login" : "auth.register");
   document.getElementById("authCodeField")!.hidden = value === "login";
   authCode.required = value === "register";
   authPassword.autocomplete = value === "login" ? "current-password" : "new-password";
@@ -51,28 +53,29 @@ function setMode(value: typeof mode) {
 }
 function updateCooldown() {
   const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
-  sendCodeBtn.disabled = remaining > 0;
-  sendCodeBtn.textContent = remaining ? `Retry in ${remaining}s` : "Send code";
+  sendCodeBtn.disabled = sendingCode || remaining > 0;
+  sendCodeBtn.textContent = sendingCode ? t("auth.sending") : remaining ? t("auth.retryIn", { seconds: remaining }) : t("auth.sendCode");
   if (!remaining) clearInterval(cooldownTimer);
 }
 async function requestCode() {
-  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash("Enter a valid email address first."); authEmail.focus(); return; }
-  sendCodeBtn.disabled = true;
-  sendCodeBtn.textContent = "Sending…";
+  if (sendingCode || cooldownUntil > Date.now()) return;
+  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash(msg("auth.emailFirst")); authEmail.focus(); return; }
+  sendingCode = true;
+  updateCooldown();
   try {
     const data = await api<{ devCode?: string }>("/api/auth/send-code", { method: "POST", ...jsonBody({ email: authEmail.value }) });
-    flash(data.devCode ? `Local development code: ${data.devCode}` : "Code sent. Please check your inbox.", true);
+    flash(data.devCode ? msg("auth.devCode", { code: data.devCode }) : msg("auth.checkInbox"), true);
     cooldownUntil = Date.now() + 60000;
     cooldownTimer = setInterval(updateCooldown, 1000);
-  } catch (error) { flash(errorMessage(error)); }
-  finally { updateCooldown(); }
+  } catch (error) { flash(() => errorMessage(error)); }
+  finally { sendingCode = false; updateCooldown(); }
 }
 async function submit(event: SubmitEvent) {
   event.preventDefault();
   if (submitting) return;
-  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash("Enter a valid email address."); authEmail.focus(); return; }
-  if (authPassword.value.length < 6 || authPassword.value.length > 128) { flash("Use a password of 6–128 characters."); authPassword.focus(); return; }
-  if (mode === "register" && !/^\d{6}$/.test(authCode.value.trim())) { flash("Enter the 6-digit verification code."); authCode.focus(); return; }
+  if (!authEmail.value.trim() || !authEmail.validity.valid) { flash(msg("auth.validEmail")); authEmail.focus(); return; }
+  if (authPassword.value.length < 6 || authPassword.value.length > 128) { flash(msg("auth.passwordLength")); authPassword.focus(); return; }
+  if (mode === "register" && !/^\d{6}$/.test(authCode.value.trim())) { flash(msg("auth.codeLength")); authCode.focus(); return; }
   submitting = true;
   confirmAuthBtn.disabled = true;
   tabLogin.disabled = tabRegister.disabled = true;
@@ -83,16 +86,16 @@ async function submit(event: SubmitEvent) {
     if (currentMode === "login") {
       applySession(data.email);
       closePanel("authPanel");
-      setStatus(`Welcome back, ${data.email}.`, "ok");
+      setStatus(msg("auth.welcomeUser", { email: data.email }), "ok");
     } else {
       submitting = false;
       setMode("login");
-      flash("Account created. You can now log in.", true);
+      flash(msg("auth.accountCreated"), true);
       authPassword.value = "";
       authPassword.focus();
     }
   } catch (error) {
-    authPwdError.textContent = errorMessage(error);
+    setUIText(authPwdError, () => errorMessage(error));
     authPwdError.hidden = false;
   } finally {
     submitting = false;
@@ -101,6 +104,9 @@ async function submit(event: SubmitEvent) {
   }
 }
 export function initAuth() {
+  accountButton.textContent = t("reader.login");
+  accountButton.title = t("auth.signInTitle");
+  updateCooldown();
   // Old bearer tokens are deliberately retired; sessions now use HttpOnly cookies.
   try { localStorage.removeItem("er_auth_token"); localStorage.removeItem("er_auth_email"); } catch { /* storage can be blocked */ }
   logoutBtn.addEventListener("click", async () => {
@@ -110,8 +116,8 @@ export function initAuth() {
       await api("/api/auth/logout", { method: "POST" });
       applySession(null); setMode("login");
       if (authPanel.open) authEmail.focus();
-      setStatus("You are logged out.", "ok");
-    } catch (error) { setStatus(errorMessage(error), "error"); }
+      setStatus(msg("auth.loggedOut"), "ok");
+    } catch (error) { setStatus(() => errorMessage(error), "error"); }
     finally { logoutBtn.disabled = false; }
   });
   tabLogin.addEventListener("click", () => setMode("login"));
@@ -120,6 +126,14 @@ export function initAuth() {
   document.getElementById("authForm")!.addEventListener("submit", event => { void submit(event as SubmitEvent); });
   authPanel.addEventListener("panel-close", () => { authPassword.value = ""; authCode.value = ""; });
   for (const input of [authEmail, authPassword]) input.addEventListener("input", () => { authPwdError.hidden = true; });
-  window.addEventListener("session-expired", () => { if (email) { applySession(null); setStatus("Your session has expired. Please log in again.", "error"); } });
+  window.addEventListener("session-expired", () => { if (email) { applySession(null); setStatus(msg("auth.sessionExpired"), "error"); } });
+  window.addEventListener("ui-language-changed", () => {
+    accountButton.textContent = t(email ? "reader.account" : "reader.login");
+    if (email) accountButton.title = t("auth.signedInAs", { email });
+    else accountButton.title = t("auth.signInTitle");
+    document.getElementById("authTitle")!.textContent = t(mode === "login" ? "auth.welcomeBack" : "auth.startCollection");
+    confirmAuthBtn.textContent = t(mode === "login" ? "auth.login" : "auth.register");
+    updateCooldown();
+  });
   void api<{ email: string }>("/api/auth/me").then(data => applySession(data.email)).catch(() => applySession(null));
 }
