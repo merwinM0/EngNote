@@ -54,11 +54,7 @@ document.addEventListener("keydown", event => {
 function showReadForTool() { if (activePanel() !== "readPanel") openPanel("readPanel", false); }
 document.getElementById("formatBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); resetReadingMode(); void onFormat(); } });
 translateBtn.addEventListener("click", () => {
-  const canceling = isTranslateMode();
-  if (canceling || !isBusy()) {
-    showReadForTool(); onTranslateClick();
-    if (canceling) translateBtn.focus({ preventScroll: true });
-  }
+  if (!isBusy()) { showReadForTool(); onTranslateClick(); }
 });
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });

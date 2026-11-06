@@ -11,9 +11,24 @@
 .content.select-mode .term, .content.delete-mode .note { cursor: pointer; }
 .content.select-mode .term:hover { background: var(--panel-2); }
 .content .term.picked { color: var(--accent-2); background: var(--selected); box-shadow: 0 -2px 0 var(--accent) inset; }
-.content .note { color: var(--note-text); background: var(--note-bg); font: .8em/1.7 var(--sans); padding: 2px 3px; border-radius: 2px; }
+/* Paint torn tape as a background, so wrapping text and focus rings stay intact. */
+.content .note {
+  --tape-color: var(--note-bg);
+  color: var(--note-text);
+  background:
+    linear-gradient(176deg, #ffffff4d, transparent 40%, #ffffff1a 70%, #ffffff40) center / calc(100% - 8px) 100% no-repeat,
+    linear-gradient(var(--tape-color), var(--tape-color)) center / calc(100% - 8px) 100% no-repeat,
+    conic-gradient(from 45deg at 0 50%, var(--tape-color) 0deg 90deg, transparent 0deg) left / 4px 8px repeat-y,
+    conic-gradient(from 225deg at 100% 50%, var(--tape-color) 0deg 90deg, transparent 0deg) right / 4px 8px repeat-y;
+  font: .8em/1.7 var(--sans); padding: 3px 7px; border-radius: 0;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
 .content .term.defining { text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }
-.content .note.delete-selected { color: var(--danger); background: var(--danger-bg); outline: 1px dashed var(--danger); }
+.content .note.delete-selected { --tape-color: var(--tape-rose); color: var(--tape-danger-ink); outline: 1px dashed var(--danger); }
+@media (forced-colors: active) {
+  .content .note { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .content .note.delete-selected { outline: 2px dashed Highlight; }
+}
 .paper-footer { border-top: 1px solid var(--border); margin: 0 28px 0 44px; padding: 12px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--muted); }

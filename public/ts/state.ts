@@ -159,10 +159,10 @@ export const groupText = (group: number[]) => group.map(id => wordsById.get(id)?
 
 function updateDefinitionControls() {
   defineSelectedBtn.hidden = !translateMode;
-  translateBtn.disabled = busy && !translateMode;
-  translateBtn.textContent = translateMode ? "✕ Cancel" : "✎ Add definitions";
-  translateBtn.setAttribute("aria-label", translateMode ? "Cancel definitions" : "Add definitions");
-  translateBtn.title = translateMode ? "Click again to cancel selection or stop the definition request" : "Select words to define";
+  translateBtn.disabled = busy;
+  translateBtn.textContent = "✎ Add definitions";
+  translateBtn.setAttribute("aria-label", "Add definitions");
+  translateBtn.title = "Select words to define. Choose Read to return to reading.";
   defineSelectedBtn.textContent = `Define selected (${pickedIds.size})`;
   defineSelectedBtn.disabled = busy || pickedIds.size === 0;
 }
@@ -174,7 +174,7 @@ function updateModes() {
   deleteBtn.setAttribute("aria-pressed", String(deleteMode));
   content.classList.toggle("select-mode", translateMode);
   content.classList.toggle("delete-mode", deleteMode);
-  modeHint.textContent = translateMode ? "Select words, then choose Define selected. Click the definitions button again, Read, or Esc to cancel."
+  modeHint.textContent = translateMode ? "Select words, then choose Define selected. Choose Read or press Esc to return to reading."
     : deleteMode ? "Select a note, then select it again to remove it. Read or Esc exits." : "";
   for (const word of wordsById.values()) {
     if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }

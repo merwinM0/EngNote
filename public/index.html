@@ -82,13 +82,11 @@
   </dialog>
   <dialog id="collectionPanel" class="note-window collection-window" aria-labelledby="savedTitle" data-note-entry="collectionBtn">
     <div class="panel-sheet collection-board">
-      <span class="tape board-tape-left" aria-hidden="true"></span><span class="tape board-tape-right" aria-hidden="true"></span>
       <button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close saved articles" data-close-note data-panel-focus>×</button>
-      <div class="collection-head"><div><p class="eyebrow">The collection</p><h2 id="savedTitle">Saved articles</h2></div><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div>
-      <p class="collection-hint">A public reading shelf. Only the author can change an article.</p><p class="board-scribble" aria-hidden="true">little stories, worth another read ↴</p>
+      <div class="collection-head"><h2 id="savedTitle">Saved articles</h2><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div>
+      <p class="sr-only">A public reading shelf. Only the author can change an article.</p>
       <p id="collectionMsg" class="form-message" role="status" hidden></p>
       <ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul>
-      <div class="board-footer" aria-hidden="true"><span>keep a few good words.</span><svg class="board-doodle" viewBox="0 0 132 64" fill="none"><path d="M6 49c17 10 33 9 45 0M14 43c9 6 20 6 28 1m24 5 2-29c8-4 17-2 23 3 7-5 16-6 24-2l-1 29c-9-4-17-2-23 2-7-4-16-6-25-3Zm25-26v29m-17-22 10 2m-10 7 10 2m14-9 10-2m-10 9 10-2M46 8l2 6 7 1-6 4 1 7-5-5-7 3 3-7-5-4 8-1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
   </dialog>
   <dialog id="deletePanel" class="note-window" aria-labelledby="deleteHeading">

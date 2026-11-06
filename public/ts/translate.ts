@@ -16,8 +16,7 @@ export function cancelDefinitions(announce = true) {
   return wasActive;
 }
 export function onTranslateClick() {
-  if (isTranslateMode()) { cancelDefinitions(); return; }
-  if (isBusy()) return;
+  if (isBusy() || isTranslateMode()) return;
   if (!wordsById.size) return setStatus("Paste an English article first.", "error");
   setTranslateMode(true);
   setStatus("");

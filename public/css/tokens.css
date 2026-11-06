@@ -14,8 +14,8 @@
   --selected: #dcefed;
   --danger: #943e3b;
   --danger-bg: #f9eae6;
-  --note-bg: #e5ede5;
-  --note-text: #3d6150;
+  --note-bg: var(--tape-sage);
+  --note-text: var(--text);
   --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --sans: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
   --paper-shadow: 0 3px 0 #d8dfdb, 0 8px 20px #293e3b08;

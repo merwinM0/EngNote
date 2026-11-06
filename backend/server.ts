@@ -134,7 +134,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
     return json({ ok: false, error: "API route not found." }, 404);
   }
   return Bun.serve({
-    port: options.port, hostname: options.hostname ?? process.env.HOST ?? "127.0.0.1",
+    port: options.port, hostname: options.hostname ?? (process.env.HOST?.trim() || "0.0.0.0"),
     development: process.env.NODE_ENV === "production" ? false : { hmr: true, console: true },
     maxRequestBodySize: 1024 * 1024,
     routes: { "/": home, "/home.html": home, "/index.html": reader },

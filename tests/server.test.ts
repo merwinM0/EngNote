@@ -41,6 +41,36 @@ beforeAll(async () => {
 afterAll(async () => { await server?.stop(true); db?.close(); await closeStore(); });
 
 describe("source server", () => {
+  test("listens on all IPv4 interfaces by default, including an empty HOST", async () => {
+    const previous = process.env.HOST;
+    try {
+      for (const host of [undefined, "", "   "]) {
+        if (host === undefined) delete process.env.HOST; else process.env.HOST = host;
+        const listener = createServer({ db, port: 0 });
+        try {
+          expect(listener.hostname).toBe("0.0.0.0");
+          expect((await fetch(`http://127.0.0.1:${listener.port}/api/entries`)).status).toBe(200);
+        } finally { await listener.stop(true); }
+      }
+    } finally {
+      if (previous === undefined) delete process.env.HOST; else process.env.HOST = previous;
+    }
+  });
+  test("respects an explicit loopback HOST and a caller hostname override", async () => {
+    const previous = process.env.HOST;
+    process.env.HOST = " 127.0.0.1 ";
+    try {
+      const configured = createServer({ db, port: 0 });
+      try { expect(configured.hostname).toBe("127.0.0.1"); }
+      finally { await configured.stop(true); }
+      process.env.HOST = "0.0.0.0";
+      const overridden = createServer({ db, port: 0, hostname: "127.0.0.1" });
+      try { expect(overridden.hostname).toBe("127.0.0.1"); }
+      finally { await overridden.stop(true); }
+    } finally {
+      if (previous === undefined) delete process.env.HOST; else process.env.HOST = previous;
+    }
+  });
   test("serves both HTML entries and returns real 404s", async () => {
     expect((await request("/")).status).toBe(200);
     expect((await request("/index.html")).status).toBe(200);
@@ -87,6 +117,15 @@ describe("source server", () => {
     expect(html).toContain("Leave the title blank and AI will sum up your article");
     expect(html).not.toContain("Every page and definition is saved together.");
     expect(html).toContain('id="titleProgress"');
+  });
+  test("collection keeps its controls without decorative stationery or extra copy", async () => {
+    const html = await (await request("/index.html")).text();
+    const board = html.match(/<dialog id="collectionPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(board).toContain('id="savedTitle">Saved articles</h2>');
+    expect(board).toContain('id="refreshListBtn"');
+    expect(board).toContain('aria-label="Close saved articles"');
+    expect(board).toContain('id="entryList"');
+    expect(board).not.toMatch(/board-tape|board-scribble|board-footer|board-doodle|class="eyebrow"|<svg/);
   });
   test("requires a real session for writes", async () => {
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
