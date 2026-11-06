@@ -13,12 +13,12 @@ cp .env.example .env   # 已有 .env 请保留，不要覆盖
 bun dev
 ```
 
-打开 `http://localhost:3000`。已验证 Bun **1.3.14**。无需编译可执行文件，也不再依赖 `public/dist/app.js`：Bun 原生 HTML 入口负责前端 TS / CSS 打包与开发热更新，服务端修改由 `--watch` 重启。
+打开 `http://localhost:3000`（`bun dev` 的默认端口）。已验证 Bun **1.3.14**。无需编译可执行文件，也不再依赖 `public/dist/app.js`：Bun 原生 HTML 入口负责前端 TS / CSS 打包与开发热更新，服务端修改由 `--watch` 重启。
 
 - `bun start`：生产模式直接运行源码（关闭 HMR），仍需保留源码、依赖与静态资源；生产认证需要 Redis、SMTP。
 - `bun run typecheck`：分别检查前后端类型；`bun test`：运行文本规则、分页边界、实时编辑、Word 解压限制、接口与数据库迁移测试。
 - `bun run build`：可选，仅导出前端到 `dist/` 用于检查，不是可单独部署的完整应用；SQLite / 登录仍需 Bun 后端。
-- 默认绑定 `0.0.0.0`，启动时输出本机及局域网地址；同一局域网设备可用 `http://本机局域网IP:3000` 访问（需放行防火墙端口）。如需仅本机访问，设 `HOST=127.0.0.1`。粘贴统一使用页内输入区和 Ctrl/Cmd+V，不请求剪贴板权限，也不会由 Paste 按钮触发浏览器“粘贴（P）”菜单。
+- 默认绑定 `0.0.0.0`，启动时输出本机及局域网地址；本地同一局域网设备可用 `http://本机局域网IP:3000` 访问（需放行防火墙端口）。未设置 `PORT` 时，`bun dev` 使用 3000，`bun start`（生产）使用 80；如需仅本机访问，设 `HOST=127.0.0.1`。粘贴统一使用页内输入区和 Ctrl/Cmd+V，不请求剪贴板权限，也不会由 Paste 按钮触发浏览器“粘贴（P）”菜单。
 - 原 `Engreading` / `index.js.map` 不再使用，也不会自动删除；现有 `.env` 与 `data.db` 保留。
 
 ### 代码逻辑与本次调整
@@ -332,8 +332,8 @@ SMTP_FROM=
 # Redis（验证码与会话存储）
 REDIS_URL=redis://127.0.0.1:6379
 
-# 端口
-PORT=3000
+# 端口（留空/注释时：开发默认 3000，生产默认 80）
+# PORT=3000
 ```
 
 ---
@@ -419,16 +419,19 @@ bun install
 cp .env.example .env   # 按需填写 SMTP / REDIS_URL
 # 可选，仅本地开发：bun run seed.ts（创建测试账号；不要在生产执行）
 bun dev
-# 浏览器打开 http://localhost:3000（端口以 index.ts / .env 中 PORT 为准）
+# 浏览器打开 http://localhost:3000（bun dev 默认；端口可用 PORT 覆盖）
 ```
 
 首页（`/`）为手账欢迎页，点击「Start a new page」进入阅读页（`/index.html`）。
 
 两页均支持手机自适应；阅读页通过 `public/css/reader.css` 按固定顺序导入样式，避免开发热更新时级联顺序不一致。
 
-### 部署到服务器（域名）
-- `PORT` 默认 3000，`HOST` 默认 `0.0.0.0`，允许局域网访问；保留显式 `HOST` 配置，若仅供本机或本机反向代理使用，可设 `HOST=127.0.0.1`。可用 Nginx 反向代理到本服务，保留请求 Host，并将 `APP_ORIGIN=https://你的域名` 设为公开源地址。使用 HTTPS 并设置 `COOKIE_SECURE=true`。
-- `bun start` 直接运行源码；配置正确的 SMTP 与 Redis。生产模式不返回开发验证码，Redis 不可用时认证失败而不静默降级。生产启动前请备份 `data.db`，不要执行测试账号 seed。
+### 部署到服务器（域名 / 直接链接）
+- 端口：未设置 `PORT` 时，本地 `bun dev` 默认 **3000**，生产 `bun start` 默认 **80**。因此远程直接运行 `bun start` 后访问 `http://服务器地址/` 即可，不必带端口；本地开发仍访问 `http://localhost:3000`。如需固定端口，在 `.env` 设置 `PORT=...` 会覆盖默认值。
+- 直接监听 80 需要绑定特权端口权限。可用 root / systemd 服务运行，或为 Bun 添加能力：`sudo setcap 'cap_net_bind_service=+ep' "$(command -v bun)"`；也可以让 Nginx 监听 80/443，并把本服务改回 `PORT=3000` 反向代理。
+- `HOST` 默认 `0.0.0.0`，允许远程及局域网访问；若仅供本机或本机反向代理使用，可设 `HOST=127.0.0.1`。使用 Nginx 等反向代理时保留请求 Host，并将 `APP_ORIGIN=https://你的域名` 设为公开源地址；使用 HTTPS 时设置 `COOKIE_SECURE=true`。
+- 远程 `.env` 必须使用生产配置：配置正确的 SMTP 与 Redis，不要沿用本地含 `PORT=3000` 的端口设置（删除 `PORT` 或改为 80）。`bun start` 直接运行源码，生产模式不返回开发验证码，Redis 不可用时认证失败而不静默降级。生产启动前请备份 `data.db`，不要执行测试账号 seed。
+- 直接使用 HTTP 80 时保持 `COOKIE_SECURE` 未开启；配置 HTTPS 后再设为 `true`，否则浏览器不会回传会话 Cookie。
 
 ### 测试账号
 运行 `bun run seed.ts` 会创建三个测试账号（密码均为 `123456`）：

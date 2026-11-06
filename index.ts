@@ -1,18 +1,18 @@
 /** Source entry point. Development: bun dev. Production: bun start. */
 import { networkInterfaces } from "node:os";
+import { httpUrl, resolvePort } from "./backend/config";
 import { createServer, openDatabase } from "./backend/server";
 import { closeStore } from "./backend/redis";
 
-const rawPort = process.env.PORT ?? "3000";
-const port = /^\d+$/.test(rawPort) ? Number(rawPort) : NaN;
-if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be an integer between 1 and 65535.");
+const port = resolvePort();
 const db = openDatabase();
 const server = createServer({ db, port });
-console.log(`EngNote · http://localhost:${server.port}`);
+const listeningPort = server.port ?? port;
+console.log(`EngNote · ${httpUrl("localhost", listeningPort)}`);
 console.log(process.env.NODE_ENV === "production" ? "Production mode · source execution" : "Development mode · Bun frontend HMR enabled");
 if (server.hostname === "0.0.0.0") {
   for (const interfaces of Object.values(networkInterfaces())) {
-    for (const net of interfaces ?? []) if (net.family === "IPv4" && !net.internal) console.log(`LAN · http://${net.address}:${server.port}`);
+    for (const net of interfaces ?? []) if (net.family === "IPv4" && !net.internal) console.log(`LAN · ${httpUrl(net.address, listeningPort)}`);
   }
 }
 let stopping = false;
