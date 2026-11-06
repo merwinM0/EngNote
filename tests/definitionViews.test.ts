@@ -77,6 +77,18 @@ describe("independent definition languages", () => {
 });
 
 describe("saved bilingual content", () => {
+  test("keeps the original query identity across drafts and saves, while legacy notes remain readable", () => {
+    const views = setup(), first = chooseChinese(views);
+    first.term = "fox";
+    const shared = definitionContent(views.snapshot());
+    expect(shared[0]?.term).toBe("fox");
+    const restored = new DefinitionViews(); restored.reset(text, shared);
+    expect(restored.at(first.start)?.term).toBe("fox");
+    expect(restored.at(first.start)?.language).toBe("en");
+    const invalid = [{ ...shared[0]!, term: '<script>bad</script>' }];
+    expect(readDefinitionViews(invalid, text)[0]?.term).toBeUndefined();
+    expect(readDefinitionViews(invalid, text)[0]?.chinese).toBe("一种动物");
+  });
   test("reader language choices are excluded from dirty comparisons and default to English when shared", () => {
     const views = setup(); chooseChinese(views);
     const chosen = views.snapshot();

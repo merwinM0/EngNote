@@ -46,6 +46,9 @@
 .note-panel .definition-language-hint { margin: 8px 0 24px; }
 .ai-key-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ai-key-actions .btn { min-width: 0; padding: 8px; font-size: 13px; }
+.ai-usage { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border); font-size: 13px; }
+.ai-usage summary { min-height: 44px; display: list-item; align-content: center; color: var(--accent); cursor: pointer; }
+.note-panel .ai-usage .hint { margin: 8px 0 12px; }
 .ai-footnote { margin: 28px 0 0; padding-top: 16px; border-top: 1px dashed var(--border); font: italic 15px var(--handwriting); color: var(--muted); }
 @media (max-width: 700px) {
   .panel-sheet { padding: 24px 20px; }

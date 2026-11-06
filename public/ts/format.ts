@@ -13,7 +13,7 @@ export async function onFormat() {
   formatBtn.textContent = "Tidying…";
   setStatus("DeepSeek is tidying the paragraphs…");
   try {
-    const result = await callDeepSeek("You format English text. Join broken lines, separate paragraphs with one blank line, and fix spacing around punctuation. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations.", text);
+    const result = await callDeepSeek("You format English text. Join broken lines, separate paragraphs with one blank line, and fix spacing around punctuation. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations.", text, undefined, { maxTokens: Math.min(4096, Math.max(512, Math.ceil(text.length * 1.2))) });
     if (getRevision() === revision) {
       // Page boundaries are not paragraph boundaries. Keep separators around this slice.
       const leading = text.match(/^\s*/)?.[0] ?? "";

@@ -1,6 +1,6 @@
 /** Bilingual note data is saved separately; the canonical article keeps its English 『notes』. */
-export type DefinitionView = { start: number; english: string; chinese: string; language: "en" | "zh" };
-export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh" };
+export type DefinitionView = { start: number; english: string; chinese: string; language: "en" | "zh"; term?: string };
+export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string };
 export type DefinitionEdit = { offset: number; value: string; deleteCount?: number };
 
 /** Display choices are per reader and never part of an article's dirty/save comparison. */
@@ -17,7 +17,9 @@ export function readDefinitionViews(value: unknown, text: string): DefinitionVie
       || typeof item.english !== "string" || typeof item.chinese !== "string" || !item.chinese.trim() || item.chinese.length > 600
       || !/\p{Script=Han}/u.test(item.chinese) || /[『』\r\n]/.test(item.chinese) || (item.language !== "en" && item.language !== "zh")
       || notes.get(item.start) !== item.english) continue;
-    views.push({ start: item.start, english: item.english, chinese: item.chinese, language: item.language });
+    const term = typeof item.term === "string" && item.term.length <= 3000 && /^[A-Za-z]+(?:['’\-][A-Za-z]+)*(?:\s+[A-Za-z]+(?:['’\-][A-Za-z]+)*)*$/.test(item.term)
+      ? item.term.trim().replace(/\s+/g, " ") : undefined;
+    views.push({ start: item.start, english: item.english, chinese: item.chinese, language: item.language, ...(term ? { term } : {}) });
     seen.add(item.start);
   }
   return views;
@@ -73,6 +75,6 @@ export class DefinitionViews {
   }
   snapshot(): DefinitionView[] {
     return Array.from(this.notes.values()).filter((note): note is Definition & { chinese: string } => !!note.chinese)
-      .map(({ start, english, chinese, language }) => ({ start, english, chinese, language }));
+      .map(({ start, english, chinese, language, term }) => ({ start, english, chinese, language, ...(term ? { term } : {}) }));
   }
 }

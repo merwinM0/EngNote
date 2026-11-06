@@ -61,5 +61,6 @@ translateBtn.addEventListener("click", () => {
   if (!isBusy()) { showReadForTool(); onTranslateClick(); }
 });
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
+document.getElementById("refreshSelectedBtn")!.addEventListener("click", () => { void translateSelected(true); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
 initPanels(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); void refreshList();

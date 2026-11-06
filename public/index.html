@@ -29,7 +29,8 @@
         <button id="editorBtn" class="btn tape-wheat" type="button" aria-controls="editorPanel" aria-expanded="false">Paste text</button>
         <button id="wordBtn" class="btn tape-mist" type="button">Import Word</button>
         <button id="formatBtn" class="btn tape-lilac" type="button">✦ Tidy this page</button>
-        <button id="defineSelectedBtn" class="btn btn-primary" type="button" disabled hidden>Define selected (0)</button>
+        <button id="defineSelectedBtn" class="btn btn-primary" type="button" title="Reuse existing notes and cached definitions before requesting AI" disabled hidden>Define selected (0)</button>
+        <button id="refreshSelectedBtn" class="btn tape-clear" type="button" title="Bypass reuse and request new AI definitions for selected terms" disabled hidden>Refresh selected</button>
       </div>
       <div class="toolbar-row">
         <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false">✎ Add definitions</button>
@@ -130,7 +131,9 @@
         <label for="apiKey" class="key-label">Write your API key here <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" spellcheck="false" autocapitalize="off" aria-describedby="aiMessage" data-panel-focus /></div>
         <div class="ai-key-actions"><button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><button id="forgetKeyBtn" class="btn tape-rose" type="button">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit">Keep for this tab</button></div>
         <p id="aiMessage" class="form-message" role="status" hidden></p>
-      </form><p class="ai-footnote">a small tool, a quieter page.</p>
+      </form>
+      <details class="ai-usage"><summary>Usage &amp; dictionary cache</summary><p id="aiUsageSummary" class="hint" role="status">No AI requests in this tab yet.</p><p class="hint">General definitions are reused on this browser for up to 7 days (256 entries). Only queried terms and definitions are stored, never API keys. Use Refresh selected to regenerate.</p><button id="clearDictionaryCacheBtn" class="btn tape-clear tape-small" type="button">Clear dictionary cache</button><p id="dictionaryCacheMessage" class="hint" role="status" hidden></p></details>
+      <p class="ai-footnote">a small tool, a quieter page.</p>
     </div>
   </dialog>
   <dialog id="authPanel" class="note-window" aria-labelledby="accountTitle" data-note-entry="authBtn">

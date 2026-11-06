@@ -62,7 +62,7 @@ export function initNotes() {
     // Keep Tab inside the paper instead of letting boundary navigation reach browser chrome.
     note.addEventListener("keydown", event => {
       if (event.key !== "Tab") return;
-      const fields = Array.from(note.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], [tabindex]"))
+      const fields = Array.from(note.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], summary, [tabindex]"))
         .filter(element => element.tabIndex >= 0 && !element.matches(":disabled") && element.getClientRects().length > 0);
       const first = fields[0], last = fields.at(-1);
       if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {

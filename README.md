@@ -23,7 +23,7 @@ bun dev
 
 ### 代码逻辑与本次调整
 
-`index.ts` 管理启动和退出 → `backend/server.ts` 初始化 SQLite、挂载两页 HTML、校验 API → `backend/auth.ts` / `redis.ts` / `mail.ts` 处理登录、验证码和会话。前端 `main.ts` 装配事件，`state.ts` 管理段落与选词，`db.ts` 管理保存/列表，`format.ts` 与 `translate.ts` 调用 DeepSeek。新增 `pagination.ts` 管理无损正文与分页，`editor.ts` 处理导入、实时编辑和草稿，`panels.ts` 管理文章内面板，`notes.ts` 管理保存 / 收藏 / 确认 / API / 账号弹窗的叠放、焦点与关闭行为，`articleTitle.ts` 管理 AI 标题总结、格式兼容与一次短标题修正，`collectionCanvas.ts` / `boardGeometry.ts` 管理收藏画布与可测试的缩放几何，`word.ts` 在浏览器提取 Word 正文，`definitionViews.ts` / `definitionLanguage.ts` 管理每条释义的独立中英文显示及缓存，`dictionary.ts` 校验单次 AI 请求同时返回的中英文释义。
+`index.ts` 管理启动和退出 → `backend/server.ts` 初始化 SQLite、挂载两页 HTML、校验 API → `backend/auth.ts` / `redis.ts` / `mail.ts` 处理登录、验证码和会话。前端 `main.ts` 装配事件，`state.ts` 管理段落与选词，`db.ts` 管理保存/列表，`format.ts` 与 `translate.ts` 调用 DeepSeek。新增 `pagination.ts` 管理无损正文与分页，`editor.ts` 处理导入、实时编辑和草稿，`panels.ts` 管理文章内面板，`notes.ts` 管理保存 / 收藏 / 确认 / API / 账号弹窗的叠放、焦点与关闭行为，`articleTitle.ts` 管理 AI 标题总结、格式兼容与一次短标题修正，`collectionCanvas.ts` / `boardGeometry.ts` 管理收藏画布与可测试的缩放几何，`word.ts` 在浏览器提取 Word 正文，`definitionViews.ts` / `definitionLanguage.ts` 管理每条释义的独立中英文显示及缓存，`dictionary.ts` 校验单次 AI 请求同时返回的中英文释义，`dictionaryCache.ts` / `dictionaryLookup.ts` 管理有界查询缓存与本地优先的缺失词条解析，`deepseekClient.ts` / `aiUsage.ts` 封装请求预算、截断处理与用量统计。
 
 - 修复全局正则反复校验不稳定、粘贴丢失数字、标点也被选中、跨段落合并短语等问题。
 - AI 期间锁定冲突操作，使用页面版本及请求序号防止过期结果覆盖新内容；加载/失败标记不写入文章。先排版后注释，避免 AI 排版移动已有释义。
@@ -36,7 +36,7 @@ bun dev
 - 首页三张胶带便签，阅读页为笔记纸；`public/css/tokens.css` 统一水灰中性色，`public/css/tape.css` 提供不同颜色、半透明撕边的胶带按钮。按钮装饰与焦点轮廓分离，键盘和触摸操作不受剪裁影响。
 - 首页与阅读页的顶栏、主区域均使用全宽布局，仅保留响应式边距；首页标题为 “Read English your way”，介绍英文优先、按需查看中文的阅读方式，不再保留首页页尾；阅读页移除宣传大标题，直接显示工具栏与文章。
 - 顶栏保留 Logo、Saved articles、AI setup 和 Login / Account；正文独占全部可用宽度，不再保留收藏侧栏。Saved articles 打开微倾斜白板，保留两侧粘住白板的胶带，不恢复线稿或装饰文案；文章为紧凑的透明胶带按钮，作者的删除按钮位于胶带右上角。白板采用可拖动、缩放的二维画布，文章再多也不产生上下滚动的列表。密钥输入区保留 SVG 铅笔横线与手写风排版。
-- 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时执行释义按钮加入第一行，仍保持两行。
+- 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时 Define selected 与 Refresh selected 加入第一行，仍保持两行。
 - 取消重复的 Add text / Edit page 标签和两枚独立工具按钮，只保留一个正文入口：无正文时显示 Paste text，有正文时显示 Edit page，共用一个文本编辑区。
 - `public/icons/reading-sketch.svg` 与 `pencil-line.svg` 均为本地线稿，无外部字体或 UI 框架。首页和阅读页使用 `public/icons/favicon.svg` 作为浏览器标签页图标，复用站点的青色书本 Logo，由 Bun HTML 入口统一打包。
 
@@ -110,17 +110,21 @@ bun dev
     - 例：`take off『to leave the ground and begin to fly』`
   - **不连续的多个单词/词组**：每个被选中的片段**分别**在其后方追加各自的 `『』`，逐个用纯英文解释。
     - 例：`The quick『fast』brown fox jumps over the lazy『slow-moving』dog`
-- **AI 释义一次请求同时返回英文和对应的中文**，两种语言均通过校验后才插入注释；新释义初始默认显示英文，可在 AI setup 用 **Zh / Eng** 切换后续新释义的默认显示语言。在 **Read** 模式点击胶带释义即刻切换中文，再次点击切回英文，**切换不发送 AI 请求，也不需要 API key**。各条释义互不影响，当前标签页独立记忆每条的显示语言，刷新或从首页返回后保持。
+- **AI 释义每批一次请求同时返回英文和对应的中文**，两种语言均通过校验后才插入注释；新释义初始默认显示英文，可在 AI setup 用 **Zh / Eng** 切换后续新释义的默认显示语言。在 **Read** 模式点击胶带释义即刻切换中文，再次点击切回英文，**切换不发送 AI 请求，也不需要 API key**。各条释义互不影响，当前标签页独立记忆每条的显示语言，刷新或从首页返回后保持。
 - 中英文内容随文章一并保存，重新打开收藏文章也能直接切换；其他读者首次打开仍默认英文。正文保持 `『英文释义』`，中文以匹配正文偏移的附加数据保存，不影响 3000 字符分页。切换显示语言不会造成“未保存修改”，但新增 / 修改双语释义仍需保存。
 - 旧记录如果只有英文且没有缓存中文，点击仅提示使用 Add definitions 重新生成双语释义，不会悄悄请求翻译。重新释义会替换该词的旧注释，不重复叠加；旧文章和旧版草稿继续可读。SQLite 自动新增双语数据列，保留已有正文与作者信息。
+- 「Define selected」先保留已有完整双语注释，再复用查询缓存，只请求缺失词条；相同词组在同批去重，一条结果回填多个位置。不把 `US` 与 `us` 等不同大小写的词盲目合并。已有注释保留各自的显示语言，不因复用而重置。
+- 查询缓存为通用词典释义，不额外发送全文或上下文；仅把查询词组和双语结果保存在本浏览器的 `er_dictionary_cache_v2`，包含模型 / 提示词版本，最多 256 条、7 天有效，满额淘汰最近最少使用项；刷新及跨文章可复用。存储被禁用时降级为内存，不影响释义或本地切换。AI setup 的「Usage & dictionary cache」可清除查询缓存，不删除文章注释或 API key。
+- 「Refresh selected」明确绕过已有释义及缓存，重新请求所选词组（同批仍去重）；用于主动更新，不自动重新生成。新注释随草稿和文章保留可选的 `term` 查询身份，避免把单词释义误当作不同短语的结果。旧双语注释默认保留，但不猜测其来源词组来填充共享查询缓存；只有英文的旧注释仍可正常补全。
+- 提示词要求英文最多 20 个单词、中文最多 20 个字符的短释义；客户端仍兼容有效的较长旧结果（每种语言 600 字符技术上限），不静默截断。每批最多 12 个不同词组，并按输入长度分批、动态配置输出预算，使用 JSON object 输出模式和非思考模式。
 - 翻译前的选中高亮在翻译完成后清除，由 `『释义』` 标记取代。
 
 **翻译交互流程**（两步：先选词，再点翻译）：
 1. 点击「AI 翻译」按钮 → 进入**选词模式**，直接在页面单击选词。
 2. 用户在文本中**单击单词**选中并高亮背景色（再单击取消，可多选相邻或不相邻的单词/短语）。
 3. 点击独立的「Define selected (数量)」执行释义；锁定冲突编辑和翻页操作，待解释单词显示点状下划线，状态栏展示进度，不往正文插入临时占位字符。
-4. API 返回 `[{ term, english, chinese }]`；按正文偏移插入 / 更新 `『英文释义』`，同时关联中文并默认显示英文，然后自动分页；正文中的英文释义计入 3000 字符限制。缺少任一语言或超长的结果不截断、不插入，可重新选择缺失词重试。
-5. 未返回的词可重新选择重试；整个请求失败时正文保持原样。
+4. API 返回 `{ "definitions": [{ "term", "english", "chinese" }] }`（兼容旧 JSON 数组）；只接受本批请求过的词条，按正文偏移插入 / 更新 `『英文释义』`，同时关联中文并按默认语言显示，然后自动分页；正文中的英文释义计入 3000 字符限制。缺少任一语言或超过技术长度上限的结果不截断、不插入。
+5. 成功词条及时进入缓存；部分失败时仍应用有效结果，之后只需选择缺失词重试。若接口明确返回 `finish_reason=length`，只恢复已完整闭合且校验通过的 JSON 词条，不猜测被截断内容；失败后不自动重试或继续发送后续批次。取消后的迟到结果不会写入正文或缓存。
 6. Add definitions 进入模式后仍显示原名称，不改成 Cancel，也不新增取消按钮；重复点击不会退出或清除选词。点击 Read 或按 Esc 恢复普通阅读，清除选词/删除注释的临时状态，但保留已有释义。
 7. 释义请求进行中仍可点击 Read 或按 Esc：中止浏览器请求并释放操作锁，迟到结果不会写入正文，旧请求也不会解锁或重置之后发起的新任务。
 8. Read 模式支持鼠标点击以及 Tab + Enter / Space 本地切换中英文，无额外加载等待。选词模式点击旧释义不会切换语言；删除模式仍为两次点击删除，并同步移除对应中文数据。编辑导致注释偏移时跟踪原注释；取消 AI 释义后迟到的中英文结果都不会写回。
@@ -151,7 +155,9 @@ bun dev
 - 未配置密钥时使用排版 / 释义功能会打开设置便签；留空标题保存则在保存便签内提示手动输入标题，不打断保存流程。设置本身不发送 AI 请求。Show key、Forget key 和 Keep for this tab 共用一行，保持设置便签紧凑；可显示/隐藏密钥，或点击「Forget key」立即清除。浏览器禁止存储时会明确提示，已确认的密钥仍可用于当前页面。
 - 不使用 Cookie，不随本地 API 请求传输；`aiSettings.ts` 将设置草稿与实际请求所用的密钥分开管理。
 - API Key 仅存在浏览器端，**不上传**到我们的服务器/数据库。
-- 请求失败（超时、鉴权失败）时页面给出明确错误提示。
+- 请求失败（超时、鉴权失败）时页面给出明确错误提示。释义缓存 / 已有完整注释命中时不需要 API key；只有缺失词条或主动 Refresh selected 才请求 AI。
+- AI setup 的「Usage & dictionary cache」显示当前标签页的请求次数、接口实际报告的输入 / 输出 token 和服务端缓存命中 token；统计以 `er_ai_usage_v1` 存在 sessionStorage，不记录密钥、提示词或正文。未返回 usage、失败或中止的请求明确标为用量未知，不当作零消费，不推算账单金额。所有 AI 任务均计入；释义按词数动态预算，标题限制 128 输出 token，当前页排版单独预算，避免全局小预算截断长正文。
+- JSON 模式与参数依据 [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode) 和 [Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion)；保留现有 `deepseek-chat` 模型配置，不自动切换模型或增加付费重试。
 
 ### 8. 邮箱注册 / 登录
 - 点击顶栏 Login 打开账号便签纸弹窗，在窗口内选择登录或注册；校验错误直接显示在便签内，正文、当前页和未保存的编辑不受影响。
@@ -174,6 +180,7 @@ bun dev
 │ [Logo → 首页] [Saved articles] [AI setup] [Login / Account] │
 ├──────────────────────────────────────────────────────────┤
 │ [Read] [粘贴 / 编辑] [Word] [AI 整理]                      │
+│ [选词释义] [刷新释义]                                      │
 │ [添加释义] [删除注释] [保存] [清空]                        │
 │ 状态栏：AI 请求状态 / 错误信息                            │
 │                                                          │
@@ -239,14 +246,14 @@ type SelectionGroup = {
 3. id 相邻、在同一段落且中间只有空白时，合并为一个词组；不跨标点、注释或段落合并。
 4. 不相邻的单词各自成组 → 各自一个 `『』`。
 5. 确定分组后，记录末尾单词的正文偏移并在状态栏显示进度。
-6. 将分组发送 DeepSeek，一次请求返回每组的纯英文释义数组（`[{word, meaning}]`）。
+6. 先复用已有双语注释与查询缓存，对缺失词组去重、分批发送 DeepSeek，每批返回 `{ "definitions": [{ "term", "english", "chinese" }] }`；按原始目标偏移回填同词的不同位置。
 7. 按正文偏移从后向前插入 `『meaning』`，统一重新分页和渲染。
 
 ---
 
 ## API 约定
 
-### POST /v1/chat/completions（DeepSeek）
+### POST /chat/completions（DeepSeek）
 
 ```json
 {
@@ -261,12 +268,16 @@ type SelectionGroup = {
       "content": "<待整理的英文原文>"
     }
   ],
-  "temperature": 0.3
+  "temperature": 0.3,
+  "thinking": { "type": "disabled" },
+  "stream": false,
+  "max_tokens": 2048
 }
 ```
 
-- **AI 整理**：system 提示词约束输出为规范排版的纯文本。
-- **AI 翻译**：system 提示词要求对给定词表逐项输出 `word: meaning` 形式的纯英文释义（JSON 数组亦可），**禁用中文**。
+- **AI 整理**：system 提示词约束输出为规范排版的纯文本，预算随当前页长度变化。
+- **AI 释义**：只发送去重后的词表，返回短双语 JSON 对象，追加 `response_format: { "type": "json_object" }`；预算为 `min(4096, 160 + 128 × 词条数 + ceil(词组总字符数 / 2))`。读取 `finish_reason` 与 `usage`，不靠降低 temperature 或开启流式来宣称节省 token。
+- **AI 标题**：保留整篇文章总结及原有格式修正流程，单次输出预算 128 token，使用 JSON object 模式。
 
 ---
 
@@ -290,7 +301,7 @@ type SelectionGroup = {
 ```
 
 - `content` 保存完整正文（包含全部分页及 `『』` 释义），并保留页面边界的空白字符。
-- 文章表：`entries(id, title, content, created_at, owner_email, definitions)`，存储于 `data.db`；`definitions` 为匹配正文注释的双语 JSON 数组（`start, english, chinese`，服务端规范化为英文显示）。旧表无损追加该列，默认为 `[]`；历史记录作者为空且只读。
+- 文章表：`entries(id, title, content, created_at, owner_email, definitions)`，存储于 `data.db`；`definitions` 为匹配正文注释的双语 JSON 数组（`start, english, chinese`，服务端规范化为英文显示；可选的 `term` 保存生成时的查询词组，用于缓存复用和 Refresh selected，旧数据没有该字段仍可正常读取）。旧表无损追加该列，默认为 `[]`；历史记录作者为空且只读。
 
 ### 认证 API
 

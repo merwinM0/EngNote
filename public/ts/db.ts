@@ -184,7 +184,7 @@ async function save(title?: string) {
   updateSaveProgress();
   try {
     if (task.phase === "summarizing") {
-      title = await summarizeArticleTitle(text, callDeepSeek, task.request.signal);
+      title = await summarizeArticleTitle(text, (system, source, signal) => callDeepSeek(system, source, signal, { maxTokens: 128, jsonObject: true }), task.request.signal);
       if (saveTask !== task || task.request.signal.aborted || getCurrentText() !== text) return;
       saveTitle.value = title;
       task.phase = "saving";

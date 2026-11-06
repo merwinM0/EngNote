@@ -1,9 +1,11 @@
 import { setStatus, errorMessage } from "./util";
-import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions } from "./state";
-import { callDeepSeek, getStoredApiKey } from "./deepseek";
-import { openAISettings } from "./aiSettings";
-import { DICTIONARY_PROMPT, parseDictionaryResponse } from "./dictionary";
+import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions, definitionViews } from "./state";
+import { callDeepSeek } from "./deepseek";
+import { DICTIONARY_PROMPT, dictionaryKey, dictionaryTokenBudget } from "./dictionary";
+import { dictionaryCache } from "./dictionaryCache";
+import { lookupDefinitions } from "./dictionaryLookup";
 import { definitionLanguagePreference } from "./definitionPreference";
+import { aiUsage } from "./aiUsage";
 let activeRequest: AbortController | null = null;
 export const onTermClick = (id: number) => togglePick(id);
 export function cancelDefinitions(announce = true) {
@@ -23,33 +25,38 @@ export function onTranslateClick() {
   setTranslateMode(true);
   setStatus("");
 }
-export async function translateSelected() {
+export async function translateSelected(refresh = false) {
   if (isBusy()) return;
   const ids = collectPickedIds();
   if (!ids.length) return setStatus("Select a word or phrase first.", "error");
-  if (!getStoredApiKey()) { openAISettings(); return setStatus("Use AI setup to add your DeepSeek API key first.", "error"); }
-  const restoreFocus = document.activeElement?.id === "defineSelectedBtn";
+  const restoreFocus = ["defineSelectedBtn", "refreshSelectedBtn"].includes(document.activeElement?.id ?? "");
   const request = new AbortController();
   activeRequest = request;
   const revision = getRevision();
-  const groups = groupIds(ids);
-  const targets = groups.map(group => ({ term: groupText(group), word: wordsById.get(group.at(-1)!)! }));
+  const targets = groupIds(ids).map(group => {
+    const term = groupText(group), word = wordsById.get(group.at(-1)!)!, note = definitionViews.at(word.end);
+    // Legacy notes have no term identity: keep them locally, but never seed a shared query cache from a guess.
+    const existing = note?.chinese && (!note.term || dictionaryKey(note.term) === dictionaryKey(term))
+      ? { english: note.english, chinese: note.chinese } : undefined;
+    return { term, offset: word.end, word, existing, cacheExisting: !!note?.term && !!existing };
+  });
+  const selectedTerms = new Set(targets.map(target => dictionaryKey(target.term)));
+  if (!refresh) for (const note of definitionViews.snapshot()) {
+    if (note.term && selectedTerms.has(dictionaryKey(note.term)) && !dictionaryCache.get(note.term)) dictionaryCache.set(note.term, note);
+  }
+  const requestsBefore = aiUsage.snapshot().requests;
   clearPicked();
   for (const target of targets) target.word.el.classList.add("defining");
   setBusy(true);
-  setStatus(`Finding English and Chinese definitions for ${targets.length} term(s)…`);
   try {
-    const raw = await callDeepSeek(DICTIONARY_PROMPT, JSON.stringify(targets.map(target => target.term)), request.signal);
-    const meanings = parseDictionaryResponse(raw);
+    const result = await lookupDefinitions(targets, dictionaryCache, (terms, signal) =>
+      callDeepSeek(DICTIONARY_PROMPT, JSON.stringify(terms), signal, { jsonObject: true, maxTokens: dictionaryTokenBudget(terms) }),
+    { refresh, signal: request.signal, onBatch: (index, total) => setStatus(`Finding short bilingual definitions · batch ${index}/${total}…`) });
     if (activeRequest !== request || request.signal.aborted || getRevision() !== revision) return;
-    const definitions: Array<{ offset: number; meaning: string; chinese: string }> = [];
-    for (const target of targets) {
-      const meaning = meanings.get(target.term.toLowerCase());
-      if (meaning) definitions.push({ offset: target.word.end, meaning: meaning.english, chinese: meaning.chinese });
-    }
-    const language = definitionLanguagePreference.language;
-    addDefinitions(definitions, language);
-    setStatus(`${definitions.length}/${targets.length} bilingual definitions added; ${language === "zh" ? "Chinese" : "English"} is shown first. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
+    addDefinitions(result.definitions.map(item => ({ offset: item.offset, meaning: item.english, chinese: item.chinese, term: item.term })), definitionLanguagePreference.language);
+    const missing = targets.length - result.kept - result.definitions.length;
+    const summary = `${targets.length - missing}/${targets.length} term(s) ready · ${result.kept} existing note(s) kept · ${result.cached} cached result(s) reused · ${aiUsage.snapshot().requests - requestsBefore} AI request(s).`;
+    setStatus(`${summary}${missing ? " Select only missing terms to retry." : ""}${result.error ? " " + result.error : ""}`, missing ? "error" : "ok");
   } catch (error) {
     if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(errorMessage(error), "error");
   } finally {

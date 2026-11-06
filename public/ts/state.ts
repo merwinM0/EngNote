@@ -15,6 +15,7 @@ export const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 export const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
 export const modeHint = document.getElementById("modeHint")!;
 const defineSelectedBtn = document.getElementById("defineSelectedBtn") as HTMLButtonElement;
+const refreshSelectedBtn = document.getElementById("refreshSelectedBtn") as HTMLButtonElement;
 export type WordInfo = { id: number; text: string; el: HTMLElement; start: number; end: number };
 export const wordsById = new Map<number, WordInfo>();
 const pickedIds = new Set<number>();
@@ -143,11 +144,11 @@ export function editCurrentPage(value: string, cursor: number) {
   paint(true);
   return result;
 }
-export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string }>, language: DefinitionLanguage = "en") {
+export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string; term?: string }>, language: DefinitionLanguage = "en") {
   if (!definitions.length) return;
   const edits = definitions.map(item => {
     const previous = definitionViews.at(item.offset);
-    return { offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, deleteCount: previous ? previous.english.length + 2 : 0 };
+    return { offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, term: item.term, deleteCount: previous ? previous.english.length + 2 : 0 };
   }).sort((a, b) => b.offset - a.offset);
   let text = documentModel.text;
   for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
@@ -157,6 +158,8 @@ export function addDefinitions(definitions: Array<{ offset: number; meaning: str
   for (const edit of [...edits].reverse()) {
     const start = edit.offset + shift, note = definitionViews.at(start)!;
     Object.assign(note, { chinese: edit.chinese, language });
+    // A replacement without query identity must not inherit the old note's term.
+    if (edit.term) note.term = edit.term; else delete note.term;
     focus = start + edit.value.length;
     shift += edit.value.length - edit.deleteCount;
   }
@@ -201,7 +204,8 @@ export function groupIds(ids: number[]): number[][] {
 export const groupText = (group: number[]) => group.map(id => wordsById.get(id)?.text ?? "").join(" ");
 
 function updateDefinitionControls() {
-  defineSelectedBtn.hidden = !translateMode;
+  defineSelectedBtn.hidden = refreshSelectedBtn.hidden = !translateMode;
+  refreshSelectedBtn.disabled = busy || pickedIds.size === 0;
   translateBtn.disabled = busy;
   translateBtn.textContent = "✎ Add definitions";
   translateBtn.setAttribute("aria-label", "Add definitions");
@@ -217,7 +221,7 @@ function updateModes() {
   deleteBtn.setAttribute("aria-pressed", String(deleteMode));
   content.classList.toggle("select-mode", translateMode);
   content.classList.toggle("delete-mode", deleteMode);
-  modeHint.textContent = translateMode ? "Select words, then choose Define selected. Choose Read or press Esc to return to reading."
+  modeHint.textContent = translateMode ? "Select words, then Define selected (reuse notes and cache first) or Refresh selected (new AI request). Read or Esc returns."
     : deleteMode ? "Select a note, then select it again to remove it. Read or Esc exits." : "";
   for (const word of wordsById.values()) {
     if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }

@@ -1,6 +1,8 @@
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
 import { definitionLanguagePreference } from "./definitionPreference";
+import { aiUsage, describeAIUsage } from "./aiUsage";
+import { dictionaryCache } from "./dictionaryCache";
 
 export const KEY_STORAGE = "er_deepseek_tab_key";
 const panel = document.getElementById("aiPanel")!;
@@ -67,6 +69,15 @@ function restoreKey() {
 
 export function initAISettings() {
   restoreKey();
+  dictionaryCache.restore();
+  const usageSummary = document.getElementById("aiUsageSummary")!;
+  const updateUsage = () => { usageSummary.textContent = describeAIUsage(aiUsage.snapshot()); };
+  aiUsage.restore(); updateUsage(); aiUsage.subscribe(updateUsage);
+  document.getElementById("clearDictionaryCacheBtn")!.addEventListener("click", () => {
+    const removed = dictionaryCache.clear(), message = document.getElementById("dictionaryCacheMessage")!;
+    message.textContent = removed ? "Query cache cleared. Saved article notes are unchanged." : "Memory cache cleared. Browser storage could not be cleared; stored entries may return after reload.";
+    message.hidden = false;
+  });
   languageStored = definitionLanguagePreference.restore();
   updateDefinitionLanguage();
   languageButton.addEventListener("click", () => {

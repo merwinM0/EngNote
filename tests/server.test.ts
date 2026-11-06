@@ -135,6 +135,9 @@ describe("source server", () => {
     expect(settings).not.toContain("Just for this tab. Sent only to DeepSeek, never to our server.");
     expect(settings).not.toContain("keyHint");
     expect(settings).toContain('aria-describedby="aiMessage"');
+    expect(settings).toContain('id="aiUsageSummary"');
+    expect(settings).toContain('id="clearDictionaryCacheBtn"');
+    expect(html).toContain('id="refreshSelectedBtn"');
     const actions = settings.match(/<div class="ai-key-actions">[\s\S]*?<\/div>/)?.[0] ?? "";
     for (const id of ["showKeyBtn", "forgetKeyBtn", "saveKeyBtn"]) expect(actions).toContain(`id="${id}"`);
     expect(settings.match(/<form id="aiForm"[\s\S]*?<\/form>/)?.[0]).not.toContain('id="definitionLanguageBtn"');
@@ -237,6 +240,13 @@ describe("source server", () => {
     expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions[0].chinese).toBe("野生动物");
     const list = (await (await request("/api/entries")).json()).entries;
     expect(list.find((entry: { id: number }) => entry.id === id)).not.toHaveProperty("definitions");
+  });
+  test("persists optional dictionary query identity without changing legacy note data", async () => {
+    const content = "A fox『an animal』 reads.", definitions = [{ start: 5, english: "an animal", chinese: "动物", language: "en", term: "fox" }];
+    const saved = await request("/api/entries", "POST", { title: "Query identity", content, definitions }, alice);
+    expect(saved.status).toBe(201);
+    const { id } = await saved.json();
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual(definitions);
   });
   test("rejects malformed bilingual metadata atomically", async () => {
     const content = "A fox『an animal』 reads.", id = await create();
