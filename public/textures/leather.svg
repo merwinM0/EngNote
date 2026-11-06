@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".18" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><pattern id="pebbles" width="48" height="48" patternUnits="userSpaceOnUse"><g fill="none" stroke-linejoin="round"><path d="M-3 3 8-1l9 6-2 10-10 4-8-5ZM19 3l13-5 9 7-4 10-13 2-7-7ZM2 23l11-5 10 6-1 13-12 4-9-8ZM27 21l12-4 10 7-4 12-14 2-7-8ZM12 45l13-8 9 5 2 9M-4 40l10-2 5 11M41-3l5 13 7 5" stroke="#998776" stroke-width=".7" opacity=".2"/><path d="m1 5 7-3 7 5M22 5l10-4 6 5M4 25l9-4 7 5M29 23l10-3 7 6M15 45l10-6 6 4" stroke="#fffcf5" stroke-width="1" opacity=".65"/></g></pattern></defs>
+  <rect width="96" height="96" filter="url(#grain)" opacity=".1"/><rect width="96" height="96" fill="url(#pebbles)"/>
+</svg>

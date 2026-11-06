@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <filter id="pulp"><feTurbulence type="fractalNoise" baseFrequency=".35 .7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+  <rect width="240" height="240" filter="url(#pulp)" opacity=".13"/>
+  <g fill="none" stroke="#886338" stroke-linecap="round" opacity=".15">
+    <path d="m8 19 18-2m18 25 11-3m30-21 17 1m35 28 16-3m37-25 21 2M16 80l15 2m38-17 19 1m23 25 16-2m44-17 23 3m24 22 17-2M8 141l19-1m19-20 17 3m27 31 19-2m34-21 16 1m34 22 21-3M19 204l21 2m27-22 16-3m32 34 20-1m30-24 17 2m29 24 16-3" stroke-width=".7"/>
+    <path d="M-20 114C48 98 86 131 151 112S212 91 260 104M-20 229C39 218 103 239 154 224S217 215 260 221" stroke-width=".5"/>
+  </g>
+  <g stroke="#fff1d7" opacity=".22"><path d="m24 33 24-2m60 29 27 1m44-25 22 2M36 104l25-2m80 9 23-1M16 173l22 2m75 10 24-2m53 0 29 2M66 234l18-1"/></g>
+</svg>

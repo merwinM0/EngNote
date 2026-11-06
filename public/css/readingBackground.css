@@ -1,0 +1,84 @@
+/* Added light stationery neutrals; the existing qing ink and controls stay unchanged.
+   Preview and reader share each texture at its natural scale, without covering text. */
+.paper-surface {
+  --reading-paper-color: var(--panel);
+  --reading-paper-image: none;
+  --reading-paper-size: 240px 240px;
+  background-color: var(--reading-paper-color);
+  background-image: var(--reading-paper-image);
+  background-size: var(--reading-paper-size);
+}
+.paper-surface[data-paper="yunlong"] {
+  --reading-paper-color: #f7f3e8;
+  --reading-paper-image: url("../textures/yunlong.svg");
+}
+.paper-surface[data-paper="cotton"] {
+  --reading-paper-color: #faf7ee;
+  --reading-paper-image: url("../textures/cotton.svg");
+  --reading-paper-size: 160px 160px;
+}
+.paper-surface[data-paper="earth"] {
+  --reading-paper-color: #eee8d9;
+  --reading-paper-image: url("../textures/earth.svg");
+  --reading-paper-size: 180px 180px;
+}
+.paper-surface[data-paper="kraft"] {
+  --reading-paper-color: #e2c99f;
+  --reading-paper-image: url("../textures/kraft.svg");
+  --muted: #394f49; /* Darker secondary ink keeps the warm paper readable. */
+}
+.paper-surface[data-paper="linen"] {
+  --reading-paper-color: #f2efe5;
+  --reading-paper-image: url("../textures/linen.svg");
+  --reading-paper-size: 64px 64px;
+}
+.paper-surface[data-paper="art"] {
+  --reading-paper-color: #edf2ef;
+  --reading-paper-image: url("../textures/art.svg");
+  --reading-paper-size: 200px 200px;
+}
+.paper-surface[data-paper="elegant"] {
+  --reading-paper-color: #f4f0e9;
+  --reading-paper-image: url("../textures/elegant.svg");
+  --reading-paper-size: 96px 96px;
+}
+.paper-surface[data-paper="leather"] {
+  --reading-paper-color: #e8ddd0;
+  --reading-paper-image: url("../textures/leather.svg");
+  --muted: #394f49;
+  --reading-paper-size: 96px 96px;
+}
+.page-next-tools { display: inline-flex; align-items: center; gap: 8px; }
+.background-window { width: min(700px, calc(100% - 32px)); }
+.paper-options { min-width: 0; margin: 0; padding: 0; border: 0; }
+.paper-options-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.paper-options .paper-option {
+  position: relative; display: block; min-width: 0; margin: 0; padding: 8px;
+  border: 1px solid var(--control-border); border-radius: 3px; background: var(--panel);
+  color: var(--text); cursor: pointer;
+}
+.paper-option:hover { border-color: var(--accent); }
+.paper-option:has(:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.paper-option:has(:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
+.paper-options .paper-option input {
+  position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; margin: 0;
+  accent-color: var(--accent); cursor: pointer;
+}
+.paper-option input:focus-visible { outline: none; }
+.paper-preview {
+  display: flex; align-items: center; justify-content: center; height: 76px;
+  margin-bottom: 8px; border: 1px solid var(--border); border-radius: 1px;
+  color: var(--text); font: 32px/1 var(--serif);
+}
+.paper-option-name { display: block; font-size: 13px; font-weight: 600; }
+.paper-option-description { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .background-window { width: calc(100% - 16px); }
+}
+@media (max-width: 480px) {
+  .paper-options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (forced-colors: active) {
+  .paper-surface { background: Canvas; color: CanvasText; }
+  .paper-options .paper-option:has(:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
+}

@@ -11,6 +11,7 @@ import { activePanel, closePanel, initPanels, openPanel } from "./panels";
 import { hasOpenNote } from "./notes";
 import { initCollectionCanvas } from "./collectionCanvas";
 import { toggleDefinitionLanguage } from "./definitionLanguage";
+import { initReadingBackground } from "./readingBackground";
 
 const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
 const fonts = [{ label: "M", size: "20px" }, { label: "L", size: "23px" }, { label: "S", size: "17px" }];
@@ -61,4 +62,4 @@ translateBtn.addEventListener("click", () => {
 });
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
-initPanels(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); void refreshList();
+initPanels(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); void refreshList();

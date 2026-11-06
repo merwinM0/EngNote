@@ -126,6 +126,23 @@ describe("source server", () => {
     expect(html).toContain('<h1 class="sr-only">Reading notebook</h1>');
     expect(html).toContain('aria-label="Reading tools"');
   });
+  test("reading background opens a modal directly after the top Next button", async () => {
+    const html = await (await request("/index.html")).text();
+    const navigation = html.match(/<nav class="page-navigation"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(navigation).toMatch(/id="nextPageBtn"[^>]*>Next →<\/button>\s*<button id="backgroundBtn"/);
+    expect(navigation).toContain('data-open-panel="backgroundPanel"');
+    expect(navigation).toContain('aria-haspopup="dialog"');
+    expect(navigation).toContain('aria-controls="backgroundPanel"');
+    expect(html).toContain('class="editor-card paper-surface" data-paper="original"');
+    const panel = html.match(/<dialog id="backgroundPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(panel).toContain('aria-labelledby="backgroundHeading"');
+    expect(panel).toContain('data-note-entry="backgroundBtn"');
+    expect(panel).toContain('<legend class="sr-only">Reading background</legend>');
+    expect(panel).toContain('id="backgroundOptions"');
+    expect(panel).toContain('id="backgroundMessage"');
+    expect(panel).toContain("your article stays untouched");
+    expect(html.match(/<main\b[\s\S]*?<\/main>/)?.[0]).not.toContain('id="backgroundPanel"');
+  });
   test("reader keeps saved articles and saving in modal notes, outside the reading layout", async () => {
     const html = await (await request("/index.html")).text();
     const main = html.match(/<main\b[\s\S]*?<\/main>/)?.[0] ?? "";

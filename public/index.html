@@ -44,10 +44,13 @@
         <nav class="page-navigation" aria-label="Article pagination">
           <button id="previousPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Previous page">← Previous</button>
           <label for="pageSelect">Page <select id="pageSelect" aria-label="Choose page"><option value="0">1 / 1</option></select></label>
-          <button id="nextPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Next page">Next →</button>
+          <div class="page-next-tools">
+            <button id="nextPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Next page">Next →</button>
+            <button id="backgroundBtn" class="btn tape-wheat tape-small" type="button" data-open-panel="backgroundPanel" aria-haspopup="dialog" aria-controls="backgroundPanel" aria-expanded="false">Background</button>
+          </div>
           <span id="pageSummary" class="hint" aria-live="polite">0 / 3,000 characters</span>
         </nav>
-        <section id="readPanel" class="editor-card" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
+        <section id="readPanel" class="editor-card paper-surface" data-paper="original" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
           <div class="card-head"><h2 id="readerTitle">A fresh article</h2><button id="fontSizeBtn" class="btn btn-ghost tape-small" type="button" title="Change reading font size">Aa · M</button></div>
           <div id="content" class="content" tabindex="0" aria-label="Current article page" data-placeholder="Your next story starts here. Choose Paste text, then use Ctrl / Cmd + V, or import a Word document."></div>
           <div class="paper-footer"><span id="wordCount">0 words on this page</span><span id="documentSummary">0 characters in this article</span></div>
@@ -67,6 +70,16 @@
       </div>
     </div>
   </main>
+  <dialog id="backgroundPanel" class="note-window background-window" aria-labelledby="backgroundHeading" aria-describedby="backgroundDescription" data-note-entry="backgroundBtn">
+    <div class="panel-sheet note-panel">
+      <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close reading backgrounds" data-close-note>×</button>
+      <p class="eyebrow">A different kind of page</p><h2 id="backgroundHeading">Choose your reading paper.</h2>
+      <p id="backgroundDescription" class="panel-description">Choose a texture below. Your reading page changes immediately; your article stays untouched.</p>
+      <fieldset class="paper-options"><legend class="sr-only">Reading background</legend><div id="backgroundOptions" class="paper-options-grid"></div></fieldset>
+      <p id="backgroundMessage" class="hint" role="status" aria-live="polite"></p>
+      <div class="panel-actions"><button class="btn btn-primary" type="button" data-close-note>Back to reading</button></div>
+    </div>
+  </dialog>
   <dialog id="savePanel" class="note-window" aria-labelledby="saveHeading" data-note-entry="saveBtn">
     <div class="panel-sheet note-panel">
       <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close save article" data-close-note>×</button>

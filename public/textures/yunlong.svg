@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+  <rect width="240" height="240" filter="url(#grain)" opacity=".055"/>
+  <g fill="none" stroke="#998e70" stroke-linecap="round" opacity=".17">
+    <path d="M-12 44C20 20 31 72 66 50S106 28 132 42M145 15C166 37 157 65 194 73S224 96 252 84M13 137C42 107 55 157 91 142S111 106 140 118M139 181C175 162 165 202 204 195S221 180 249 211M22 213C56 193 54 231 92 221"/>
+    <path d="M35-8C49 25 70 9 77 32M105 64C76 77 100 102 73 113M203 113C179 133 207 152 180 169M113 174C88 178 107 202 82 208M6 73C-3 99 20 100 15 119" stroke-width=".65"/>
+  </g>
+  <g fill="none" stroke="#fffdf5" stroke-width="1.6" opacity=".7">
+    <path d="M-8 47C22 23 33 75 68 53S108 31 134 45M148 15C169 37 160 65 197 73S227 96 255 84M15 140C44 110 57 160 93 145S113 109 142 121M141 184C177 165 167 205 206 198S223 183 251 214M24 216C58 196 56 234 94 224"/>
+  </g>
+</svg>
