@@ -7,9 +7,6 @@ export function initCollectionCanvas(): () => void {
   const board = panel.querySelector<HTMLElement>(".collection-board")!;
   const viewport = document.getElementById("collectionViewport")!;
   const list = document.getElementById("entryList")!;
-  const out = document.getElementById("boardZoomOutBtn") as HTMLButtonElement;
-  const into = document.getElementById("boardZoomInBtn") as HTMLButtonElement;
-  const range = document.getElementById("boardZoomRange") as HTMLInputElement;
   const value = document.getElementById("boardZoomValue")!;
   const events = new AbortController(), options = { signal: events.signal };
   let view: BoardView = { x: 16, y: 16, scale: 1 }, initialized = false, dragging = false, blockClick = false;
@@ -18,19 +15,14 @@ export function initCollectionCanvas(): () => void {
   let pinch: { center: Point; distance: number } | null = null;
   const size = () => ({ width: viewport.clientWidth, height: viewport.clientHeight });
   const center = () => ({ x: viewport.clientWidth / 2, y: viewport.clientHeight / 2 });
-  range.min = String(MIN_BOARD_SCALE * 100); range.max = String(MAX_BOARD_SCALE * 100);
-  document.getElementById("boardZoomLimits")!.textContent = `${range.min}%–${range.max}%`;
 
   function render(next = view) {
     view = { ...next, scale: clampBoardScale(next.scale) };
     list.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
     const percentage = Math.round(view.scale * 100);
-    range.value = String(percentage);
     const limit = view.scale <= MIN_BOARD_SCALE ? " · minimum" : view.scale >= MAX_BOARD_SCALE ? " · maximum" : "";
     const label = `${percentage}%${limit}`;
     if (value.textContent !== label) value.textContent = label;
-    range.setAttribute("aria-valuetext", `${percentage} percent${limit}`);
-    out.disabled = view.scale <= MIN_BOARD_SCALE; into.disabled = view.scale >= MAX_BOARD_SCALE;
   }
   function fit() { render(fitBoard({ width: list.offsetWidth, height: list.offsetHeight }, size())); }
   function reset() { render({ x: 16, y: 16, scale: 1 }); }
@@ -133,9 +125,6 @@ export function initCollectionCanvas(): () => void {
     event.preventDefault();
   }, options);
   list.addEventListener("focusin", event => { if (event.target instanceof HTMLElement) reveal(event.target); }, options);
-  out.addEventListener("click", () => zoom(view.scale / 1.2), options);
-  into.addEventListener("click", () => zoom(view.scale * 1.2), options);
-  range.addEventListener("input", () => zoom(Number(range.value) / 100), options);
   document.getElementById("boardFitBtn")!.addEventListener("click", fit, options);
   document.getElementById("boardResetBtn")!.addEventListener("click", reset, options);
   panel.addEventListener("panel-open", measure, options);

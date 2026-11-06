@@ -55,6 +55,17 @@ describe("lossless 3,000-character pages", () => {
 });
 
 describe("page editing", () => {
+  test("importing a whole article starts on its first page, even after reading a later page", () => {
+    const document = new ReadingDocument();
+    document.setText("Old page. ".repeat(700), "last");
+    expect(document.index).toBeGreaterThan(0);
+    const imported = "First sentence.\n\n" + "A new paragraph. ".repeat(500) + "\n\nLast sentence.";
+    document.setText(reflowText(imported));
+    expect(document.pages.length).toBeGreaterThan(1);
+    expect(document.index).toBe(0);
+    expect(document.page.text.startsWith("First sentence.")).toBe(true);
+    expect(document.pages.map(page => page.text).join("")).toBe(reflowText(imported));
+  });
   test("overflow creates pages and follows the insertion cursor", () => {
     const document = new ReadingDocument();
     document.setText("a".repeat(3000) + "TAIL");

@@ -64,8 +64,8 @@ async function applyImport(raw: string) {
   const text = reflowText(raw);
   if (!text) return message("Paste some text, or choose a readable Word document first.", true);
   if (!(await confirmReplace()) || isBusy()) return;
-  render(text, "last"); deselectEntry(); openPanel("readPanel", false); message("");
-  setStatus(`Article reflowed into ${documentModel.pages.length} page(s). Showing the last page; Save article keeps every page.`, "ok");
+  render(text); deselectEntry(); openPanel("readPanel", false); message("");
+  setStatus(`Article reflowed into ${documentModel.pages.length} page(s). Showing the first page; Save article keeps every page.`, "ok");
 }
 function onInput() {
   if (isBusy()) return;

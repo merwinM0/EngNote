@@ -87,15 +87,11 @@
       <div class="collection-head"><h2 id="savedTitle">Saved articles</h2><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles">↻</button></div>
       <p class="sr-only">A public reading shelf. Only the author can change an article.</p>
       <p id="collectionMsg" class="form-message" role="status" hidden></p>
-      <div id="collectionViewport" class="collection-viewport" tabindex="0" role="region" aria-label="Saved articles canvas" aria-describedby="boardInstructions"><ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul></div>
-      <div class="board-controls" role="group" aria-label="Canvas zoom">
-        <button id="boardZoomOutBtn" class="btn tape-clear tape-icon" type="button" aria-label="Zoom out">−</button>
-        <input id="boardZoomRange" type="range" min="25" max="200" step="1" value="100" aria-label="Canvas zoom percentage" />
-        <button id="boardZoomInBtn" class="btn tape-clear tape-icon" type="button" aria-label="Zoom in">+</button>
-        <output id="boardZoomValue" for="boardZoomRange" role="status" aria-live="polite">100%</output><span id="boardZoomLimits" class="hint">25%–200%</span>
+      <div id="collectionViewport" class="collection-viewport" tabindex="0" role="region" aria-label="Saved articles canvas"><ul id="entryList" class="entry-list"><li class="entry-empty">Loading the reading shelf…</li></ul></div>
+      <div class="board-controls" role="group" aria-label="Canvas view">
+        <output id="boardZoomValue" class="sr-only" role="status" aria-live="polite">100%</output>
         <button id="boardFitBtn" class="btn tape-clear tape-small" type="button">Fit all</button><button id="boardResetBtn" class="btn tape-clear tape-small" type="button">Reset 100%</button>
       </div>
-      <p id="boardInstructions" class="hint board-instructions">Drag to move · Scroll or pinch to zoom · Arrow keys to move, + / − to zoom, 0 to reset</p>
     </div>
   </dialog>
   <dialog id="deletePanel" class="note-window" aria-labelledby="deleteHeading">

@@ -128,9 +128,12 @@ describe("source server", () => {
     expect(board).toContain("board-tape-left");
     expect(board).toContain("board-tape-right");
     expect(board).toContain('id="collectionViewport"');
-    expect(board).toContain('id="boardZoomRange"');
-    expect(board).toContain('min="25" max="200"');
+    expect(board).not.toMatch(/boardZoomRange|boardZoomLimits|boardZoomOutBtn|boardZoomInBtn|boardInstructions/);
+    expect(board).not.toContain("Drag to move");
+    expect(board).not.toContain("25%–200%");
+    expect(board).toContain('id="boardZoomValue" class="sr-only"');
     expect(board).toContain('id="boardFitBtn"');
+    expect(board).toContain('id="boardResetBtn"');
     expect(board).not.toMatch(/board-scribble|board-footer|board-doodle|class="eyebrow"|<svg/);
   });
   test("requires a real session for writes", async () => {

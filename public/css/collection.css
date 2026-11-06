@@ -10,11 +10,7 @@
 .collection-viewport.is-dragging, .collection-viewport.is-dragging * { cursor: grabbing; }
 .entry-list { --board-columns: 1; position: absolute; top: 0; left: 0; width: max-content; display: grid; grid-template-columns: repeat(var(--board-columns), 200px); grid-auto-rows: 96px; align-items: start; gap: 24px 20px; list-style: none; margin: 0; padding: 24px; transform-origin: 0 0; will-change: transform; }
 .entry-list:has(.entry-empty) { grid-auto-rows: auto; }
-.board-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; flex-shrink: 0; }
-.board-controls input[type="range"] { width: 144px; min-width: 72px; padding: 0; accent-color: var(--accent); }
-.board-controls output { min-width: 64px; color: var(--text); font-size: 12px; }
-.board-controls .hint { margin-right: auto; }
-.board-instructions { margin: 8px 0 0; font-size: 11px; flex-shrink: 0; }
+.board-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; flex-shrink: 0; }
 .entry-list li:not(.entry-empty) { position: relative; min-width: 0; transform: rotate(-1deg); }
 .entry-list li:nth-child(2n) { transform: rotate(1.2deg); }
 .entry-list li:nth-child(3n) { transform: rotate(-.4deg); }
@@ -34,8 +30,6 @@
   .board-tape-left { left: -12px; width: 64px; }
   .board-tape-right { right: -12px; width: 64px; }
   .board-controls { gap: 4px; }
-  .board-controls input[type="range"] { flex: 1; width: 72px; }
-  .board-controls .hint { margin-right: 0; }
   .board-controls .tape-small { padding-inline: 8px; }
   .collection-head { gap: 8px; padding-right: 32px; }
   .collection-board .collection-head h2 { font-size: 25px; }
