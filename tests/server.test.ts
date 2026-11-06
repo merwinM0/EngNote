@@ -88,6 +88,26 @@ describe("source server", () => {
       expect(html).not.toMatch(/english[ _-]*reading/i);
     }
   });
+  test("home and reader expose the same loadable book-logo favicon", async () => {
+    const icons = new Set<string>();
+    for (const path of ["/", "/home.html", "/index.html"]) {
+      const html = await (await request(path)).text();
+      const link = html.match(/<link\b[^>]*\brel="icon"[^>]*>/)?.[0] ?? "";
+      expect(link).toContain('type="image/svg+xml"');
+      expect(link).toContain('sizes="any"');
+      const href = link.match(/\bhref="([^"]+)"/)?.[1];
+      expect(href).toBeDefined();
+      const response = await fetch(new URL(href!, server.url));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("image/svg+xml");
+      const svg = await response.text();
+      expect(svg).toContain('viewBox="0 0 36 36"');
+      expect(svg).toContain('stroke="#38686c"');
+      expect(svg).toContain("M5 7c5-1 9 0 13 3");
+      icons.add(svg);
+    }
+    expect(icons.size).toBe(1);
+  });
   test("home explains English-first reading with optional Chinese in English copy", async () => {
     const html = await (await request("/")).text();
     expect(html).toContain('<h1 class="hero-title">Read English <em>your way</em></h1>');

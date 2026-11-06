@@ -38,7 +38,7 @@ bun dev
 - 顶栏保留 Logo、Saved articles、AI setup 和 Login / Account；正文独占全部可用宽度，不再保留收藏侧栏。Saved articles 打开微倾斜白板，保留两侧粘住白板的胶带，不恢复线稿或装饰文案；文章为紧凑的透明胶带按钮，作者的删除按钮位于胶带右上角。白板采用可拖动、缩放的二维画布，文章再多也不产生上下滚动的列表。密钥输入区保留 SVG 铅笔横线与手写风排版。
 - 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时执行释义按钮加入第一行，仍保持两行。
 - 取消重复的 Add text / Edit page 标签和两枚独立工具按钮，只保留一个正文入口：无正文时显示 Paste text，有正文时显示 Edit page，共用一个文本编辑区。
-- `public/icons/reading-sketch.svg` 与 `pencil-line.svg` 均为本地线稿，无外部字体或 UI 框架。
+- `public/icons/reading-sketch.svg` 与 `pencil-line.svg` 均为本地线稿，无外部字体或 UI 框架。首页和阅读页使用 `public/icons/favicon.svg` 作为浏览器标签页图标，复用站点的青色书本 Logo，由 Bun HTML 入口统一打包。
 
 ---
 
