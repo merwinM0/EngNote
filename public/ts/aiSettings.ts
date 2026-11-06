@@ -1,5 +1,6 @@
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
+import { definitionLanguagePreference } from "./definitionPreference";
 
 export const KEY_STORAGE = "er_deepseek_tab_key";
 const panel = document.getElementById("aiPanel")!;
@@ -7,7 +8,10 @@ const trigger = document.getElementById("aiSettingsBtn") as HTMLButtonElement;
 const input = document.getElementById("apiKey") as HTMLInputElement;
 const showButton = document.getElementById("showKeyBtn") as HTMLButtonElement;
 const message = document.getElementById("aiMessage")!;
+const languageButton = document.getElementById("definitionLanguageBtn") as HTMLButtonElement;
+const languageHint = document.getElementById("definitionLanguageHint")!;
 let activeKey = "";
+let languageStored = true;
 
 /** The open note contains a draft, not the key used by in-flight AI requests. */
 export const getApiKey = () => activeKey;
@@ -15,6 +19,17 @@ export const getApiKey = () => activeKey;
 function updateTrigger() {
   trigger.textContent = activeKey ? "AI setup ✓" : "AI setup";
   trigger.title = activeKey ? "DeepSeek key is set for this tab" : "Set up your DeepSeek key";
+}
+
+function updateDefinitionLanguage() {
+  const language = definitionLanguagePreference.language, chinese = language === "zh";
+  languageButton.setAttribute("aria-pressed", String(chinese));
+  languageButton.title = `New AI definitions start in ${chinese ? "Chinese" : "English"}. Click to use ${chinese ? "English" : "Chinese"}.`;
+  for (const choice of languageButton.querySelectorAll<HTMLElement>("[data-definition-language]")) {
+    choice.classList.toggle("is-active", choice.dataset.definitionLanguage === language);
+  }
+  languageHint.textContent = `New AI definitions start in ${chinese ? "Chinese" : "English"}. Existing notes keep their language.`
+    + (languageStored ? "" : " Browser storage is blocked; this choice only lasts until you leave or refresh.");
 }
 
 function flash(text: string, ok = false) {
@@ -52,11 +67,18 @@ function restoreKey() {
 
 export function initAISettings() {
   restoreKey();
+  languageStored = definitionLanguagePreference.restore();
+  updateDefinitionLanguage();
+  languageButton.addEventListener("click", () => {
+    languageStored = definitionLanguagePreference.toggle();
+    updateDefinitionLanguage();
+  });
   panel.addEventListener("panel-open", () => {
     input.value = activeKey;
     input.removeAttribute("aria-invalid");
     maskKey();
     flash("");
+    updateDefinitionLanguage();
   });
   input.addEventListener("input", () => { input.removeAttribute("aria-invalid"); flash(""); });
   showButton.addEventListener("click", () => {

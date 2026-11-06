@@ -3,6 +3,7 @@ import { content, wordsById, collectPickedIds, clearPicked, groupIds, groupText,
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { openAISettings } from "./aiSettings";
 import { DICTIONARY_PROMPT, parseDictionaryResponse } from "./dictionary";
+import { definitionLanguagePreference } from "./definitionPreference";
 let activeRequest: AbortController | null = null;
 export const onTermClick = (id: number) => togglePick(id);
 export function cancelDefinitions(announce = true) {
@@ -46,8 +47,9 @@ export async function translateSelected() {
       const meaning = meanings.get(target.term.toLowerCase());
       if (meaning) definitions.push({ offset: target.word.end, meaning: meaning.english, chinese: meaning.chinese });
     }
-    addDefinitions(definitions);
-    setStatus(`${definitions.length}/${targets.length} bilingual definitions added; English is shown first. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
+    const language = definitionLanguagePreference.language;
+    addDefinitions(definitions, language);
+    setStatus(`${definitions.length}/${targets.length} bilingual definitions added; ${language === "zh" ? "Chinese" : "English"} is shown first. Pages have been reflowed to stay within 3,000 characters.${definitions.length < targets.length ? " Select missing terms to retry." : ""}`, definitions.length ? "ok" : "error");
   } catch (error) {
     if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(errorMessage(error), "error");
   } finally {

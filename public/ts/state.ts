@@ -3,6 +3,7 @@ import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
 import { DefinitionViews } from "./definitionViews";
 import type { DefinitionView } from "./definitionViews";
+import type { DefinitionLanguage } from "./definitionPreference";
 
 export const documentModel = new ReadingDocument();
 export const definitionViews = new DefinitionViews();
@@ -142,7 +143,7 @@ export function editCurrentPage(value: string, cursor: number) {
   paint(true);
   return result;
 }
-export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string }>) {
+export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string }>, language: DefinitionLanguage = "en") {
   if (!definitions.length) return;
   const edits = definitions.map(item => {
     const previous = definitionViews.at(item.offset);
@@ -155,7 +156,7 @@ export function addDefinitions(definitions: Array<{ offset: number; meaning: str
   let shift = 0, focus = 0;
   for (const edit of [...edits].reverse()) {
     const start = edit.offset + shift, note = definitionViews.at(start)!;
-    Object.assign(note, { chinese: edit.chinese, language: "en" });
+    Object.assign(note, { chinese: edit.chinese, language });
     focus = start + edit.value.length;
     shift += edit.value.length - edit.deleteCount;
   }

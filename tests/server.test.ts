@@ -102,6 +102,17 @@ describe("source server", () => {
     expect(html).not.toMatch(/<footer\b/);
     expect(html).not.toContain('class="page-note"');
   });
+  test("AI setup exposes an independent Zh/Eng default language toggle", async () => {
+    const html = await (await request("/index.html")).text();
+    const settings = html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(settings).toContain('id="definitionLanguageBtn"');
+    expect(settings).toContain('aria-label="Zh / Eng: Chinese first for new AI definitions"');
+    expect(settings).toContain('aria-pressed="false"');
+    expect(settings).toContain('data-definition-language="zh">Zh</span>');
+    expect(settings).toContain('data-definition-language="en" class="is-active">Eng</span>');
+    expect(settings).toContain("Existing notes keep their language.");
+    expect(settings.match(/<form id="aiForm"[\s\S]*?<\/form>/)?.[0]).not.toContain('id="definitionLanguageBtn"');
+  });
   test("reader starts with tools rather than a visible promotional heading", async () => {
     const html = await (await request("/index.html")).text();
     expect(html).not.toContain("Make room for a good story.");
