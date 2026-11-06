@@ -124,6 +124,22 @@ describe("source server", () => {
     expect(html).not.toMatch(/<footer\b/);
     expect(html).not.toContain('class="page-note"');
   });
+  test("home places a five-step practice manual after the language switch", async () => {
+    const html = await (await request("/")).text();
+    const actions = html.match(/<div class="nav-actions">[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(actions).toMatch(/id="uiLangBtn"[^>]*>中文<\/button>\s*<button id="manualBtn"/);
+    expect(actions).toContain('aria-controls="manualDialog"');
+    expect(actions).toContain('data-i18n="manual.button">amnual</button>');
+    const manual = html.match(/<dialog id="manualDialog"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(manual).toContain('aria-labelledby="manualTitle"');
+    expect(manual).toContain('data-ui-language-toggle');
+    expect(manual).toContain('id="manualPrevious"');
+    expect(manual).toContain('id="manualNext"');
+    expect([...manual.matchAll(/data-manual-step="(\d+)"/g)].map(match => match[1])).toEqual(["0", "1", "2", "3", "4"]);
+    expect(manual).toContain('value="sk-demo-not-a-real-key" readonly');
+    for (const id of ["manualPaste", "manualSaveKey", "manualTidy", "manualDefine", "manualNote", "manualSave", "manualNextPage"]) expect(manual).toContain(`id="${id}"`);
+    expect(html.match(/<main\b[\s\S]*?<\/main>/)?.[0]).not.toContain('id="manualDialog"');
+  });
   test("AI setup exposes an independent Zh/Eng default language toggle", async () => {
     const html = await (await request("/index.html")).text();
     const settings = html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";

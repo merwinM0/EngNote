@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./tape.css";
+@import "./manual.css";
 
 .home-wrap { width: 100%; padding: 0 32px; }
 .nav { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--border); }
@@ -46,11 +47,11 @@
 }
 @media (max-width: 600px) {
   .home-wrap { padding: 0 24px; }
-  .nav { gap: 16px; padding: 20px 0; }
+  .nav { flex-wrap: wrap; gap: 16px; padding: 20px 0; }
   .brand { gap: 8px; }
   .brand-name { font-size: 17px; }
   .brand-mark { width: 28px; height: 28px; }
-  .nav-actions { gap: 4px; }
+  .nav-actions { flex-wrap: wrap; gap: 4px; }
   .nav-link { font-size: 11px; max-width: 132px; padding: 8px 12px; }
   .nav-link span { margin-left: 4px; }
   .hero-intro { grid-template-columns: 1fr; }

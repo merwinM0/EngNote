@@ -1,5 +1,6 @@
 @media (max-width: 700px) {
   main { padding: 24px 16px; }
+  .layout { width: 100%; }
   .topbar-row { padding: 16px; }
   .brand-name { font-size: 18px; }
   .brand-mark { width: 28px; height: 28px; }

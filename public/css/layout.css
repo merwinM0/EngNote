@@ -1,5 +1,5 @@
 main { width: 100%; padding: 32px; margin: 0 0 40px; }
-.layout { width: 100%; }
+.layout { width: 80%; margin-inline: auto; }
 .workspace { min-width: 0; }
 .status-bar { margin: 0 0 20px; }
 .main-col { width: 100%; min-width: 0; }

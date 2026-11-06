@@ -19,6 +19,7 @@
       </a>
       <div class="nav-actions">
         <button id="uiLangBtn" class="nav-link tape-button tape-clear" type="button" lang="zh-Hans" aria-label="Switch interface to Chinese">中文</button>
+        <button id="manualBtn" class="nav-link tape-button tape-wheat" type="button" aria-haspopup="dialog" aria-controls="manualDialog" aria-expanded="false" data-i18n="manual.button">amnual</button>
         <a class="nav-link tape-button tape-mist" href="/index.html" data-i18n-html="home.openNotebook">Open your notebook <span aria-hidden="true">↗</span></a>
       </div>
     </header>
@@ -64,6 +65,52 @@
       </section>
     </main>
   </div>
+  <dialog id="manualDialog" class="manual-window note-window" aria-labelledby="manualTitle" aria-describedby="manualDisclaimer" data-note-entry="manualBtn">
+    <div class="manual-shell">
+      <div class="manual-heading">
+        <div><p class="eyebrow" data-i18n="manual.eyebrow">A quick, hands-on tour</p><h2 id="manualTitle" data-i18n="manual.title">Your first page, in five steps.</h2></div>
+        <div class="manual-heading-actions"><button class="tape-button tape-clear" type="button" data-ui-language-toggle aria-label="Switch interface to Chinese">EN / ZH</button><button id="manualClose" class="tape-button tape-clear" type="button" aria-label="Close manual" data-i18n-aria-label="manual.close" data-close-note autofocus>×</button></div>
+      </div>
+      <p id="manualDisclaimer" class="manual-disclaimer" data-i18n="manual.disclaimer">A small practice notebook. No AI requests, real keys or saved articles are involved.</p>
+      <div class="manual-progress"><span id="manualProgress" role="status"></span><div class="manual-track" aria-hidden="true"><span id="manualProgressFill"></span></div></div>
+      <div class="manual-instruction"><h3 id="manualStepTitle" tabindex="-1"></h3><p id="manualStepDescription"></p></div>
+      <div class="manual-demo">
+        <section data-manual-step="0">
+          <div class="manual-tools"><span class="tape-button tape-wheat" data-i18n="reader.pasteText">Paste text</span><span class="manual-caption" data-i18n="manual.sampleHint">A short sample is ready. You can edit it, too.</span></div>
+          <label class="manual-label" for="manualText" data-i18n="editor.labelPaste">English article</label>
+          <textarea id="manualText" rows="4" lang="en" maxlength="600" spellcheck="false">Some stories linger long after the last page. A little reading, every day, opens a new window on the world.</textarea>
+          <div class="manual-demo-actions"><button id="manualPaste" class="tape-button tape-sage" type="button" data-i18n="editor.apply">Reflow &amp; start reading</button></div>
+          <p id="manualPasteResult" class="manual-feedback" role="status" hidden></p>
+        </section>
+        <section data-manual-step="1" hidden>
+          <div class="manual-tools"><span class="tape-button tape-mist" data-i18n="reader.aiSetup">AI setup</span></div>
+          <div class="manual-ai">
+            <div class="manual-setting"><span data-i18n="ai.newDefinitions">New AI definitions</span><button id="manualDefinitionLanguage" class="tape-button tape-mist" type="button" aria-pressed="false">English</button></div>
+            <label class="manual-label" for="manualKey" data-i18n="manual.demoKey">Demo API key · no real key needed</label><input id="manualKey" type="text" value="sk-demo-not-a-real-key" readonly lang="en" />
+            <div class="manual-demo-actions"><button id="manualSaveKey" class="tape-button tape-sage" type="button" data-i18n="ai.keepTab">Keep for this tab</button></div>
+            <p id="manualKeyResult" class="manual-feedback" role="status" hidden data-i18n="manual.keyReady">Demo key ready. In the real notebook, your key stays in this tab and goes only to DeepSeek.</p>
+            <p class="manual-caption" data-i18n="manual.aiHint">Your own DeepSeek key powers tidying, bilingual definitions and automatic titles. This setting chooses the starting language of new notes, not the interface language.</p>
+          </div>
+        </section>
+        <section data-manual-step="2" hidden>
+          <div class="manual-tools"><button id="manualTidy" class="tape-button tape-lilac" type="button" data-i18n="reader.tidy">✦ Tidy this page</button></div>
+          <div class="manual-paper"><h4 lang="en">A little reading</h4><div id="manualTidyText" class="manual-prose" lang="en"></div></div>
+          <p id="manualTidyResult" class="manual-feedback" role="status" hidden data-i18n="manual.tidied">Paragraphs tidied. Do this before adding definitions so your notes stay intact.</p>
+        </section>
+        <section data-manual-step="3" hidden>
+          <div class="manual-tools"><button id="manualRead" class="tape-button tape-sage" type="button" aria-pressed="false" data-i18n="reader.read">Read</button><button id="manualSelect" class="tape-button tape-mist" type="button" aria-pressed="true" data-i18n="reader.addDefinitions">✎ Add definitions</button><button id="manualDefine" class="tape-button tape-wheat" type="button" disabled>Define selected (0)</button></div>
+          <div class="manual-paper"><h4 lang="en">A word in the margins</h4><p class="manual-prose" lang="en">Some stories <button id="manualTerm" class="manual-term" type="button" aria-pressed="false">linger</button><button id="manualNote" class="manual-note" type="button" hidden></button> long after the last page.</p></div>
+          <p id="manualDefinitionHint" class="manual-feedback" role="status"></p>
+        </section>
+        <section data-manual-step="4" hidden>
+          <div class="manual-tools"><button id="manualSave" class="tape-button tape-sage" type="button" data-i18n="reader.saveArticle">Save article</button><button id="manualBackground" class="tape-button tape-wheat" type="button" data-i18n="reader.background">Background</button><button id="manualFont" class="tape-button tape-clear" type="button" data-i18n-aria-label="reader.fontSize" aria-label="Change reading font size">Aa</button></div>
+          <div id="manualReadingPaper" class="manual-paper"><h4 lang="en">A little reading</h4><p id="manualReadingText" class="manual-prose" lang="en"></p><div class="manual-page-tools"><button id="manualPreviousPage" class="tape-button tape-clear" type="button" data-i18n="reader.previous" disabled>← Previous</button><span id="manualPagePosition">1 / 2</span><button id="manualNextPage" class="tape-button tape-clear" type="button" data-i18n="reader.next">Next →</button></div></div>
+          <p id="manualSaveResult" class="manual-feedback" role="status" hidden data-i18n="manual.saved">Practice article saved — just pretend! Sign in on the reading page to save all pages and notes to your collection.</p>
+        </section>
+      </div>
+      <div class="manual-footer"><button id="manualPrevious" class="tape-button tape-clear" type="button" disabled data-i18n="manual.previous">← Previous step</button><button id="manualNext" class="tape-button tape-sage" type="button" data-i18n="manual.next">Next step →</button></div>
+    </div>
+  </dialog>
   <script type="module" src="./ts/home.ts"></script>
 </body>
 </html>

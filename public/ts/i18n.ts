@@ -37,6 +37,39 @@ const en = {
   "home.feature3Body": "Keep your articles and notes in one collection. Return to the page you were reading, and save changes to the original story.",
   "home.feature3Hand": "something to come back to",
 
+  "manual.button": "amnual",
+  "manual.eyebrow": "A quick, hands-on tour",
+  "manual.title": "Your first page, in five steps.",
+  "manual.close": "Close manual",
+  "manual.disclaimer": "A small practice notebook. No AI requests, real keys or saved articles are involved.",
+  "manual.progress": "Step {step} of {total}",
+  "manual.previous": "← Previous step",
+  "manual.next": "Next step →",
+  "manual.done": "Finish tour ✓",
+  "manual.pasteTitle": "Bring a little English.",
+  "manual.pasteDescription": "Try the sample below, or paste a short passage and reflow it. In the real notebook, Paste text and Import Word turn your article into reading pages.",
+  "manual.aiTitle": "Meet your reading companion.",
+  "manual.aiDescription": "Open AI setup on the reading page to add your DeepSeek key. Try the demo controls here; nothing is stored.",
+  "manual.tidyTitle": "Give the words some room.",
+  "manual.tidyDescription": "Try Tidy this page to see a cleaner layout. The real tool uses AI to tidy the current page before you add notes.",
+  "manual.defineTitle": "A little help in the margins.",
+  "manual.defineDescription": "Choose Add definitions, select linger, then define it. Choose Read and click the note to switch between English and Chinese.",
+  "manual.saveTitle": "Read on. Keep the good pages.",
+  "manual.saveDescription": "Try turning the page, changing the paper or reading size, and saving. The real notebook saves every page and note together; Saved articles brings them back.",
+  "manual.sampleHint": "A short sample is ready. You can edit it, too.",
+  "manual.pasted": "Your practice page is ready. Use Next step to try AI setup.",
+  "manual.empty": "Add a little text first, or reopen the tour to restore the sample.",
+  "manual.demoKey": "Demo API key · no real key needed",
+  "manual.keyReady": "Demo key ready. In the real notebook, your key stays in this tab and goes only to DeepSeek.",
+  "manual.aiHint": "Your own DeepSeek key powers tidying, bilingual definitions and automatic titles. This setting chooses the starting language of new notes, not the interface language.",
+  "manual.tidied": "Paragraphs tidied. Do this before adding definitions so your notes stay intact.",
+  "manual.selectHint": "Click linger to select the word, then Define selected.",
+  "manual.selectedHint": "One word selected. Click Define selected to add a bilingual note.",
+  "manual.definedHint": "A bilingual note is ready. Choose Read to try switching its language.",
+  "manual.readHint": "Click the note in brackets to switch its language — no new AI request needed.",
+  "manual.readEmptyHint": "Choose Add definitions to try adding a note first.",
+  "manual.saved": "Practice article saved — just pretend! Sign in on the reading page to save all pages and notes to your collection.",
+
   "reader.skip": "Skip to notebook",
   "reader.brandHome": "EngNote home",
   "reader.backHome": "Back to home",
@@ -332,6 +365,39 @@ const zh: Record<keyof typeof en, string> = {
   "home.feature3Title": "把喜欢的页面留下。",
   "home.feature3Body": "把文章和注释收进同一个收藏。回到上次阅读的页面，也可以把修改保存回原文。",
   "home.feature3Hand": "留给下次回来",
+
+  "manual.button": "使用指南",
+  "manual.eyebrow": "动手试试，几步就会",
+  "manual.title": "五步，开始你的第一页。",
+  "manual.close": "关闭使用指南",
+  "manual.disclaimer": "这是一个练习笔记本。不会请求 AI、使用真实密钥或保存真实文章。",
+  "manual.progress": "第 {step} / {total} 步",
+  "manual.previous": "← 上一步",
+  "manual.next": "下一步 →",
+  "manual.done": "完成演示 ✓",
+  "manual.pasteTitle": "带来一小段英文。",
+  "manual.pasteDescription": "试试下方示例，也可以粘贴一小段文字并重新排版。正式阅读页的「粘贴文本」和「导入 Word」会将整篇文章分成阅读页面。",
+  "manual.aiTitle": "认识你的阅读伙伴。",
+  "manual.aiDescription": "在阅读页打开「AI 设置」，填入自己的 DeepSeek 密钥。这里可以试用模拟控件，不会存储任何设置。",
+  "manual.tidyTitle": "让文字舒展一点。",
+  "manual.tidyDescription": "点击「整理本页」看看段落变化。正式功能会用 AI 整理当前页，建议在添加释义前操作。",
+  "manual.defineTitle": "在页边，添一点帮助。",
+  "manual.defineDescription": "选择「添加释义」，点击 linger 选词，再生成释义。切到「阅读」后，点击批注即可切换中英文。",
+  "manual.saveTitle": "继续读，也把好页面留下。",
+  "manual.saveDescription": "试试翻页、更换纸张、调整字号和保存。正式阅读页会将全部页面与释义一起保存，可从「已保存文章」中重新打开。",
+  "manual.sampleHint": "已经准备好一小段示例，也可以自己修改。",
+  "manual.pasted": "练习页面准备好了，点击「下一步」试试 AI 设置。",
+  "manual.empty": "请先输入一点文字，或重新打开指南恢复示例。",
+  "manual.demoKey": "演示 API key · 无需真实密钥",
+  "manual.keyReady": "演示密钥已就绪。正式阅读页的密钥仅保留在当前标签页，只发送给 DeepSeek。",
+  "manual.aiHint": "自己的 DeepSeek 密钥用于整理段落、生成双语释义和自动标题。这里选择的是新批注的默认语言，不是界面语言。",
+  "manual.tidied": "段落整理好了。先整理、再添加释义，可以保留完整的批注。",
+  "manual.selectHint": "点击 linger 选中单词，再点击「为所选词释义」。",
+  "manual.selectedHint": "已选中一个单词，点击「为所选词释义」添加双语批注。",
+  "manual.definedHint": "双语批注准备好了。选择「阅读」试试切换释义语言。",
+  "manual.readHint": "点击括号里的批注即可切换语言，无需再次请求 AI。",
+  "manual.readEmptyHint": "先选择「添加释义」，试试添加一条批注。",
+  "manual.saved": "练习文章已模拟保存！在正式阅读页登录后，即可把所有页面和批注保存到收藏。",
 
   "reader.skip": "跳到笔记本",
   "reader.brandHome": "EngNote 首页",
@@ -697,19 +763,19 @@ export function initUILanguage(): UILanguage {
   initialized = true;
   uiLanguagePreference.restore();
   applyTranslations();
-  const button = document.getElementById("uiLangBtn");
-  if (button) {
+  const buttons = document.querySelectorAll<HTMLElement>("#uiLangBtn, [data-ui-language-toggle]");
+  for (const button of buttons) {
     updateLanguageButton(button);
     button.addEventListener("click", () => {
       uiLanguagePreference.toggle();
       applyTranslations();
-      updateLanguageButton(button);
+      for (const toggle of buttons) updateLanguageButton(toggle);
     });
   }
   const restore = () => {
     uiLanguagePreference.restore();
     applyTranslations();
-    if (button) updateLanguageButton(button);
+    for (const button of buttons) updateLanguageButton(button);
   };
   window.addEventListener("storage", event => {
     if (event.key === UI_LANGUAGE_STORAGE || event.key === null) restore();
