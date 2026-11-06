@@ -110,7 +110,13 @@ describe("source server", () => {
     expect(settings).toContain('aria-pressed="false"');
     expect(settings).toContain('data-definition-language="zh">Zh</span>');
     expect(settings).toContain('data-definition-language="en" class="is-active">Eng</span>');
-    expect(settings).toContain("Existing notes keep their language.");
+    expect(settings).toContain("New AI definitions start in English.");
+    expect(settings).not.toContain("Existing notes keep their language.");
+    expect(settings).not.toContain("Just for this tab. Sent only to DeepSeek, never to our server.");
+    expect(settings).not.toContain("keyHint");
+    expect(settings).toContain('aria-describedby="aiMessage"');
+    const actions = settings.match(/<div class="ai-key-actions">[\s\S]*?<\/div>/)?.[0] ?? "";
+    for (const id of ["showKeyBtn", "forgetKeyBtn", "saveKeyBtn"]) expect(actions).toContain(`id="${id}"`);
     expect(settings.match(/<form id="aiForm"[\s\S]*?<\/form>/)?.[0]).not.toContain('id="definitionLanguageBtn"');
   });
   test("reader starts with tools rather than a visible promotional heading", async () => {

@@ -111,11 +111,11 @@
       <p class="eyebrow">A little help in the margins</p><h2 id="aiTitle">A note for your<br /><em>reading companion.</em></h2>
       <p class="panel-description">Bring your own DeepSeek key for tidy paragraphs, paired English and Chinese definitions and article titles.</p>
       <div class="definition-language-setting"><span>New AI definitions</span><button id="definitionLanguageBtn" class="btn tape-mist tape-small" type="button" aria-label="Zh / Eng: Chinese first for new AI definitions" aria-pressed="false" aria-describedby="definitionLanguageHint"><span data-definition-language="zh">Zh</span> / <span data-definition-language="en" class="is-active">Eng</span></button></div>
-      <p id="definitionLanguageHint" class="hint definition-language-hint" role="status">New AI definitions start in English. Existing notes keep their language.</p>
+      <p id="definitionLanguageHint" class="hint definition-language-hint" role="status">New AI definitions start in English.</p>
       <form id="aiForm" novalidate>
-        <label for="apiKey" class="key-label">Write your API key here <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" spellcheck="false" autocapitalize="off" aria-describedby="keyHint" data-panel-focus /></div>
-        <button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><p id="keyHint" class="hint">Just for this tab. Sent only to DeepSeek, never to our server.</p><p id="aiMessage" class="form-message" role="status" hidden></p>
-        <div class="panel-actions"><button id="forgetKeyBtn" class="btn tape-rose" type="button">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit">Keep for this tab</button></div>
+        <label for="apiKey" class="key-label">Write your API key here <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" spellcheck="false" autocapitalize="off" aria-describedby="aiMessage" data-panel-focus /></div>
+        <div class="ai-key-actions"><button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><button id="forgetKeyBtn" class="btn tape-rose" type="button">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit">Keep for this tab</button></div>
+        <p id="aiMessage" class="form-message" role="status" hidden></p>
       </form><p class="ai-footnote">a small tool, a quieter page.</p>
     </div>
   </dialog>

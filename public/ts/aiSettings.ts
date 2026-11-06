@@ -28,7 +28,7 @@ function updateDefinitionLanguage() {
   for (const choice of languageButton.querySelectorAll<HTMLElement>("[data-definition-language]")) {
     choice.classList.toggle("is-active", choice.dataset.definitionLanguage === language);
   }
-  languageHint.textContent = `New AI definitions start in ${chinese ? "Chinese" : "English"}. Existing notes keep their language.`
+  languageHint.textContent = `New AI definitions start in ${chinese ? "Chinese" : "English"}.`
     + (languageStored ? "" : " Browser storage is blocked; this choice only lasts until you leave or refresh.");
 }
 
