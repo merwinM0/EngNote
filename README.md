@@ -1,6 +1,6 @@
 # EngNote 英文阅读助手
 
-一个基于 **HTML + TypeScript + CSS** 的英文阅读网页应用。用户通过单一「Paste text / Edit page」入口粘贴、编辑正文或导入 Word，正文重新排版后按每页最多 3000 字符展示；支持调用 DeepSeek API 进行「AI 整理」排版与「AI 翻译」单词注释；可将内容**保存到 SQLite 数据库**并通过顶栏的收藏白板读取，保存时可留空标题由 AI 概括；支持**邮箱注册/登录**（带验证码）。
+一个基于 **HTML + TypeScript + CSS** 的英文阅读网页应用。用户通过单一「Paste text / Edit page」入口粘贴、编辑正文或导入 Word，正文重新排版后按每页最多 3000 字符展示；支持调用 DeepSeek API 进行「AI 整理」排版与「AI 翻译」单词注释；支持按每条释义当前显示的语言导出纯白 **Word（.docx）** 文档；可将内容**保存到 SQLite 数据库**并通过顶栏的收藏白板读取，保存时可留空标题由 AI 概括；支持**邮箱注册/登录**（带验证码）。
 
 ![](./home.png)
 
@@ -37,7 +37,7 @@ bun dev
 - 首页与阅读页的顶栏、工具栏保持全宽及响应式边距；首页标题为 “Read English your way”，介绍英文优先、按需查看中文的阅读方式，不再保留首页页尾；阅读页移除宣传大标题，直接显示工具栏与文章。阅读纸面与分页区占主区域 80% 并居中，700px 及以下恢复可用全宽，避免小屏正文过窄。
 - 首页语言按钮右侧新增「amnual / 使用指南」，通过五步简版窗口模拟阅读与 AI 设置，支持上一步 / 下一步，界面语言跟随首页切换。
 - 顶栏保留 Logo、Saved articles、AI setup 和 Login / Account；正文不再保留收藏侧栏。Saved articles 打开微倾斜白板，保留两侧粘住白板的胶带，不恢复线稿或装饰文案；文章为紧凑的透明胶带按钮，作者的删除按钮位于胶带右上角。白板采用可拖动、缩放的二维画布，文章再多也不产生上下滚动的列表。密钥输入区保留 SVG 铅笔横线与手写风排版。
-- 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时 Define selected 与 Refresh selected 加入第一行，仍保持两行。
+- 文章工具固定两行：第一行 Read、Paste text / Edit page、Import Word、Tidy this page；第二行 Add definitions、Remove a note、Save article、Export Word、Clear。Read 紧挨编辑按钮左侧，不再有单独的阅读标签行；选词时 Define selected 与 Refresh selected 加入第一行，仍保持两行。
 - 取消重复的 Add text / Edit page 标签和两枚独立工具按钮，只保留一个正文入口：无正文时显示 Paste text，有正文时显示 Edit page，共用一个文本编辑区。
 - `public/icons/reading-sketch.svg` 与 `pencil-line.svg` 均为本地线稿，无外部字体或 UI 框架。首页和阅读页使用 `public/icons/favicon.svg` 作为浏览器标签页图标，复用站点的青色书本 Logo，由 Bun HTML 入口统一打包。
 
@@ -98,6 +98,13 @@ bun dev
 - 整篇正文上限维持 100000 个 UTF-16 单元，与后端存储校验一致。超限会报错，不会截断。
 - 顶部分页栏的 Next 右侧提供「Background」按钮，弹出纸张预览窗口，可选择原本、云龙纸、绵纸、大地纸、牛皮纸、莱尼纸、艺术纹理纸、雅纹纸和皮纹纸。选择立即应用于阅读纸面，不改变正文、分页、释义或文章保存状态；纸张纹理由本地 SVG 模拟，不请求外部图片。使用原生单选框支持方向键选择，支持 Esc / 遮罩关闭并恢复焦点。
 - 阅读背景以 `er_reading_background` 保存在当前浏览器的 localStorage，刷新及重开页面后恢复；不上传到账户、不写入文章。未知配置回退原本背景，浏览器禁止存储时仍可切换，并提示选择仅在当前页面有效。实现位于 `public/ts/readingBackground.ts`、`readingBackgroundPreference.ts`、`public/css/readingBackground.css` 与 `public/textures/`。
+
+### 导出 Word（.docx）
+- 点击阅读工具栏「Export Word / 导出 Word」，在浏览器本地生成并下载整篇文章的 `.docx`，包含全部分页及已有释义，而不只是当前屏幕上的一页。无需登录、保存文章或配置 API key，不请求 AI、不上传内容。
+- 每条释义按其**当前显示的语言**导出：中文批注导出中文，英文批注导出英文，同一文档可以混合两种语言；相同英文释义仍按各自批注的选择独立处理。只有英文的旧批注保留英文，未注释的正文原样保留。切换界面语言不会统一改变导出释义的语言。
+- 文档为纯白 A4 纸面、黑色文字；不包含阅读背景、纹理、胶带、批注底色或网页工具栏。释义仅以正文内的 `『释义内容』` 展示，保留段落、换行和制表符，由 Word 自然分页，不复制网页的 3000 字符页边界。
+- 已选文章使用原标题作为文档标题及文件名；未保存文章默认下载为 `EngNote.docx`，不调用 AI 起名。文件名自动移除不安全字符。空文章或 AI / 导入等任务进行时按钮禁用；失败会给出可重试提示。
+- 导出只读取正文和释义显示快照，不改变阅读位置、语言选择、草稿、保存状态、密钥或背景。实现位于 `public/ts/wordExport.ts`（纯 OOXML / ZIP 生成，复用 `fflate`）和 `public/ts/exportWord.ts`（浏览器下载）。
 
 ### 3. 保存到数据库（SQLite）
 - 点击「**保存**」按钮：
@@ -203,7 +210,7 @@ bun dev
 ├──────────────────────────────────────────────────────────┤
 │ [Read] [粘贴 / 编辑] [Word] [AI 整理]                      │
 │ [选词释义] [刷新释义]                                      │
-│ [添加释义] [删除注释] [保存] [清空]                        │
+│ [添加释义] [删除注释] [保存] [导出 Word] [清空]            │
 │ 状态栏：AI 请求状态 / 错误信息                            │
 │                                                          │
 │ 全宽段落展示区（只读·单击选词）                           │

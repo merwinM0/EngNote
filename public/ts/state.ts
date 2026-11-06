@@ -33,6 +33,7 @@ export const getCurrentText = () => documentModel.text;
 export const getPageText = () => documentModel.page.text;
 
 function updateNavigation() {
+  (document.getElementById("exportWordBtn") as HTMLButtonElement).disabled = busy || !documentModel.text.trim();
   (document.getElementById("previousPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === 0;
   (document.getElementById("nextPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === documentModel.pages.length - 1;
   const select = document.getElementById("pageSelect") as HTMLSelectElement;

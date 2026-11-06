@@ -185,6 +185,15 @@ describe("source server", () => {
     expect(html).toContain('id="uiLangBtn"');
     expect(html).toContain('aria-label="Reading tools"');
   });
+  test("reader offers a bilingual Word export action beside saving, disabled until there is text", async () => {
+    const html = await (await request("/index.html")).text();
+    const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
+    expect(tools).toMatch(/id="saveBtn"[^>]*>[\s\S]*?<\/button>\s*<button id="exportWordBtn"/);
+    expect(tools).toContain('data-i18n="reader.exportWord"');
+    expect(tools).toContain('data-i18n-title="reader.exportWordTitle"');
+    expect(tools).toContain('disabled>Export Word</button>');
+    expect(tools).not.toContain('id="exportWordBtn" data-open-panel="authPanel"');
+  });
   test("reading background opens a modal directly after the top Next button", async () => {
     const html = await (await request("/index.html")).text();
     const navigation = html.match(/<nav class="page-navigation"[\s\S]*?<\/nav>/)?.[0] ?? "";
