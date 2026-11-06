@@ -20,6 +20,14 @@ describe("DeepSeek request budgets and accounting", () => {
     expect(stats.snapshot().outputTokens).toBe(30);
     expect(JSON.stringify(stats.snapshot())).not.toContain("fake-test-key");
   });
+  test("calls fetch without binding the dependency object as Window", async () => {
+    const stats = usage();
+    const fetchImpl = function (this: { usage?: unknown } | undefined, _url: string, _init: RequestInit) {
+      if (this && "usage" in this) throw new TypeError("'fetch' called on an object that does not implement interface Window.");
+      return Promise.resolve(Response.json(reply()));
+    };
+    await expect(requestDeepSeek(request, { usage: stats, fetch: fetchImpl })).resolves.toBe('{"definitions":[]}');
+  });
   test("formatting and title callers can use different budgets and output formats", async () => {
     const bodies: Array<Record<string, unknown>> = [], stats = usage();
     for (const options of [{ maxTokens: 2048 }, { maxTokens: 128, jsonObject: true }]) {

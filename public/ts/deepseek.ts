@@ -11,5 +11,5 @@ export async function callDeepSeek(system: string, userMessage: string, signal?:
     openAISettings();
     throw new Error("Use AI setup to add your DeepSeek API key first.");
   }
-  return requestDeepSeek({ key, system, userMessage, signal, options }, { fetch, usage: aiUsage });
+  return requestDeepSeek({ key, system, userMessage, signal, options }, { fetch: (url, init) => fetch(url, init), usage: aiUsage });
 }

@@ -14,7 +14,10 @@ export async function requestDeepSeek(request: Request, dependencies: Dependenci
   if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 8192) throw new Error("Invalid AI output budget.");
   signal?.throwIfAborted();
   dependencies.usage.begin();
-  const res = await dependencies.fetch(DEEPSEEK_URL, {
+  // Call fetch as a bare function: window.fetch brand-checks `this`, and using
+  // `dependencies.fetch(...)` would pass the dependency object as Window.
+  const fetchImpl = dependencies.fetch;
+  const res = await fetchImpl(DEEPSEEK_URL, {
     method: "POST", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000),
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: system }, { role: "user", content: userMessage }],
