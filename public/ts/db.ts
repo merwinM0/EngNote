@@ -1,5 +1,5 @@
 import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
-import { getCurrentText, render, isBusy, setBusy } from "./state";
+import { definitionViews, getCurrentText, render, isBusy, setBusy } from "./state";
 import { isLoggedIn } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
@@ -89,7 +89,8 @@ async function openEntry(entry: Entry) {
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
     if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
-    render(data.entry.content);
+    const definitions = selected?.id === entry.id && data.entry.content === getCurrentText() ? definitionViews.snapshot() : [];
+    render(data.entry.content, 0, definitions);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
     selectEntry(data.entry, getCurrentText());

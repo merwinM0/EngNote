@@ -1,7 +1,7 @@
 import { setStatus, errorMessage } from "./util";
 import { reflowText } from "./text";
 import { characterCount, DOCUMENT_LIMIT, paginate } from "./pagination";
-import { documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
+import { definitionViews, documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
 import { confirmReplace, deselectEntry, getDraftEntry, restoreEntrySelection } from "./db";
 import { ARTICLE_DRAFT_KEY, parseArticleDraft } from "./articleDraft";
 import type { ArticleDraft } from "./articleDraft";
@@ -84,7 +84,7 @@ function persistDraft() {
   try {
     if (!getCurrentText()) sessionStorage.removeItem(ARTICLE_DRAFT_KEY);
     else {
-      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry() };
+      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot() };
       sessionStorage.setItem(ARTICLE_DRAFT_KEY, JSON.stringify(draft));
     }
   } catch {
@@ -99,7 +99,7 @@ function restoreDraft() {
     if (!raw) return;
     const draft = parseArticleDraft(raw);
     if (!draft) { sessionStorage.removeItem(ARTICLE_DRAFT_KEY); return; }
-    render(draft.text, draft.index); restoreEntrySelection(draft.entry);
+    render(draft.text, draft.index, draft.definitions); restoreEntrySelection(draft.entry);
     setStatus(draft.entry ? "Your article and reading position are restored. Reconnecting to the saved article…"
       : "Your tab's working draft has been restored as an unsaved article. Every page is here; save it to keep it permanently.", "ok");
   } catch { /* Optional storage must never prevent reading. */ }
@@ -128,6 +128,7 @@ export function initEditor() {
     if (!hasContent()) { importDraft = ""; if (mode === "paste") { editor.value = ""; updatePreview(); } }
   });
   window.addEventListener("entry-selection-changed", persistDraft);
+  window.addEventListener("definition-view-changed", persistDraft);
   window.addEventListener("pagehide", persistDraft);
   editor.addEventListener("input", event => { if (!(event instanceof InputEvent) || !event.isComposing) onInput(); });
   editor.addEventListener("compositionend", onInput);

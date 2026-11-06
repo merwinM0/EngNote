@@ -8,7 +8,8 @@
 .content p { margin: 0 0 24px; white-space: pre-wrap; }
 .content p:last-child { margin-bottom: 0; }
 .content .term { border-radius: 2px; }
-.content.select-mode .term, .content.delete-mode .note { cursor: pointer; }
+.content.select-mode .term, .content .note[role="button"] { cursor: pointer; }
+.content .note[aria-busy="true"] { cursor: progress; text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }
 .content.select-mode .term:hover { background: var(--panel-2); }
 .content .term.picked { color: var(--accent-2); background: var(--selected); box-shadow: 0 -2px 0 var(--accent) inset; }
 /* Paint torn tape as a background, so wrapping text and focus rings stay intact. */

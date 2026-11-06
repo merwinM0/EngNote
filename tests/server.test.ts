@@ -88,11 +88,15 @@ describe("source server", () => {
       expect(html).not.toMatch(/english[ _-]*reading/i);
     }
   });
-  test("home explains English immersion without a footer", async () => {
+  test("home explains English-first reading with optional Chinese in English copy", async () => {
     const html = await (await request("/")).text();
-    expect(html).toContain('<h1 class="hero-title">Use English <em>exclusively</em></h1>');
-    expect(html).toContain("Understand English through English.");
-    expect(html).toContain("without translating into another language.");
+    expect(html).toContain('<h1 class="hero-title">Read English <em>your way</em></h1>');
+    expect(html).toContain("Start with clear English definitions");
+    expect(html).toContain("click a note in Read to see its Chinese meaning");
+    expect(html).toContain("Each note remembers your choice when you refresh.");
+    expect(html).not.toContain("exclusively");
+    expect(html).not.toContain("without translating into another language.");
+    expect(html).not.toMatch(/\p{Script=Han}/u);
     expect(html).not.toContain("Stay in English. Slow down");
     expect(html).not.toMatch(/<footer\b/);
     expect(html).not.toContain('class="page-note"');

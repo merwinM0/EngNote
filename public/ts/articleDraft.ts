@@ -1,9 +1,11 @@
 import { DOCUMENT_LIMIT } from "./pagination";
+import { readDefinitionViews } from "./definitionViews";
+import type { DefinitionView } from "./definitionViews";
 
 // Keep the original storage key so existing working text survives this upgrade.
 export const ARTICLE_DRAFT_KEY = "er_article_draft_v1";
 export type DraftEntry = { id: number; title: string; savedText: string };
-export type ArticleDraft = { version: 2; text: string; index: number; entry: DraftEntry | null };
+export type ArticleDraft = { version: 2; text: string; index: number; entry: DraftEntry | null; definitions?: DefinitionView[] };
 
 function readEntry(value: unknown): DraftEntry | null {
   if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "number" || !Number.isSafeInteger(value.id) || value.id < 1
@@ -22,6 +24,7 @@ export function parseArticleDraft(raw: string): ArticleDraft | null {
     return {
       version: 2, text: value.text, index: value.index,
       entry: value.version === 2 && "entry" in value ? readEntry(value.entry) : null,
+      ...("definitions" in value ? { definitions: readDefinitionViews(value.definitions, value.text) } : {}),
     };
   } catch { return null; }
 }

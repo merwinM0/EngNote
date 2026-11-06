@@ -1,8 +1,12 @@
 import { el } from "./util";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
+import { DefinitionViews } from "./definitionViews";
+import type { DefinitionView } from "./definitionViews";
 
 export const documentModel = new ReadingDocument();
+export const definitionViews = new DefinitionViews();
+const loadingDefinitions = new Set<number>();
 export const content = document.getElementById("content") as HTMLDivElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
 export const translateBtn = document.getElementById("translateBtn") as HTMLButtonElement;
@@ -53,9 +57,37 @@ export function setBusy(on: boolean) {
   content.setAttribute("aria-busy", String(on));
   updateNavigation();
   updateDefinitionControls();
+  refreshDefinitionNotes();
+}
+
+export function refreshDefinitionNotes() {
+  for (const note of content.querySelectorAll<HTMLElement>(".note")) {
+    const definition = definitionViews.get(Number(note.dataset.definitionId));
+    if (!definition) continue;
+    const chinese = definition.language === "zh" && !!definition.chinese;
+    const text = chinese ? definition.chinese! : definition.english;
+    note.textContent = text; note.lang = chinese ? "zh-Hans" : "en";
+    const action = deleteMode ? "Select twice to remove this definition." : "Click to show the " + (chinese ? "English" : "Chinese") + " definition.";
+    note.title = translateMode ? "Choose Read to switch this definition's language." : action;
+    if (!translateMode) {
+      note.tabIndex = 0; note.setAttribute("role", "button");
+      note.setAttribute("aria-label", `${text}. ${action}`);
+    } else { note.removeAttribute("tabindex"); note.removeAttribute("role"); note.removeAttribute("aria-label"); }
+    note.setAttribute("aria-busy", String(loadingDefinitions.has(definition.id)));
+    note.setAttribute("aria-disabled", String(busy || (!deleteMode && loadingDefinitions.has(definition.id))));
+  }
+}
+export function setDefinitionLoading(id: number, loading: boolean) {
+  if (loading) loadingDefinitions.add(id); else loadingDefinitions.delete(id);
+  refreshDefinitionNotes();
+}
+export function definitionViewChanged() {
+  refreshDefinitionNotes();
+  window.dispatchEvent(new Event("definition-view-changed"));
 }
 
 function paint(changed = false) {
+  definitionViews.sync(documentModel.text);
   revision++;
   clearPicked();
   setTranslateMode(false);
@@ -72,6 +104,7 @@ function paint(changed = false) {
         const note = el("span", "note", piece.text);
         note.dataset.start = String(offset);
         note.dataset.end = String(offset + piece.text.length + 2);
+        note.dataset.definitionId = String(definitionViews.at(offset)?.id ?? "");
         p.append(note);
         offset += piece.text.length + 2;
         continue;
@@ -93,13 +126,16 @@ function paint(changed = false) {
     fragment.append(p);
   }
   content.replaceChildren(fragment);
+  updateModes();
   document.getElementById("wordCount")!.textContent = `${cursor.toLocaleString()} words on this page`;
   updateNavigation();
   window.dispatchEvent(new Event("document-view-changed"));
   if (changed) window.dispatchEvent(new Event("document-changed"));
 }
 
-export function render(text: string, page: number | "last" = 0) { documentModel.setText(text, page); paint(true); }
+export function render(text: string, page: number | "last" = 0, definitions: DefinitionView[] = []) {
+  documentModel.setText(text, page); definitionViews.reset(text, definitions); paint(true);
+}
 export function goToPage(index: number) {
   if (busy) return;
   documentModel.select(index);
@@ -118,12 +154,14 @@ export function addDefinitions(definitions: Array<{ offset: number; meaning: str
   const anchor = Math.max(...edits.map(edit => edit.offset));
   const focus = anchor + edits.reduce((total, edit) => total + edit.value.length, 0);
   documentModel.setText(text);
+  definitionViews.sync(text, edits);
   documentModel.select(documentModel.locate(focus));
   paint(true);
 }
 export function removeDefinition(note: HTMLElement) {
   const start = Number(note.dataset.start), end = Number(note.dataset.end);
-  if (!Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${note.textContent}』`) return;
+  const definition = definitionViews.get(Number(note.dataset.definitionId));
+  if (!definition || !Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${definition.english}』`) return;
   documentModel.replaceRange(start, end, "", start);
   paint(true);
 }
@@ -180,10 +218,7 @@ function updateModes() {
     if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }
     else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
   }
-  for (const note of content.querySelectorAll<HTMLElement>(".note")) {
-    if (deleteMode) { note.tabIndex = 0; note.setAttribute("role", "button"); }
-    else { note.removeAttribute("tabindex"); note.removeAttribute("role"); }
-  }
+  refreshDefinitionNotes();
 }
 export function setTranslateMode(on: boolean) {
   translateMode = on;
