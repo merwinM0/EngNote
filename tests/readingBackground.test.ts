@@ -75,7 +75,7 @@ describe("recreated water-grey reading finishes", () => {
     const original = css.match(/\.paper-surface\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(original).toContain("--reading-paper-color: var(--panel)");
     expect(original).toContain("--reading-paper-image: none");
-    expect(css).not.toContain('[data-paper="original"]');
+    expect(css).not.toMatch(/\.content\.paper-surface\[data-paper="original"\]\s*\{/);
     const shared = css.match(/\.paper-surface:is\(([^}]+)\{([^}]+)\}/);
     expect(shared).not.toBeNull();
     for (const { id } of READING_BACKGROUNDS.slice(1)) expect(shared![1]).toContain(`[data-paper="${id}"]`);
@@ -92,6 +92,20 @@ describe("recreated water-grey reading finishes", () => {
     expect(empty).toContain("background-size: auto, var(--reading-paper-size, auto)");
     expect(empty).not.toMatch(/background:\s/);
     expect(css).toContain(".paper-surface, .content.paper-surface:empty { background: Canvas; color: CanvasText; }");
+  });
+
+  test("gives only textured body sheets an inset border and padding inside the background", () => {
+    const sheet = css.match(/\.content\.paper-surface:not\(\[data-paper="original"\]\)\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(sheet).toContain("margin: 28px 32px 40px 44px");
+    expect(sheet).toContain("padding: 24px");
+    expect(sheet).toContain("border: 1px solid var(--border)");
+    expect(sheet).toContain("background-clip: padding-box");
+    expect(sheet).toContain("min-height: calc(420px - 28px - 40px)");
+    const mobile = css.match(/@media \(max-width: 700px\)\s*\{([\s\S]+?)\n\}/)?.[1] ?? "";
+    expect(mobile).toContain("margin: 24px 20px 32px 28px");
+    expect(mobile).toContain("padding: 20px 16px");
+    expect(mobile).toContain("min-height: calc(360px - 24px - 32px)");
+    expect(css).toContain('border-color: CanvasText');
   });
 
   test("each recreated finish is bundled from a local, text-free embossed texture", () => {

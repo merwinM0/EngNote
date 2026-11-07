@@ -9,6 +9,16 @@
   background-size: var(--reading-paper-size);
 }
 .content.paper-surface { background-clip: content-box; }
+/* Keep the original outer gutters, then give textured sheets their own inner space.
+   Subtract those gutters from the minimum height so empty pages do not jump. */
+.content.paper-surface:not([data-paper="original"]) {
+  margin: 28px 32px 40px 44px;
+  padding: 24px;
+  min-height: calc(420px - 28px - 40px);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background-clip: padding-box;
+}
 .paper-surface:is([data-paper="linen"], [data-paper="art"], [data-paper="elegant"], [data-paper="leather"], [data-paper="earth"], [data-paper="kraft"], [data-paper="yunlong"], [data-paper="cotton"]) {
   --reading-paper-color: var(--bg);
   --reading-paper-size: 512px 512px;
@@ -47,11 +57,17 @@
 .paper-option-description { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   .background-window { width: calc(100% - 16px); }
+  .content.paper-surface:not([data-paper="original"]) {
+    margin: 24px 20px 32px 28px;
+    padding: 20px 16px;
+    min-height: calc(360px - 24px - 32px);
+  }
 }
 @media (max-width: 480px) {
   .paper-options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (forced-colors: active) {
   .paper-surface, .content.paper-surface:empty { background: Canvas; color: CanvasText; }
+  .content.paper-surface:not([data-paper="original"]) { border-color: CanvasText; }
   .paper-options .paper-option:has(:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
 }
