@@ -1,4 +1,4 @@
-export const STATUS_DURATION = 4000;
+export const STATUS_DURATION = 2000;
 type Schedule = (action: () => void, delay: number) => () => void;
 const scheduleTimeout: Schedule = (action, delay) => {
   const timer = setTimeout(action, delay);

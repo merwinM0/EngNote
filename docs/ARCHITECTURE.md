@@ -78,7 +78,7 @@ EngNote/
 | `auth.ts` / `aiSettings.ts` | 账号表单与 Cookie 会话、密钥草稿与确认存储 |
 | `readingBackground.ts` / `readingBackgroundPreference.ts` | 阅读纸张选择及浏览器偏好 |
 | `readingToolbar.ts` | 工具栏固定、向左收起与滚回恢复，不重建功能按钮 |
-| `statusToast.ts` / `statusTimer.ts` | 右上角便签、可暂停的 4 秒真实计时、胶带进度与弹窗宿主 |
+| `statusToast.ts` / `statusTimer.ts` | 右上角便签、可暂停的 2 秒真实计时、胶带进度与弹窗宿主 |
 | `selectionRecovery.ts` / `noteTape.ts` | 失败选词偏移恢复、仅用于显示的随机胶带配色 |
 | `util.ts` | DOM 辅助、保留图标的工具按钮文案更新、消息入口与同源 API 请求 |
 

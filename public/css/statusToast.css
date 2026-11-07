@@ -38,7 +38,9 @@
 }
 .status-dismiss { display: block; width: 100%; padding: 24px 20px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; overflow-wrap: anywhere; }
 .status-progress.tape-progress { margin: 4px 20px 12px; }
-.status-progress .tape-progress-track { width: 100%; }
+.status-progress .tape-progress-track { width: 100%; height: 28px; }
+.status-progress .tape-progress-strip { top: 5px; height: 18px; transform: rotate(-1deg); }
+.status-progress .tape-progress-track::after { top: 4px; height: 19px; }
 .status-progress .tape-progress-reveal, .status-progress .tape-progress-track::after { transition: none; }
 /* Keep the decorative top tape inside the scrollable paper. */
 .status-dismiss > .tape { top: 0; left: calc(50% - 43px); height: 16px; transform: rotate(-3deg); }
