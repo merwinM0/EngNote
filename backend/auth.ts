@@ -41,7 +41,7 @@ export async function requestCode(email: string): Promise<{ ok: boolean; error?:
   if (await get("auth:cooldown:" + e)) return { ok: false, error: "Please wait one minute before requesting another code" };
   await setex("auth:cooldown:" + e, 60, "1");
   const code = String(randomInt(100000, 1000000));
-  const sent = await sendVerificationEmail(e, code);
+  const sent = await sendVerificationEmail(e, code, CODE_TTL / 60);
   const localDevelopment = process.env.NODE_ENV !== "production" && !process.env.SMTP_HOST;
   if (!sent && !localDevelopment) return { ok: false, error: "Email could not be sent. Please try again later" };
   await setex(CODE_EMAIL_PREFIX + e, CODE_TTL, code);

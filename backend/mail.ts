@@ -9,6 +9,7 @@
  */
 
 import nodemailer from "nodemailer";
+import { createVerificationEmail } from "./verificationEmail";
 
 const SMTP_HOST = process.env.SMTP_HOST ?? "";
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
@@ -55,7 +56,8 @@ function getTransporter(): nodemailer.Transporter | null {
 /** 发送一封验证码邮件，返回是否发送成功。 */
 export async function sendVerificationEmail(
   to: string,
-  code: string
+  code: string,
+  validForMinutes: number
 ): Promise<boolean> {
   const tr = getTransporter();
   if (!tr) {
@@ -66,9 +68,7 @@ export async function sendVerificationEmail(
     await tr.sendMail({
       from: SMTP_FROM_NAME ? { name: SMTP_FROM_NAME, address: SMTP_FROM } : SMTP_FROM,
       to,
-      subject: "Your EngNote verification code",
-      text: `Your verification code is: ${code}\nIt expires in 5 minutes.`,
-      html: `<p>Your verification code is: <strong>${code}</strong></p><p>It expires in 5 minutes.</p>`,
+      ...createVerificationEmail(code, validForMinutes),
     });
     return true;
   } catch (err) {

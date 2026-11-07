@@ -191,6 +191,7 @@ bun dev
 - 点击顶栏 Login 打开账号便签纸弹窗，在窗口内选择登录或注册；校验错误直接显示在便签内，正文、当前页和未保存的编辑不受影响。
 - **注册**需邮箱 + 验证码 + 密码（≥6 位）：
   - 点击「Send Code」→ 后端生成 6 位验证码，存 **Redis**（TTL 5 分钟），并通过 **SMTP**（`.env` 配置）发送到邮箱。
+  - 验证码邮件采用与账号弹窗一致的水灰背景、米白便签与鼠尾草绿胶带；中文文案突出可复制的完整六位验证码、实际有效期及安全提醒。使用内联样式与自适应表格兼容手机邮箱，同时提供内容一致的纯文本版本；不依赖外部图片、字体或网页 CSS。模板位于 `backend/verificationEmail.ts`，不涉及手机短信。
   - 验证码正确且邮箱未注册才算注册成功。
 - **登录**：邮箱 + 密码 → 校验通过后签发会话，**服务端 Redis / 开发内存 TTL 与 Cookie Max-Age 统一为 24 小时（86400 秒）**，通过 HttpOnly / SameSite Cookie 传递，前端启动时向 `/api/auth/me` 校验。到期后需重新登录，不因访问页面而续期；旧版本已签发的会话需重新登录才能应用新期限。
 - 登录界面**无需验证码**（验证码只在注册时要求）。
@@ -376,7 +377,8 @@ EngNote/
 ├── backend/              # server.ts 路由与迁移 + auth / redis / mail
 │   ├── auth.ts           # 注册/登录/会话（Argon2id 慢哈希 + Redis 验证码）
 │   ├── redis.ts          # Redis 客户端封装（验证码/会话；不可用时内存降级）
-│   └── mail.ts           # Nodemailer 发信（读 .env SMTP 配置）
+│   ├── mail.ts           # Nodemailer 发信（读 .env SMTP 配置）
+│   └── verificationEmail.ts # 便签风格验证码邮件（HTML + 纯文本）
 ├── .env.example          # 环境变量模板（复制为 .env）
 ├── .env                  # 实际配置（已 gitignore，不提交）
 ├── data.db               # SQLite 数据库（自动创建）
