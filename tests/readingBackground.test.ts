@@ -94,7 +94,10 @@ describe("recreated water-grey reading finishes", () => {
     const shared = css.match(/\.paper-surface:is\(([^}]+)\{([^}]+)\}/);
     expect(shared).not.toBeNull();
     for (const { id } of READING_BACKGROUNDS.slice(1)) expect(shared![1]).toContain(`[data-paper="${id}"]`);
-    expect(shared![2]).toContain("--reading-paper-color: var(--bg)");
+    expect(shared![2]).toContain("--reading-paper-color: var(--reading-paper-base, var(--paper-mist))");
+    expect(shared![2]).toContain("background-blend-mode: soft-light");
+    expect(css).not.toContain("--reading-paper-tint");
+    for (const color of READING_PAPER_COLORS) expect(css).toContain(`--reading-paper-base: var(--paper-${color})`);
     expect(shared![2]).toContain("--reading-paper-size: 512px 512px");
     expect(css).not.toMatch(/--(?:reading-paper-color|muted):\s*#/);
   });
@@ -121,6 +124,7 @@ describe("recreated water-grey reading finishes", () => {
     expect(mobile).toContain("padding: 20px 16px");
     expect(mobile).toContain("min-height: calc(360px - 24px - 32px)");
     expect(css).toContain('border-color: CanvasText');
+    expect(css).toContain('.content.paper-surface:empty:not([data-paper="original"])::before { color: var(--text); }');
   });
 
   test("each recreated finish is bundled from a local, text-free embossed texture", () => {
@@ -137,8 +141,7 @@ describe("recreated water-grey reading finishes", () => {
     expect(resources.size).toBe(READING_BACKGROUNDS.length - 1);
   });
 
-  test("all finishes use the same bounded water-grey tone and retain readable ink even in the darkest relief", () => {
-    let palette: string | undefined;
+  test("all finishes provide high-contrast neutral relief, without a baked-in paper hue", () => {
     for (const { id } of READING_BACKGROUNDS.slice(1)) {
       const svg = readFileSync(new URL(`../public/textures/${id}.svg`, import.meta.url), "utf8");
       const channels = ["R", "G", "B"].map(channel => {
@@ -147,29 +150,23 @@ describe("recreated water-grey reading finishes", () => {
         const slope = Number(tag.match(/slope="([^"]+)"/)?.[1]);
         const intercept = Number(tag.match(/intercept="([^"]+)"/)?.[1]);
         expect(slope).toBeGreaterThan(0);
-        expect(intercept + slope).toBeLessThanOrEqual(1);
+        expect(slope).toBeGreaterThanOrEqual(1);
+        expect(intercept).toBeLessThan(0); // SVG clamps expanded relief into [0, 1].
         return { slope, intercept };
       });
-      const current = JSON.stringify(channels);
-      if (palette === undefined) palette = current;
-      expect(current).toBe(palette);
-      const darkest = channels.map(channel => Math.floor(channel.intercept * 255));
-      for (const token of ["text", "muted", "accent", "accent-2"]) {
-        const hex = tokens.match(new RegExp(`--${token}: #([a-f0-9]{6})`))![1]!;
-        const ink = hex.match(/../g)!.map(value => parseInt(value, 16));
-        expect((luminance(darkest) + .05) / (luminance(ink) + .05)).toBeGreaterThanOrEqual(4.5);
-      }
+      expect(channels[0]).toEqual(channels[1]); expect(channels[1]).toEqual(channels[2]);
     }
   });
 
   test("all paper and translucent tape combinations preserve readable ink", () => {
     const hex = (token: string) => tokens.match(new RegExp(`--${token}: #([a-f0-9]{6,8})`))![1]!;
     const rgb = (value: string) => value.slice(0, 6).match(/../g)!.map(channel => parseInt(channel, 16));
-    const ink = rgb(hex("text")), muted = rgb(hex("muted"));
-    const base = [222, 227, 226];
+    const ink = rgb(hex("text"));
     for (const color of READING_PAPER_COLORS) {
-      const paper = rgb(hex(`paper-${color}`)).map((channel, i) => color === "mist" ? base[i]! : channel * .7 + base[i]! * .3);
-      expect((luminance(paper) + .05) / (luminance(muted) + .05)).toBeGreaterThanOrEqual(4.5);
+      // At black relief, soft-light reaches its darkest possible value: Cb².
+      // Article, empty-page placeholder and preview ink use --text; hints stay on the original frame.
+      const paper = rgb(hex(`paper-${color}`)).map(channel => channel * channel / 255);
+      expect((luminance(paper) + .05) / (luminance(ink) + .05)).toBeGreaterThanOrEqual(4.5);
       for (const tape of ["sage", "mist", "wheat", "lilac", "rose"]) {
         const value = hex(`tape-${tape}`), alpha = parseInt(value.slice(6), 16) / 255;
         const composite = rgb(value).map((channel, i) => channel * alpha + paper[i]! * (1 - alpha));

@@ -29,6 +29,15 @@ describe("definition modes and private context fingerprints", () => {
     const blocked = new DefinitionModePreference(() => { throw new Error("blocked"); });
     expect(blocked.restore()).toBe(false); expect(blocked.set("article")).toBe(false); expect(blocked.mode).toBe("article");
   });
+  test("cycles all three modes on one control and persists each selection", () => {
+    const { storage } = fixture(), preference = new DefinitionModePreference(() => storage);
+    for (const mode of ["context", "article", "general", "context"] as const) {
+      expect(preference.cycle()).toBe(true); expect(preference.mode).toBe(mode);
+      const restored = new DefinitionModePreference(() => storage); restored.restore(); expect(restored.mode).toBe(mode);
+    }
+    const blocked = new DefinitionModePreference(() => { throw new Error("blocked"); });
+    expect(blocked.cycle()).toBe(false); expect(blocked.mode).toBe("context");
+  });
   test("uses plain body and precise UTF-16 positions, never existing notes", async () => {
     const text = "A fox『animal』 saw a bank『land』 by water.";
     const start = text.indexOf("bank");

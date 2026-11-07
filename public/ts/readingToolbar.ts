@@ -1,3 +1,4 @@
+import { initTooltips } from "./tooltips";
 import { t } from "./i18n";
 
 /** Pin without reparenting controls or shifting the article; return restores the inline bar. */
@@ -51,5 +52,6 @@ export function initReadingToolbar() {
   const observer = new ResizeObserver(refresh);
   observer.observe(slot); observer.observe(tools);
   update();
-  return () => { events.abort(); observer.disconnect(); cancelAnimationFrame(frame); };
+  const disposeTooltips = initTooltips(shell);
+  return () => { disposeTooltips(); events.abort(); observer.disconnect(); cancelAnimationFrame(frame); };
 }

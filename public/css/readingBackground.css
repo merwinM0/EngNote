@@ -20,19 +20,24 @@
   background-clip: padding-box;
 }
 .paper-surface:is([data-paper="linen"], [data-paper="art"], [data-paper="elegant"], [data-paper="leather"], [data-paper="earth"], [data-paper="kraft"], [data-paper="yunlong"], [data-paper="cotton"]) {
-  --reading-paper-color: var(--bg);
+  --reading-paper-color: var(--reading-paper-base, var(--paper-mist));
   --reading-paper-size: 512px 512px;
-  background-image: linear-gradient(var(--reading-paper-tint, transparent), var(--reading-paper-tint, transparent)), var(--reading-paper-image);
+  /* Neutral relief blends into the selected paper, instead of being hidden by a tint overlay. */
+  background-image: var(--reading-paper-image);
+  background-blend-mode: soft-light;
 }
-.paper-surface[data-paper-color="moon"] { --reading-paper-tint: color-mix(in srgb, var(--paper-moon) 70%, transparent); }
-.paper-surface[data-paper-color="qing"] { --reading-paper-tint: color-mix(in srgb, var(--paper-qing) 70%, transparent); }
-.paper-surface[data-paper-color="wheat"] { --reading-paper-tint: color-mix(in srgb, var(--paper-wheat) 70%, transparent); }
-.paper-surface[data-paper-color="rose"] { --reading-paper-tint: color-mix(in srgb, var(--paper-rose) 70%, transparent); }
-.paper-surface[data-paper-color="lilac"] { --reading-paper-tint: color-mix(in srgb, var(--paper-lilac) 70%, transparent); }
+.paper-surface[data-paper-color="mist"] { --reading-paper-base: var(--paper-mist); }
+.paper-surface[data-paper-color="moon"] { --reading-paper-base: var(--paper-moon); }
+.paper-surface[data-paper-color="qing"] { --reading-paper-base: var(--paper-qing); }
+.paper-surface[data-paper-color="wheat"] { --reading-paper-base: var(--paper-wheat); }
+.paper-surface[data-paper-color="rose"] { --reading-paper-base: var(--paper-rose); }
+.paper-surface[data-paper-color="lilac"] { --reading-paper-base: var(--paper-lilac); }
 .content.paper-surface:empty:not([data-paper="original"]) {
-  background-image: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px), linear-gradient(var(--reading-paper-tint, transparent), var(--reading-paper-tint, transparent)), var(--reading-paper-image);
-  background-size: auto, auto, var(--reading-paper-size);
+  background-image: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px), var(--reading-paper-image);
+  background-size: auto, var(--reading-paper-size);
+  background-blend-mode: normal, soft-light;
 }
+.content.paper-surface:empty:not([data-paper="original"])::before { color: var(--text); }
 .paper-surface[data-paper="linen"] { --reading-paper-image: url("../textures/linen.svg"); }
 .paper-surface[data-paper="art"] { --reading-paper-image: url("../textures/art.svg"); }
 .paper-surface[data-paper="elegant"] { --reading-paper-image: url("../textures/elegant.svg"); }
@@ -88,5 +93,6 @@
 @media (forced-colors: active) {
   .paper-surface, .content.paper-surface, .paper-preview.paper-surface, .content.paper-surface:empty, .content.paper-surface:empty:not([data-paper="original"]) { background: Canvas; color: CanvasText; }
   .content.paper-surface:not([data-paper="original"]) { border-color: CanvasText; }
+  .content.paper-surface:empty:not([data-paper="original"])::before { color: CanvasText; }
   .paper-options .paper-option:has(:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
 }

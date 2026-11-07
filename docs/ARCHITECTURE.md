@@ -80,7 +80,7 @@ EngNote/
 | `panels.ts` / `notes.ts` | 编辑面板、原生弹窗叠放、未保存确认、焦点与光标恢复 |
 | `auth.ts` / `aiSettings.ts` | 账号表单与 Cookie 会话、密钥草稿与确认存储 |
 | `readingBackground.ts` / `readingBackgroundPreference.ts` | 阅读纸张选择及浏览器偏好 |
-| `readingToolbar.ts` | 工具栏固定、向左收起与滚回恢复，不重建功能按钮 |
+| `readingToolbar.ts` / `tooltips.ts` | 工具栏固定、向左收起与滚回恢复；独立浮层在按钮下方提供悬停 / 聚焦介绍，不被滚动行裁切，动态同步文案 |
 | `statusToast.ts` / `statusTimer.ts` | 右上角便签、可暂停的 1.7 秒真实计时、胶带进度与弹窗宿主 |
 | `selectionRecovery.ts` / `noteTape.ts` | 失败选词偏移恢复、仅用于显示的随机胶带配色 |
 | `util.ts` | DOM 辅助、保留图标的工具按钮文案更新、消息入口与同源 API 请求 |
@@ -90,6 +90,8 @@ EngNote/
 - `public/css/tokens.css` 定义水灰底、米白纸面、青色墨迹、半透明胶带及字体等共用变量。
 - `public/css/tape.css` 提供反光与撕边胶带。装饰层和点击区域、焦点轮廓分离，不裁切文字或键盘提示。
 - `public/css/reader.css` 按固定顺序导入设计变量、胶带、进度、布局、正文、收藏、面板、弹窗、阅读背景与响应式样式，保持 HMR 与生产级联顺序一致。
+- 阅读纸张的本地 SVG 只输出中性浮雕明暗；`readingBackground.css` 将其以 `soft-light` 混合到独立纸色，避免用不透明色层遮盖纹理。预览、空白页和正文使用相同材质尺度；原版与强制颜色模式不受混色影响。
+- AI 释义方式使用原生 `<details>` 默认折叠，展开后单个胶带按钮按三种模式循环；提示与无障碍名称随模式 / 界面语言更新，切换不请求 AI，不确认密钥草稿。
 - 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。

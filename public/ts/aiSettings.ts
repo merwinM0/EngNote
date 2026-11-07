@@ -1,4 +1,4 @@
-import { definitionModePreference, isDefinitionMode } from "./definitionMode";
+import { definitionModePreference, nextDefinitionMode } from "./definitionMode";
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
 import { definitionLanguagePreference } from "./definitionPreference";
@@ -86,13 +86,20 @@ function restoreKey() {
 export function initAISettings() {
   restoreKey();
   let modeStored = definitionModePreference.restore();
+  const modeSettings = document.getElementById("definitionModeSettings") as HTMLDetailsElement;
+  const modeButton = document.getElementById("definitionModeBtn") as HTMLButtonElement;
+  const modeNames = { general: "ai.modeGeneral", context: "ai.modeContext", article: "ai.modeArticle" } as const;
+  const modeHints = { general: "ai.modeGeneralHint", context: "ai.modeContextHint", article: "ai.modeArticleHint" } as const;
   const updateMode = () => {
-    for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="definitionMode"]')) radio.checked = radio.value === definitionModePreference.mode;
+    const mode = definitionModePreference.mode;
+    modeButton.querySelector<HTMLElement>("[data-mode-label]")!.textContent = t(modeNames[mode]);
+    modeButton.setAttribute("aria-label", t("ai.modeCycle", { current: t(modeNames[mode]), next: t(modeNames[nextDefinitionMode(mode)]) }));
+    document.getElementById("definitionModeHint")!.textContent = t(modeHints[mode]);
     const warning = document.getElementById("definitionModeStorage")!;
     warning.hidden = modeStored; warning.textContent = t("ai.definitionStorage");
   };
-  for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="definitionMode"]')) radio.addEventListener("change", () => {
-    if (radio.checked && isDefinitionMode(radio.value)) { modeStored = definitionModePreference.set(radio.value); updateMode(); }
+  modeButton.addEventListener("click", () => {
+    modeStored = definitionModePreference.cycle(); updateMode();
   });
   updateMode();
   maskKey();
@@ -110,6 +117,7 @@ export function initAISettings() {
     updateDefinitionLanguage();
   });
   panel.addEventListener("panel-open", () => {
+    modeSettings.open = false; updateMode();
     input.value = activeKey;
     input.removeAttribute("aria-invalid");
     maskKey();

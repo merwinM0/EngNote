@@ -10,7 +10,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ""
   return node;
 }
 
-/** Keep icons, selection counts and accessible names, without adding hover hints. */
+/** Keep icons and selection counts; the toolbar tooltip follows this accessible name. */
 export function setToolLabel(button: HTMLButtonElement, label: string) {
   button.querySelector<HTMLElement>("[data-tool-label]")!.textContent = label;
   button.setAttribute("aria-label", label);

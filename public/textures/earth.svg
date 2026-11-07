@@ -8,9 +8,10 @@
       <feDistantLight azimuth="225" elevation="55"/>
     </feDiffuseLighting>
     <feComponentTransfer in="light">
-      <feFuncR type="linear" slope=".08" intercept=".874"/>
-      <feFuncG type="linear" slope=".08" intercept=".894"/>
-      <feFuncB type="linear" slope=".08" intercept=".890"/>
+      <!-- Neutral relief: paper color is supplied by CSS soft-light blending. -->
+      <feFuncR type="linear" slope="3" intercept="-.9"/>
+      <feFuncG type="linear" slope="3" intercept="-.9"/>
+      <feFuncB type="linear" slope="3" intercept="-.9"/>
     </feComponentTransfer>
   </filter>
   <g filter="url(#earth)">

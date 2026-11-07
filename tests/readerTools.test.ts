@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { tooltipPosition } from "../public/ts/tooltips";
 import { setToolLabel } from "../public/ts/util";
 
 describe("compact reading tools", () => {
-  test("dynamic captions and accessible names keep the icon/count without adding hover hints", () => {
+  test("dynamic captions and accessible names keep the icon/count for shared tooltip labels", () => {
     const caption = { textContent: "Old label" };
     const attributes = new Map<string, string>();
     const button = {
@@ -21,6 +22,17 @@ describe("compact reading tools", () => {
     expect(caption.textContent).toBe("保存修改");
     expect(attributes.get("aria-label")).toBe("保存修改");
     expect(button.title).toBe("");
+  });
+  test("tooltips stay below the button and inside narrow or scrolled viewport edges", () => {
+    expect(tooltipPosition(100, 144, 60, 200, 1440)).toEqual({ left: 22, top: 68 });
+    expect(tooltipPosition(0, 44, 60, 280, 320)).toEqual({ left: 8, top: 68 });
+    expect(tooltipPosition(290, 334, 60, 200, 320)).toEqual({ left: 112, top: 68 });
+    const source = readFileSync("public/ts/tooltips.ts", "utf8");
+    expect(source).toContain('document.body.append(tooltip)');
+    expect(source).toContain('tooltip.role = "tooltip"');
+    for (const action of ["pointerover", "focusin", "pointerenter", "ui-language-changed"]) expect(source).toContain(`"${action}"`);
+    expect(source).toContain('event.key === "Escape"');
+    expect(source).toContain('aria-describedby');
   });
   test("mode guidance remains available to assistive technology without popup reminders", () => {
     const state = readFileSync("public/ts/state.ts", "utf8");

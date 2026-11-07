@@ -177,6 +177,19 @@ describe("source server", () => {
     for (const id of ["showKeyBtn", "forgetKeyBtn", "saveKeyBtn"]) expect(actions).toContain(`id="${id}"`);
     expect(settings.match(/<form id="aiForm"[\s\S]*?<\/form>/)?.[0]).not.toContain('id="definitionLanguageBtn"');
   });
+  test("definition method is collapsed by default with one tape cycle button and a live hint", async () => {
+    const html = await (await request("/index.html")).text();
+    const settings = html.match(/<details id="definitionModeSettings"[\s\S]*?<\/details>/)?.[0] ?? "";
+    expect(settings).toContain('<summary data-i18n="ai.definitionMode">');
+    expect(settings.match(/<button\b/g)).toHaveLength(1);
+    expect(settings).toContain('id="definitionModeBtn" class="btn tape-mist"');
+    expect(settings).toContain('aria-describedby="definitionModeHint definitionModeScope"');
+    expect(settings).toContain('id="definitionModeHint" class="hint" role="status"');
+    expect(settings).not.toMatch(/<details[^>]*\bopen\b|type="radio"|<fieldset/);
+    const clear = html.match(/<button id="clearBtn"[\s\S]*?<\/button>/)?.[0] ?? "";
+    expect(clear).toContain('m14 10 6-7'); // broom handle, not the former bin shape
+    expect(clear).not.toContain('M3 6h18M9 6');
+  });
   test("reader starts with tools rather than a visible promotional heading", async () => {
     const html = await (await request("/index.html")).text();
     expect(html).not.toContain("Make room for a good story.");

@@ -61,7 +61,7 @@
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 10V2m-3 3 3-3 3 3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.exportWord">Export Word</span>
       </button>
       <button id="clearBtn" class="btn btn-ghost tool-icon" type="button" aria-label="Clear" data-i18n-aria-label="reader.clear">
-        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg><span class="sr-only" data-i18n="reader.clear">Clear</span>
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 10 6-7a1.5 1.5 0 0 0-2-2l-6 8M8 9l7 6M8 9c-3 2-5 5-6 10 4 2 8 3 12 2l1-6M5 14l5 6M8 12l5 8"/></svg><span class="sr-only" data-i18n="reader.clear">Clear</span>
       </button>
     </div></div></div>
     <p id="modeHint" class="sr-only"></p>
@@ -158,14 +158,16 @@
       <p class="eyebrow" data-i18n="ai.eyebrow">A little help in the margins</p><h2 id="aiTitle" data-i18n-html="ai.titleHtml">A note for your<br /><em>reading companion.</em></h2>
       <p class="panel-description" data-i18n="ai.description">Bring your own DeepSeek key for tidy paragraphs, paired English and Chinese definitions and article titles.</p>
       <div class="definition-language-setting"><span data-i18n="ai.newDefinitions">New AI definitions</span><button id="definitionLanguageBtn" class="btn tape-mist tape-small" type="button" aria-label="Zh / Eng: Chinese first for new AI definitions" aria-pressed="false" aria-describedby="definitionLanguageHint"><span data-definition-language="zh">Zh</span> / <span data-definition-language="en" class="is-active">Eng</span></button></div>
-      <fieldset class="definition-mode-setting"><legend data-i18n="ai.definitionMode">Definition method</legend>
-        <label><input type="radio" name="definitionMode" value="general" checked> <span data-i18n="ai.modeGeneral">Simple definitions</span></label>
-        <label><input type="radio" name="definitionMode" value="context"> <span data-i18n="ai.modeContext">Local context</span></label>
-        <label><input type="radio" name="definitionMode" value="article"> <span data-i18n="ai.modeArticle">Full article</span></label>
-        <p class="hint" data-i18n="ai.modeHint">Simple sends only terms. Local context sends up to 600 characters on each side. Full article sends all pages (up to 24,000 UTF-16 units), once per batch; this can cost substantially more. Notes are excluded. Applies only to future requests.</p>
-        <p id="definitionModeStorage" class="hint" role="status" hidden></p>
-      </fieldset>
       <p id="definitionLanguageHint" class="hint definition-language-hint" role="status">New AI definitions start in English.</p>
+      <details id="definitionModeSettings" class="ai-preference">
+        <summary data-i18n="ai.definitionMode">Definition method</summary>
+        <div class="definition-mode-setting">
+          <button id="definitionModeBtn" class="btn tape-mist" type="button" aria-describedby="definitionModeHint definitionModeScope"><span data-mode-label>Simple definitions</span><svg class="mode-cycle-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></button>
+          <p id="definitionModeHint" class="hint" role="status" aria-atomic="true">Sends only the selected terms, without context. The lowest-input option.</p>
+          <p id="definitionModeScope" class="hint" data-i18n="ai.modeScope">Click the tape to cycle modes. This browser remembers your choice; only future requests are affected. Existing notes stay unchanged.</p>
+          <p id="definitionModeStorage" class="hint" role="status" hidden></p>
+        </div>
+      </details>
       <form id="aiForm" novalidate>
         <label for="apiKey" class="key-label"><span data-i18n="ai.keyLabel">Write your API key here</span> <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" data-i18n-placeholder="ai.keyPlaceholder" spellcheck="false" autocapitalize="off" aria-describedby="aiMessage" data-panel-focus /></div>
         <div class="ai-key-actions"><button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><button id="forgetKeyBtn" class="btn tape-rose" type="button" data-i18n="ai.forgetKey">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit" data-i18n="ai.keepTab">Keep for this tab</button></div>
