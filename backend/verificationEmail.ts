@@ -7,9 +7,9 @@ export function createVerificationEmail(code: string, validForMinutes: number) {
 
   const copy = {
     subject: "EngNote · 你的注册验证码",
-    eyebrow: "你的阅读收藏",
+    eyebrow: "让读英文简单一点",
     heading: "开始你的收藏。",
-    introduction: "欢迎来到 EngNote。在注册窗口输入下方验证码，开启你的阅读收藏。",
+    introduction: "欢迎来到 EngNote。在注册窗口输入下方验证码，开启新的英文之旅。",
     codeLabel: "邮箱注册验证码",
     validity: `${validForMinutes} 分钟内有效`,
     security: "仅用于本次邮箱注册，请勿向任何人透露。",

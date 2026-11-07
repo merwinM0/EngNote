@@ -16,10 +16,10 @@ describe("stationery verification email", () => {
     const email = createVerificationEmail("123456", 5);
     expect(email.subject).toBe("EngNote · 你的注册验证码");
     expect(email.text).toBe(`EngNote
-你的阅读收藏
+让读英文简单一点
 
 开始你的收藏。
-欢迎来到 EngNote。在注册窗口输入下方验证码，开启你的阅读收藏。
+欢迎来到 EngNote。在注册窗口输入下方验证码，开启新的英文之旅。
 
 邮箱注册验证码
 123456
