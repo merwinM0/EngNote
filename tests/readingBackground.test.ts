@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { isReadingBackground, READING_BACKGROUNDS, READING_BACKGROUND_STORAGE, ReadingBackgroundPreference } from "../public/ts/readingBackgroundPreference";
+import { MESSAGES } from "../public/ts/i18n";
 
 function storage(initial: string | null = null) {
   const values = new Map<string, string>();
@@ -8,8 +10,8 @@ function storage(initial: string | null = null) {
 }
 
 describe("reading paper preference", () => {
-  test("offers the original and all eight requested paper textures", () => {
-    expect(READING_BACKGROUNDS.map(background => background.id)).toEqual(["original", "yunlong", "cotton", "earth", "kraft", "linen", "art", "elegant", "leather"]);
+  test("offers the untouched original followed by the eight recreated reference finishes", () => {
+    expect(READING_BACKGROUNDS.map(background => background.id)).toEqual(["original", "linen", "art", "elegant", "leather", "earth", "kraft", "yunlong", "cotton"]);
     expect(new Set(READING_BACKGROUNDS.map(background => background.id)).size).toBe(9);
   });
   test("starts with the unchanged original and rejects unknown stored values", () => {
@@ -54,5 +56,82 @@ describe("reading paper preference", () => {
     expect(saved.values.get(READING_BACKGROUND_STORAGE)).toBe("cotton");
     expect(saved.values.get("er_default_definition_language")).toBe("zh");
     expect(saved.values.get("er_deepseek_tab_key")).toBe("unrelated-placeholder");
+  });
+});
+
+function luminance(channels: number[]) {
+  const [r, g, b] = channels.map(value => {
+    const c = value / 255;
+    return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+  });
+  return .2126 * r! + .7152 * g! + .0722 * b!;
+}
+
+describe("recreated water-grey reading finishes", () => {
+  const css = readFileSync(new URL("../public/css/readingBackground.css", import.meta.url), "utf8");
+  const tokens = readFileSync(new URL("../public/css/tokens.css", import.meta.url), "utf8");
+
+  test("keeps the original untextured and assigns one neutral surface to the new finishes", () => {
+    const original = css.match(/\.paper-surface\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(original).toContain("--reading-paper-color: var(--panel)");
+    expect(original).toContain("--reading-paper-image: none");
+    expect(css).not.toContain('[data-paper="original"]');
+    const shared = css.match(/\.paper-surface:is\(([^}]+)\{([^}]+)\}/);
+    expect(shared).not.toBeNull();
+    for (const { id } of READING_BACKGROUNDS.slice(1)) expect(shared![1]).toContain(`[data-paper="${id}"]`);
+    expect(shared![2]).toContain("--reading-paper-color: var(--bg)");
+    expect(shared![2]).toContain("--reading-paper-size: 512px 512px");
+    expect(css).not.toMatch(/--(?:reading-paper-color|muted):\s*#/);
+  });
+
+  test("each recreated finish is bundled from a local, text-free embossed texture", () => {
+    const resources = new Set<string>();
+    for (const { id } of READING_BACKGROUNDS.slice(1)) {
+      expect(css).toContain(`--reading-paper-image: url("../textures/${id}.svg")`);
+      const svg = readFileSync(new URL(`../public/textures/${id}.svg`, import.meta.url), "utf8");
+      expect(svg).toContain('color-interpolation-filters="sRGB"');
+      expect(svg).toContain("<feDiffuseLighting");
+      expect(svg).toContain('stitchTiles="stitch"');
+      expect(svg).not.toMatch(/<(?:text|image|script|foreignObject|pattern)\b|\bhref\s*=/i);
+      resources.add(svg);
+    }
+    expect(resources.size).toBe(READING_BACKGROUNDS.length - 1);
+  });
+
+  test("all finishes use the same bounded water-grey tone and retain readable ink even in the darkest relief", () => {
+    let palette: string | undefined;
+    for (const { id } of READING_BACKGROUNDS.slice(1)) {
+      const svg = readFileSync(new URL(`../public/textures/${id}.svg`, import.meta.url), "utf8");
+      const channels = ["R", "G", "B"].map(channel => {
+        const tag = svg.match(new RegExp(`<feFunc${channel}\\b[^>]+>`))?.[0] ?? "";
+        expect(tag).toContain('type="linear"');
+        const slope = Number(tag.match(/slope="([^"]+)"/)?.[1]);
+        const intercept = Number(tag.match(/intercept="([^"]+)"/)?.[1]);
+        expect(slope).toBeGreaterThan(0);
+        expect(intercept + slope).toBeLessThanOrEqual(1);
+        return { slope, intercept };
+      });
+      const current = JSON.stringify(channels);
+      if (palette === undefined) palette = current;
+      expect(current).toBe(palette);
+      const darkest = channels.map(channel => Math.floor(channel.intercept * 255));
+      for (const token of ["text", "muted", "accent", "accent-2"]) {
+        const hex = tokens.match(new RegExp(`--${token}: #([a-f0-9]{6})`))![1]!;
+        const ink = hex.match(/../g)!.map(value => parseInt(value, 16));
+        expect((luminance(darkest) + .05) / (luminance(ink) + .05)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  test("provides accurate bilingual names and material descriptions without the old warm palette", () => {
+    for (const { id } of READING_BACKGROUNDS) {
+      for (const language of ["en", "zh"] as const) {
+        expect(MESSAGES[language][`background.${id}.name`].trim()).not.toBe("");
+        expect(MESSAGES[language][`background.${id}.description`].trim()).not.toBe("");
+      }
+    }
+    expect(MESSAGES.zh["background.cotton.name"]).toBe("棉纸");
+    expect(MESSAGES.en["background.kraft.description"]).not.toMatch(/warm|brown|unbleached/i);
+    expect(MESSAGES.zh["reader.backgroundDescription"]).toContain("水灰色");
   });
 });

@@ -1,11 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
-  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
-  <rect width="240" height="240" filter="url(#grain)" opacity=".055"/>
-  <g fill="none" stroke="#998e70" stroke-linecap="round" opacity=".17">
-    <path d="M-12 44C20 20 31 72 66 50S106 28 132 42M145 15C166 37 157 65 194 73S224 96 252 84M13 137C42 107 55 157 91 142S111 106 140 118M139 181C175 162 165 202 204 195S221 180 249 211M22 213C56 193 54 231 92 221"/>
-    <path d="M35-8C49 25 70 9 77 32M105 64C76 77 100 102 73 113M203 113C179 133 207 152 180 169M113 174C88 178 107 202 82 208M6 73C-3 99 20 100 15 119" stroke-width=".65"/>
-  </g>
-  <g fill="none" stroke="#fffdf5" stroke-width="1.6" opacity=".7">
-    <path d="M-8 47C22 23 33 75 68 53S108 31 134 45M148 15C169 37 160 65 197 73S227 96 255 84M15 140C44 110 57 160 93 145S113 109 142 121M141 184C177 165 167 205 206 198S223 183 251 214M24 216C58 196 56 234 94 224"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Long, thin embedded fibres, with uneven lengths and directions. -->
+  <filter id="yunlong" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".46 .53" numOctaves="3" seed="139" stitchTiles="stitch" result="grain"/>
+    <feComposite in="SourceGraphic" in2="grain" operator="arithmetic" k1="0" k2=".72" k3=".28" k4="0" result="pulp"/>
+    <feColorMatrix in="pulp" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .3333 .3333 .3333 0 0" result="height"/>
+    <feDiffuseLighting in="height" surfaceScale="3.2" diffuseConstant=".6" lighting-color="#ffffff" result="light">
+      <feDistantLight azimuth="225" elevation="55"/>
+    </feDiffuseLighting>
+    <feComponentTransfer in="light">
+      <feFuncR type="linear" slope=".08" intercept=".874"/>
+      <feFuncG type="linear" slope=".08" intercept=".894"/>
+      <feFuncB type="linear" slope=".08" intercept=".890"/>
+    </feComponentTransfer>
+  </filter>
+  <g filter="url(#yunlong)">
+    <rect width="512" height="512" fill="#808080"/>
+    <g fill="none" stroke="#c8c8c8" stroke-width=".9" stroke-linecap="round">
+      <path d="M19 38q14 2 20 12t14 12M78 17q-4 12 2 22t3 23M132 49q12-8 22-6t23-2M211 16q3 15 13 19t17 15M277 53q10-9 12-20t10-16M336 30q-3 12 7 23t8 21M403 23q14 2 23 12t18 13M483 39q-12 9-13 23"/>
+      <path d="M35 105q-3 12 6 23M96 97q12-2 21-11t16-7M166 123q9-8 10-18t13-18M228 96q-2 17 8 26t9 18M281 116q12-1 22 6t21 4M355 104q4 12 1 24t5 19M420 126q11-8 17-21t16-12M476 143q-4-16 3-26"/>
+      <path d="M17 202q17-6 21-17t14-17M83 178q1 18 11 25M144 214q12-3 20-15t18-15M217 178q11 8 9 21t7 19M285 193q-10 8-8 22t-5 22M345 180q10 1 20 11t22 11M413 213q-2-16 6-27t6-22M472 195q8 10 8 23"/>
+      <path d="M28 286q12-1 20-12t19-13M99 251q-5 14 2 24t8 23M161 284q11 7 25 7M222 260q6 11 3 25t5 24M283 290q7-13 19-15t20-14M348 254q-5 15 4 25M414 287q13-4 20-18t15-17M488 280q-9 8-7 20"/>
+      <path d="M22 363q4-12 15-18t14-17M91 333q10 8 9 20t7 22M153 365q13 0 24-10M222 337q-8 10-5 23t-4 22M277 366q12-3 18-14t21-12M353 331q4 15 14 21t11 15M421 371q-7-11-4-26M480 334q-10 11-9 25"/>
+      <path d="M38 425q12 0 21-10M100 400q-4 15 5 28M167 431q10-6 12-19t12-18M230 405q9 7 11 20t11 17M298 435q-6-13 0-25M363 406q10-1 23 6t21 5M438 423q7-10 5-26M478 441q-8-8-7-20"/>
+      <path d="M19 480q10-3 19-16M81 472q12 0 20 10M156 465q-4 15 5 27M211 483q10-8 13-20M281 464q7 9 19 11M351 486q8-8 10-20M411 468q-2 13 8 23M471 480q9-5 16-18"/>
+    </g>
   </g>
 </svg>

@@ -1,10 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-  <filter id="cotton"><feTurbulence type="fractalNoise" baseFrequency=".11 .18" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
-  <rect width="160" height="160" filter="url(#cotton)" opacity=".1"/>
-  <g fill="none" stroke="#a7997d" stroke-width=".6" stroke-linecap="round" opacity=".18">
-    <path d="m8 22 7-3m21 27 3-6m27-22 8 2m35 24 6-4m25 33 6 2M18 91l5 3m27-17 4-5m29 34 7-2m23 23 4 5M9 143l8-2m41-10 3 6m31 16 7-4m45-33 4-7m-33-91 3-6"/>
-  </g>
-  <g fill="none" stroke="#fffef8" stroke-width="1.2" opacity=".7">
-    <path d="m26 11 4 7m27 12 7-2m24 28 3 5m41-35 5 2M9 66l8-3m22 50 6 2m22-23 3 6m34-10 6-2m29 14 5 4M25 151l6-4m49-21 7 2m32 21 3-6"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Broad, soft handmade pulp clouds over fine cotton fibres. -->
+  <filter id="cotton" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".022 .03" numOctaves="4" seed="101" stitchTiles="stitch" result="clouds"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".32 .42" numOctaves="2" seed="19" stitchTiles="stitch" result="fibres"/>
+    <feComposite in="clouds" in2="fibres" operator="arithmetic" k1="0" k2=".86" k3=".14" k4="0" result="pulp"/>
+    <feGaussianBlur in="pulp" stdDeviation=".4" result="softened"/>
+    <feColorMatrix in="softened" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .3333 .3333 .3333 0 0" result="height"/>
+    <feDiffuseLighting in="height" surfaceScale="7" diffuseConstant=".6" lighting-color="#ffffff" result="light">
+      <feDistantLight azimuth="225" elevation="55"/>
+    </feDiffuseLighting>
+    <feComponentTransfer in="light">
+      <feFuncR type="linear" slope=".08" intercept=".874"/>
+      <feFuncG type="linear" slope=".08" intercept=".894"/>
+      <feFuncB type="linear" slope=".08" intercept=".890"/>
+    </feComponentTransfer>
+  </filter>
+  <rect width="512" height="512" filter="url(#cotton)"/>
 </svg>

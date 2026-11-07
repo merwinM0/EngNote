@@ -1,4 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <defs><pattern id="weave" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 1h8M1 0v8" fill="none" stroke="#a79e87" stroke-width=".65" opacity=".22"/><path d="M0 3h8M3 0v8" fill="none" stroke="#fffdf5" stroke-width="1" opacity=".8"/><path d="M4 5h4M5 4v4" fill="none" stroke="#a79e87" stroke-width=".5" opacity=".13"/></pattern><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs>
-  <rect width="64" height="64" fill="url(#weave)"/><rect width="64" height="64" filter="url(#grain)" opacity=".04"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fine horizontal threads with a much softer cross weave, not a printed grid. -->
+  <filter id="linen" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".025 .62" numOctaves="3" seed="17" stitchTiles="stitch" result="weft"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".48 .035" numOctaves="2" seed="31" stitchTiles="stitch" result="warp"/>
+    <feComposite in="weft" in2="warp" operator="arithmetic" k1="0" k2=".82" k3=".18" k4="0" result="threads"/>
+    <feColorMatrix in="threads" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .3333 .3333 .3333 0 0" result="height"/>
+    <feDiffuseLighting in="height" surfaceScale="3" diffuseConstant=".6" lighting-color="#ffffff" result="light">
+      <feDistantLight azimuth="225" elevation="55"/>
+    </feDiffuseLighting>
+    <feComponentTransfer in="light">
+      <feFuncR type="linear" slope=".08" intercept=".874"/>
+      <feFuncG type="linear" slope=".08" intercept=".894"/>
+      <feFuncB type="linear" slope=".08" intercept=".890"/>
+    </feComponentTransfer>
+  </filter>
+  <rect width="512" height="512" filter="url(#linen)"/>
 </svg>

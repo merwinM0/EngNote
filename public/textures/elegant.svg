@@ -1,4 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-  <defs><pattern id="emboss" width="24" height="24" patternUnits="userSpaceOnUse"><path d="m0 12 12-12 12 12-12 12Z" fill="none" stroke="#ad9f8b" stroke-width=".6" opacity=".2"/><path d="m0 14 12-12 12 12M5 12l7-7 7 7-7 7Z" fill="none" stroke="#fffdf7" stroke-width=".8" opacity=".8"/><path d="M11 12h2" stroke="#ad9f8b" stroke-width=".7" opacity=".22"/></pattern><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs>
-  <rect width="96" height="96" fill="url(#emboss)"/><rect width="96" height="96" filter="url(#grain)" opacity=".045"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Closely pressed, slightly wandering horizontal ribs, without diamond motifs. -->
+  <filter id="elegant" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".009 .58" numOctaves="3" seed="67" stitchTiles="stitch" result="ribs"/>
+    <feColorMatrix in="ribs" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .3333 .3333 .3333 0 0" result="height"/>
+    <feDiffuseLighting in="height" surfaceScale="2.8" diffuseConstant=".6" lighting-color="#ffffff" result="light">
+      <feDistantLight azimuth="225" elevation="55"/>
+    </feDiffuseLighting>
+    <feComponentTransfer in="light">
+      <feFuncR type="linear" slope=".08" intercept=".874"/>
+      <feFuncG type="linear" slope=".08" intercept=".894"/>
+      <feFuncB type="linear" slope=".08" intercept=".890"/>
+    </feComponentTransfer>
+  </filter>
+  <rect width="512" height="512" filter="url(#elegant)"/>
 </svg>

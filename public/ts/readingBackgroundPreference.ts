@@ -1,13 +1,13 @@
 export const READING_BACKGROUNDS = [
   { id: "original" },
-  { id: "yunlong" },
-  { id: "cotton" },
-  { id: "earth" },
-  { id: "kraft" },
   { id: "linen" },
   { id: "art" },
   { id: "elegant" },
   { id: "leather" },
+  { id: "earth" },
+  { id: "kraft" },
+  { id: "yunlong" },
+  { id: "cotton" },
 ] as const;
 export type ReadingBackground = typeof READING_BACKGROUNDS[number]["id"];
 export const READING_BACKGROUND_STORAGE = "er_reading_background";
