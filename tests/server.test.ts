@@ -201,7 +201,10 @@ describe("source server", () => {
     expect(navigation).toContain('data-open-panel="backgroundPanel"');
     expect(navigation).toContain('aria-haspopup="dialog"');
     expect(navigation).toContain('aria-controls="backgroundPanel"');
-    expect(html).toContain('class="editor-card paper-surface" data-paper="original"');
+    const reader = html.match(/<section id="readPanel"[^>]*>/)?.[0] ?? "";
+    expect(reader).toContain('class="editor-card"');
+    expect(reader).not.toMatch(/paper-surface|data-paper/);
+    expect(html).toContain('id="content" class="content paper-surface" data-paper="original"');
     const panel = html.match(/<dialog id="backgroundPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
     expect(panel).toContain('aria-labelledby="backgroundHeading"');
     expect(panel).toContain('data-note-entry="backgroundBtn"');

@@ -84,6 +84,16 @@ describe("recreated water-grey reading finishes", () => {
     expect(css).not.toMatch(/--(?:reading-paper-color|muted):\s*#/);
   });
 
+  test("clips texture paint to the body, while blank-page guide lines stay above the selected paper", () => {
+    const content = readFileSync(new URL("../public/css/content.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.content\.paper-surface\s*\{\s*background-clip:\s*content-box;/);
+    const empty = content.match(/\.content:empty\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(empty).toMatch(/background-image:\s*repeating-linear-gradient\([^;]+\), var\(--reading-paper-image, none\)/);
+    expect(empty).toContain("background-size: auto, var(--reading-paper-size, auto)");
+    expect(empty).not.toMatch(/background:\s/);
+    expect(css).toContain(".paper-surface, .content.paper-surface:empty { background: Canvas; color: CanvasText; }");
+  });
+
   test("each recreated finish is bundled from a local, text-free embossed texture", () => {
     const resources = new Set<string>();
     for (const { id } of READING_BACKGROUNDS.slice(1)) {
@@ -130,6 +140,7 @@ describe("recreated water-grey reading finishes", () => {
         expect(MESSAGES[language][`background.${id}.description`].trim()).not.toBe("");
       }
     }
+    expect(MESSAGES.zh["background.original.name"]).toBe("原版");
     expect(MESSAGES.zh["background.cotton.name"]).toBe("棉纸");
     expect(MESSAGES.en["background.kraft.description"]).not.toMatch(/warm|brown|unbleached/i);
     expect(MESSAGES.zh["reader.backgroundDescription"]).toContain("水灰色");

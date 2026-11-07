@@ -2,7 +2,7 @@ import { isReadingBackground, READING_BACKGROUNDS, ReadingBackgroundPreference }
 import { t, uiLanguage } from "./i18n";
 
 export function initReadingBackground() {
-  const reader = document.getElementById("readPanel")!;
+  const paper = document.getElementById("content")!;
   const trigger = document.getElementById("backgroundBtn")!;
   const options = document.getElementById("backgroundOptions")!;
   const panel = document.getElementById("backgroundPanel")!;
@@ -48,7 +48,7 @@ export function initReadingBackground() {
     lastPersisted = persisted;
     const selected = READING_BACKGROUNDS.find(background => background.id === preference.background)!;
     const name = t(`background.${selected.id}.name`);
-    reader.dataset.paper = selected.id;
+    paper.dataset.paper = selected.id;
     trigger.setAttribute("aria-label", t("reader.backgroundLabel", { name }));
     trigger.title = t("reader.backgroundTitle", { name });
     for (const input of inputs) {

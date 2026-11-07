@@ -3,7 +3,7 @@
 .card-head h2 { margin: 0; font: italic 17px var(--serif); overflow-wrap: anywhere; }
 .content { position: relative; padding: 28px 32px 40px 44px; min-height: 420px; font: 20px/1.95 var(--serif); overflow-wrap: anywhere; }
 .editor-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 28px; border-left: 1px solid #bba4a04d; pointer-events: none; }
-.content:empty { background: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px); background-clip: content-box; }
+.content:empty { background-image: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px), var(--reading-paper-image, none); background-size: auto, var(--reading-paper-size, auto); background-clip: content-box; }
 .content:empty::before { content: attr(data-placeholder); display: block; color: var(--muted); font-style: italic; max-width: 440px; font-size: 20px; }
 .content p { margin: 0 0 24px; white-space: pre-wrap; }
 .content p:last-child { margin-bottom: 0; }

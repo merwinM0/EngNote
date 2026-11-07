@@ -1,5 +1,5 @@
-/* Original paper stays unchanged. The recreated finishes share the site's water-grey
-   surface; only their embossed fibres differ. Preview and reader use the same scale. */
+/* Only the article body receives a texture. Its title, frame, margins and footer
+   keep the original paper color. Preview and body share the same texture scale. */
 .paper-surface {
   --reading-paper-color: var(--panel);
   --reading-paper-image: none;
@@ -8,6 +8,7 @@
   background-image: var(--reading-paper-image);
   background-size: var(--reading-paper-size);
 }
+.content.paper-surface { background-clip: content-box; }
 .paper-surface:is([data-paper="linen"], [data-paper="art"], [data-paper="elegant"], [data-paper="leather"], [data-paper="earth"], [data-paper="kraft"], [data-paper="yunlong"], [data-paper="cotton"]) {
   --reading-paper-color: var(--bg);
   --reading-paper-size: 512px 512px;
@@ -51,6 +52,6 @@
   .paper-options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (forced-colors: active) {
-  .paper-surface { background: Canvas; color: CanvasText; }
+  .paper-surface, .content.paper-surface:empty { background: Canvas; color: CanvasText; }
   .paper-options .paper-option:has(:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
 }
