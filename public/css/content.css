@@ -23,6 +23,11 @@
   font: .8em/1.7 var(--sans); padding: 3px 7px; border-radius: 0;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
+.content .note[data-tape="sage"] { --note-bg: var(--tape-sage); }
+.content .note[data-tape="mist"] { --note-bg: var(--tape-mist); }
+.content .note[data-tape="wheat"] { --note-bg: var(--tape-wheat); }
+.content .note[data-tape="lilac"] { --note-bg: var(--tape-lilac); }
+.content .note[data-tape="rose"] { --note-bg: var(--tape-rose); }
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
 .content .term.defining { text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }

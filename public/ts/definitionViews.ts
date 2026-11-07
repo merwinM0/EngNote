@@ -1,6 +1,7 @@
+import type { NoteTapeColor } from "./noteTape";
 /** Bilingual note data is saved separately; the canonical article keeps its English 『notes』. */
 export type DefinitionView = { start: number; english: string; chinese: string; language: "en" | "zh"; term?: string };
-export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string };
+export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string; tape?: NoteTapeColor };
 export type DefinitionEdit = { offset: number; value: string; deleteCount?: number };
 
 /** Display choices are per reader and never part of an article's dirty/save comparison. */

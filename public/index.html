@@ -24,7 +24,10 @@
   </div></header>
   <main id="main">
     <h1 class="sr-only" data-i18n="reader.readingNotebook">Reading notebook</h1>
-    <div class="toolbar" role="group" aria-label="Reading tools" data-i18n-aria-label="reader.tools">
+    <div id="toolbarAnchor" class="toolbar-anchor" aria-hidden="true"></div>
+    <div id="toolbarSlot" class="toolbar-slot"><div id="readingToolbar" class="toolbar-shell">
+      <button id="toolbarToggle" class="btn tape-clear toolbar-toggle" type="button" aria-label="Collapse tools to the left" title="Collapse tools to the left" aria-controls="toolButtons" aria-expanded="true" hidden><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+    <div class="toolbar" id="toolButtons" role="group" aria-label="Reading tools" data-i18n-aria-label="reader.tools">
       <button id="readBtn" class="btn tape-sage tool-icon" type="button" data-open-panel="readPanel" aria-controls="readPanel" aria-pressed="true" aria-label="Read" title="Read" data-i18n-aria-label="reader.read" data-i18n-title="reader.read">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Zm0 0v15"/></svg><span class="sr-only" data-i18n="reader.read">Read</span>
       </button>
@@ -58,7 +61,7 @@
       <button id="clearBtn" class="btn btn-ghost tool-icon" type="button" aria-label="Clear" title="Clear" data-i18n-aria-label="reader.clear" data-i18n-title="reader.clear">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg><span class="sr-only" data-i18n="reader.clear">Clear</span>
       </button>
-    </div>
+    </div></div></div>
     <p id="modeHint" class="sr-only"></p>
     <div class="layout">
       <div class="workspace main-col">
@@ -93,17 +96,17 @@
   </main>
   <div id="statusAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <aside id="statusBar" class="status-toast" popover="manual" aria-label="Notifications" data-i18n-aria-label="notice.region" hidden>
-    <button id="dismissStatusBtn" class="status-card" type="button" aria-label="Dismiss message" data-i18n-aria-label="notice.dismiss" aria-describedby="statusText statusHint">
+    <div class="status-card"><button id="dismissStatusBtn" class="status-dismiss" type="button" aria-label="Dismiss message" data-i18n-aria-label="notice.dismiss" aria-describedby="statusText statusHint">
       <span class="tape" aria-hidden="true"></span><span class="status-close" aria-hidden="true">×</span>
       <span class="status-heading"><svg class="status-symbol" viewBox="0 0 24 24" aria-hidden="true"><g data-status-icon="info"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></g><g data-status-icon="ok"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></g><g data-status-icon="error"><path d="m12 3 10 18H2zM12 9v5m0 3v1"/></g></svg><span id="statusHeading">A small note</span></span>
-      <span id="statusText" class="status-copy"></span><span id="statusHint" class="status-hint" data-i18n="notice.hint">Click to dismiss · closes after 6 seconds</span>
-    </button>
+      <span id="statusText" class="status-copy"></span><span id="statusHint" class="status-hint" data-i18n="notice.hint">Click to dismiss · 4 seconds, paused on hover</span>
+    </button><div id="statusProgress" class="tape-progress status-progress" data-progress="determinate" role="progressbar" aria-label="Message display time" data-i18n-aria-label="notice.progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tape-progress-track" aria-hidden="true"><div class="tape-progress-reveal"><span class="tape tape-progress-strip"></span></div></div></div></div>
   </aside>
-  <dialog id="backgroundPanel" class="note-window background-window" aria-labelledby="backgroundHeading" aria-describedby="backgroundDescription" data-note-entry="backgroundBtn">
+  <dialog id="backgroundPanel" class="note-window background-window" aria-labelledby="backgroundHeading" data-note-entry="backgroundBtn">
     <div class="panel-sheet note-panel">
       <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close reading backgrounds" data-i18n-aria-label="reader.closeBackgrounds" data-close-note>×</button>
       <p class="eyebrow" data-i18n="reader.backgroundEyebrow">A different kind of page</p><h2 id="backgroundHeading" data-i18n="reader.backgroundHeading">Choose your reading paper.</h2>
-      <p id="backgroundDescription" class="panel-description" data-i18n="reader.backgroundDescription">Keep the original, or add a water-grey texture to the text only. The title and outer frame stay unchanged; your article stays untouched.</p>
+      <fieldset id="paperColorField" class="paper-colors"><legend data-i18n="reader.paperColor">Paper color</legend><div id="paperColorOptions" class="paper-color-options"></div></fieldset>
       <fieldset class="paper-options"><legend class="sr-only" data-i18n="reader.readingBackgroundLegend">Reading background</legend><div id="backgroundOptions" class="paper-options-grid"></div></fieldset>
       <p id="backgroundMessage" class="hint" role="status" aria-live="polite"></p>
       <div class="panel-actions"><button class="btn btn-primary" type="button" data-close-note data-i18n="reader.backToReading">Back to reading</button></div>

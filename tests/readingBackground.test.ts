@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { isReadingBackground, READING_BACKGROUNDS, READING_BACKGROUND_STORAGE, ReadingBackgroundPreference } from "../public/ts/readingBackgroundPreference";
+import { isReadingBackground, isReadingPaperColor, READING_PAPER_COLORS, READING_PAPER_COLOR_STORAGE, READING_BACKGROUNDS, READING_BACKGROUND_STORAGE, ReadingBackgroundPreference } from "../public/ts/readingBackgroundPreference";
 import { MESSAGES } from "../public/ts/i18n";
 
 function storage(initial: string | null = null) {
@@ -43,6 +43,21 @@ describe("reading paper preference", () => {
     expect(preference.background).toBe("yunlong");
     expect(preference.select("original")).toBe(false);
     expect(preference.background).toBe("original");
+  });
+  test("paper colors persist independently of texture and original keeps the last choice for later", () => {
+    const saved = storage(), preference = new ReadingBackgroundPreference(() => saved);
+    for (const color of READING_PAPER_COLORS) {
+      expect(preference.select("art")).toBe(true);
+      expect(preference.selectColor(color)).toBe(true);
+      expect(preference.select("original")).toBe(true);
+      const restored = new ReadingBackgroundPreference(() => saved); restored.restore();
+      expect(restored.background).toBe("original"); expect(restored.color).toBe(color);
+      expect(saved.values.get(READING_PAPER_COLOR_STORAGE)).toBe(color);
+    }
+    for (const value of [null, "unknown", "__proto__", {}, 1]) expect(isReadingPaperColor(value)).toBe(false);
+    saved.values.set(READING_PAPER_COLOR_STORAGE, "invalid"); preference.restore(); expect(preference.color).toBe("mist");
+    const blocked = new ReadingBackgroundPreference(() => { throw new Error("blocked"); });
+    expect(blocked.selectColor("rose")).toBe(false); expect(blocked.color).toBe("rose");
   });
   test("a failed write still applies the paper without changing unrelated browser preferences", () => {
     const saved = storage("cotton");
@@ -91,7 +106,7 @@ describe("recreated water-grey reading finishes", () => {
     expect(empty).toMatch(/background-image:\s*repeating-linear-gradient\([^;]+\), var\(--reading-paper-image, none\)/);
     expect(empty).toContain("background-size: auto, var(--reading-paper-size, auto)");
     expect(empty).not.toMatch(/background:\s/);
-    expect(css).toContain(".paper-surface, .content.paper-surface:empty { background: Canvas; color: CanvasText; }");
+    expect(css).toContain('.paper-surface, .content.paper-surface, .paper-preview.paper-surface, .content.paper-surface:empty, .content.paper-surface:empty:not([data-paper="original"]) { background: Canvas; color: CanvasText; }');
   });
 
   test("gives only textured body sheets an inset border and padding inside the background", () => {
@@ -147,6 +162,22 @@ describe("recreated water-grey reading finishes", () => {
     }
   });
 
+  test("all paper and translucent tape combinations preserve readable ink", () => {
+    const hex = (token: string) => tokens.match(new RegExp(`--${token}: #([a-f0-9]{6,8})`))![1]!;
+    const rgb = (value: string) => value.slice(0, 6).match(/../g)!.map(channel => parseInt(channel, 16));
+    const ink = rgb(hex("text")), muted = rgb(hex("muted"));
+    const base = [222, 227, 226];
+    for (const color of READING_PAPER_COLORS) {
+      const paper = rgb(hex(`paper-${color}`)).map((channel, i) => color === "mist" ? base[i]! : channel * .7 + base[i]! * .3);
+      expect((luminance(paper) + .05) / (luminance(muted) + .05)).toBeGreaterThanOrEqual(4.5);
+      for (const tape of ["sage", "mist", "wheat", "lilac", "rose"]) {
+        const value = hex(`tape-${tape}`), alpha = parseInt(value.slice(6), 16) / 255;
+        const composite = rgb(value).map((channel, i) => channel * alpha + paper[i]! * (1 - alpha));
+        expect((luminance(composite) + .05) / (luminance(ink) + .05)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   test("provides accurate bilingual names and material descriptions without the old warm palette", () => {
     for (const { id } of READING_BACKGROUNDS) {
       for (const language of ["en", "zh"] as const) {
@@ -157,6 +188,11 @@ describe("recreated water-grey reading finishes", () => {
     expect(MESSAGES.zh["background.original.name"]).toBe("原版");
     expect(MESSAGES.zh["background.cotton.name"]).toBe("棉纸");
     expect(MESSAGES.en["background.kraft.description"]).not.toMatch(/warm|brown|unbleached/i);
-    expect(MESSAGES.zh["reader.backgroundDescription"]).toContain("水灰色");
+    expect(MESSAGES.zh["reader.paperColor"]).toBe("纸张颜色");
+    for (const color of READING_PAPER_COLORS) {
+      expect(MESSAGES.zh[`paperColor.${color}`]).toBeTruthy();
+      expect(MESSAGES.en[`paperColor.${color}`]).toBeTruthy();
+      expect(tokens).toContain(`--paper-${color}:`);
+    }
   });
 });

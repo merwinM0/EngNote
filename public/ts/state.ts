@@ -1,4 +1,6 @@
 import { el, setToolLabel } from "./util";
+import { randomNoteTape } from "./noteTape";
+import type { TextRange } from "./selectionRecovery";
 import { t } from "./i18n";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
@@ -20,6 +22,7 @@ const refreshSelectedBtn = document.getElementById("refreshSelectedBtn") as HTML
 export type WordInfo = { id: number; text: string; el: HTMLElement; start: number; end: number };
 export const wordsById = new Map<number, WordInfo>();
 const pickedIds = new Set<number>();
+let retainedRanges: TextRange[] = [];
 let translateMode = false;
 let deleteMode = false;
 let busy = false;
@@ -91,6 +94,7 @@ export function definitionViewChanged() {
 }
 
 function paint(changed = false) {
+  const retained = changed ? [] : retainedRanges;
   definitionViews.sync(documentModel.text);
   revision++;
   clearPicked();
@@ -108,7 +112,9 @@ function paint(changed = false) {
         const note = el("span", "note", piece.text);
         note.dataset.start = String(offset);
         note.dataset.end = String(offset + piece.text.length + 2);
-        note.dataset.definitionId = String(definitionViews.at(offset)?.id ?? "");
+        const definition = definitionViews.at(offset);
+        note.dataset.definitionId = String(definition?.id ?? "");
+        if (definition) note.dataset.tape = definition.tape ??= randomNoteTape();
         p.append(note);
         offset += piece.text.length + 2;
         continue;
@@ -130,6 +136,7 @@ function paint(changed = false) {
     fragment.append(p);
   }
   content.replaceChildren(fragment);
+  if (retained.length) { retainedRanges = retained; setTranslateMode(true); applyRetainedPicks(); }
   updateModes();
   updateNavigation();
   window.dispatchEvent(new Event("document-view-changed"));
@@ -150,7 +157,7 @@ export function editCurrentPage(value: string, cursor: number) {
   return result;
 }
 export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string; term?: string }>, language: DefinitionLanguage = "en") {
-  if (!definitions.length) return;
+  if (!definitions.length) return [];
   const edits = definitions.map(item => {
     const previous = definitionViews.at(item.offset);
     return { offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, term: item.term, deleteCount: previous ? previous.english.length + 2 : 0 };
@@ -170,6 +177,7 @@ export function addDefinitions(definitions: Array<{ offset: number; meaning: str
   }
   documentModel.select(documentModel.locate(focus));
   paint(true);
+  return edits;
 }
 export function removeDefinition(note: HTMLElement) {
   const start = Number(note.dataset.start), end = Number(note.dataset.end);
@@ -180,18 +188,45 @@ export function removeDefinition(note: HTMLElement) {
 }
 
 export function clearPicked() {
+  retainedRanges = [];
   for (const id of pickedIds) { const word = wordsById.get(id)?.el; word?.classList.remove("picked"); word?.setAttribute("aria-pressed", "false"); }
   pickedIds.clear();
   updateDefinitionControls();
 }
 export function togglePick(id: number) {
   if (busy || !translateMode) return;
-  const word = wordsById.get(id)?.el;
-  if (!word) return;
+  const info = wordsById.get(id), word = info?.el;
+  if (!word || !info) return;
   if (pickedIds.has(id)) pickedIds.delete(id); else pickedIds.add(id);
   word.classList.toggle("picked", pickedIds.has(id));
   word.setAttribute("aria-pressed", String(pickedIds.has(id)));
+  if (retainedRanges.length) {
+    retainedRanges = retainedRanges.flatMap(range => range.end <= info.start || range.start >= info.end ? [range]
+      : [{ start: range.start, end: info.start }, { start: info.end, end: range.end }].filter(part => part.start < part.end));
+    if (pickedIds.has(id)) retainedRanges.push({ start: info.start, end: info.end });
+  }
   updateDefinitionControls();
+}
+function applyRetainedPicks() {
+  for (const word of wordsById.values()) {
+    if (!retainedRanges.some(range => range.start <= word.start && word.end <= range.end)) continue;
+    pickedIds.add(word.id); word.el.classList.add("picked"); word.el.setAttribute("aria-pressed", "true");
+  }
+  updateDefinitionControls();
+}
+export function retainedPicksOutsidePage(): TextRange[] {
+  const { start, end } = documentModel.page;
+  return retainedRanges.flatMap(range => [
+    { start: range.start, end: Math.min(range.end, start) },
+    { start: Math.max(range.start, end), end: range.end },
+  ].filter(part => part.start < part.end));
+}
+export function restorePickedRanges(ranges: TextRange[]) {
+  if (!ranges.length) { setTranslateMode(false); return; }
+  setTranslateMode(true); clearPicked(); retainedRanges = ranges;
+  const page = documentModel.locate(ranges[0]!.start);
+  if (page !== documentModel.index) goToPage(page);
+  else applyRetainedPicks();
 }
 export const collectPickedIds = () => Array.from(pickedIds).sort((a, b) => a - b);
 export function groupIds(ids: number[]): number[][] {

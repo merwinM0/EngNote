@@ -24,7 +24,7 @@
   width: 100%;
   max-height: calc(100dvh - 72px);
   overflow: auto;
-  padding: 24px 20px 16px;
+  padding: 0;
   border: 1px solid var(--border);
   border-left: 3px solid var(--status-accent);
   border-radius: 1px 2px 18px 1px / 1px 2px 4px 1px;
@@ -36,10 +36,15 @@
   overflow-wrap: anywhere;
   animation: status-arrive .18s ease-out;
 }
-/* Keep the tape inside the scrollable card so long messages remain dismissible. */
-.status-card > .tape { top: 0; left: calc(50% - 43px); height: 16px; transform: rotate(-3deg); }
+.status-dismiss { display: block; width: 100%; padding: 24px 20px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; overflow-wrap: anywhere; }
+.status-progress.tape-progress { margin: 4px 20px 12px; }
+.status-progress .tape-progress-track { width: 100%; }
+.status-progress .tape-progress-reveal, .status-progress .tape-progress-track::after { transition: none; }
+/* Keep the decorative top tape inside the scrollable paper. */
+.status-dismiss > .tape { top: 0; left: calc(50% - 43px); height: 16px; transform: rotate(-3deg); }
 .status-card:hover { border-color: var(--control-border); border-left-color: var(--status-accent); }
-.status-card:focus-visible { outline: 2px dashed var(--accent); outline-offset: 4px; }
+.status-card:has(:focus-visible) { outline: 2px dashed var(--accent); outline-offset: 4px; }
+.status-dismiss:focus-visible { outline: none; }
 .status-close { position: absolute; top: 8px; right: 12px; color: var(--muted); font-size: 22px; line-height: 1; }
 .status-heading { display: flex; align-items: center; gap: 8px; padding-right: 16px; margin-bottom: 8px; color: var(--status-accent); font-size: 12px; font-weight: 600; }
 .status-symbol { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

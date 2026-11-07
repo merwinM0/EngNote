@@ -1,36 +1,26 @@
-import { msg, setUIText } from "./i18n";
+import { msg, setUIText, t } from "./i18n";
+import { createStatusTimer, STATUS_DURATION } from "./statusTimer";
+export { createStatusTimer } from "./statusTimer";
 import { activeNote } from "./notes";
 import type { UIMessage } from "./i18n";
 
 type StatusType = "info" | "ok" | "error";
-type Schedule = (action: () => void, delay: number) => () => void;
-const scheduleTimeout: Schedule = (action, delay) => {
-  const timer = setTimeout(action, delay);
-  return () => clearTimeout(timer);
-};
-
-/** Each new message gets its own six seconds; canceled callbacks cannot hide its replacement. */
-export function createStatusTimer(onExpire: () => void, schedule: Schedule = scheduleTimeout) {
-  let cancel: (() => void) | undefined;
-  let revision = 0;
-  const clear = () => { revision++; cancel?.(); cancel = undefined; };
-  return {
-    clear,
-    restart() {
-      clear();
-      const current = revision;
-      cancel = schedule(() => {
-        if (current !== revision) return;
-        cancel = undefined;
-        onExpire();
-      }, 6000);
-    },
-  };
-}
-
 let initialized = false;
 let returnFocus: HTMLElement | null = null;
-const timer = createStatusTimer(dismissStatus);
+const pauses = new Set<string>();
+function updateProgress(elapsed: number, paused: boolean) {
+  const progress = document.getElementById("statusProgress");
+  if (!progress) return;
+  const percent = Math.min(100, elapsed / STATUS_DURATION * 100);
+  progress.style.setProperty("--progress", `${percent}%`);
+  progress.setAttribute("aria-valuenow", String(Math.floor(percent)));
+  progress.setAttribute("aria-valuetext", t(paused ? "notice.paused" : "notice.remaining", { seconds: Math.ceil((STATUS_DURATION - elapsed) / 1000) }));
+}
+const timer = createStatusTimer(dismissStatus, undefined, undefined, updateProgress);
+function pauseFor(reason: string, on: boolean) {
+  if (on) pauses.add(reason); else pauses.delete(reason);
+  if (pauses.size) timer.pause(); else timer.resume();
+}
 
 /** Popovers outside a modal are inert: keep the note and announcer in the active dialog. */
 function syncStatusHost() {
@@ -46,6 +36,7 @@ function syncStatusHost() {
 
 function dismissStatus() {
   timer.clear();
+  pauses.clear();
   const bar = document.getElementById("statusBar");
   if (!bar) return;
   const focused = bar.contains(document.activeElement);
@@ -66,7 +57,13 @@ export function setStatus(message: UIMessage, type: StatusType = "info") {
   const bar = document.getElementById("statusBar")!;
   if (!initialized) {
     initialized = true;
-    document.getElementById("dismissStatusBtn")!.addEventListener("click", dismissStatus);
+    bar.addEventListener("click", dismissStatus);
+    bar.addEventListener("pointerenter", event => { if (event.pointerType !== "touch") pauseFor("hover", true); });
+    bar.addEventListener("pointerleave", () => pauseFor("hover", false));
+    bar.addEventListener("focusin", () => pauseFor("focus", true));
+    bar.addEventListener("focusout", event => { if (!(event.relatedTarget instanceof Node) || !bar.contains(event.relatedTarget)) pauseFor("focus", false); });
+    document.addEventListener("visibilitychange", () => pauseFor("hidden", document.hidden));
+    window.addEventListener("ui-language-changed", () => updateProgress(STATUS_DURATION - timer.remaining, pauses.size > 0));
     window.addEventListener("pagehide", dismissStatus);
     document.addEventListener("panel-open", syncStatusHost, true);
     document.addEventListener("panel-close", syncStatusHost, true);
@@ -86,4 +83,7 @@ export function setStatus(message: UIMessage, type: StatusType = "info") {
   bar.showPopover?.();
   if (focused) document.getElementById("dismissStatusBtn")!.focus({ preventScroll: true });
   timer.restart();
+  pauseFor("hover", bar.matches(":hover"));
+  pauseFor("focus", bar.contains(document.activeElement));
+  pauseFor("hidden", document.hidden);
 }

@@ -199,6 +199,10 @@ describe("source server", () => {
     const html = await (await request("/index.html")).text();
     const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
     expect(tools).not.toContain('toolbar-row');
+    expect(html).toContain('id="toolbarSlot"');
+    expect(html).toContain('id="toolbarAnchor"');
+    expect(html).toContain('id="toolbarToggle"');
+    expect(html).toContain('aria-controls="toolButtons" aria-expanded="true" hidden');
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
     expect(buttons).toHaveLength(11);
     for (const button of buttons) {
@@ -223,7 +227,11 @@ describe("source server", () => {
     expect(toast).toContain('aria-label="Dismiss message"');
     expect(toast).toContain('aria-describedby="statusText statusHint"');
     expect(toast).toContain('class="tape"');
-    expect(toast).toContain('closes after 6 seconds');
+    expect(toast).toContain('4 seconds, paused on hover');
+    expect(toast).toContain('id="statusProgress" class="tape-progress status-progress"');
+    expect(toast).toContain('data-progress="determinate" role="progressbar"');
+    expect(toast).toContain('class="tape-progress-reveal"');
+    expect(toast).toContain('class="tape tape-progress-strip"');
     expect(html).toContain('id="statusAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"');
   });
   test("reading background opens a modal directly after the top Next button", async () => {
@@ -243,7 +251,10 @@ describe("source server", () => {
     expect(panel).toContain('<legend class="sr-only" data-i18n="reader.readingBackgroundLegend">Reading background</legend>');
     expect(panel).toContain('id="backgroundOptions"');
     expect(panel).toContain('id="backgroundMessage"');
-    expect(panel).toContain("your article stays untouched");
+    expect(panel).not.toContain('backgroundDescription');
+    expect(panel).toContain('id="paperColorField"');
+    expect(panel).toContain('data-i18n="reader.paperColor">Paper color');
+    expect(panel).toContain('id="paperColorOptions"');
     expect(html.match(/<main\b[\s\S]*?<\/main>/)?.[0]).not.toContain('id="backgroundPanel"');
   });
   test("reader keeps saved articles and saving in modal notes, outside the reading layout", async () => {

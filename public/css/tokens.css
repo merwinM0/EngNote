@@ -2,6 +2,13 @@
 :root {
   color-scheme: light;
   --bg: #e9eeed;
+  /* Paper options: 月白/青白 source samples; warm, rose and lilac are added pastels. */
+  --paper-mist: #e9eeed;
+  --paper-moon: #ebf5f7;
+  --paper-qing: #dcefed;
+  --paper-wheat: #f6eedf;
+  --paper-rose: #f7e9e7;
+  --paper-lilac: #eeeaf5;
   --panel: #fcfcf7;
   --panel-2: #edf2f0;
   --border: #cbd5d1;
