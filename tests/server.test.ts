@@ -190,7 +190,7 @@ describe("source server", () => {
     const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
     expect(tools).toMatch(/id="saveBtn"[^>]*>[\s\S]*?<\/button>\s*<button id="exportWordBtn"/);
     expect(tools).toContain('data-i18n="reader.exportWord"');
-    expect(tools).toContain('data-i18n-title="reader.exportWordTitle"');
+    expect(tools).not.toContain('data-i18n-title="reader.exportWordTitle"');
     expect(tools.match(/<button id="exportWordBtn"[^>]*>/)?.[0]).toContain('disabled');
     expect(tools).toContain('data-i18n-aria-label="reader.exportWord"');
     expect(tools).not.toContain('id="exportWordBtn" data-open-panel="authPanel"');
@@ -203,11 +203,14 @@ describe("source server", () => {
     expect(html).toContain('id="toolbarAnchor"');
     expect(html).toContain('id="toolbarToggle"');
     expect(html).toContain('aria-controls="toolButtons" aria-expanded="true" hidden');
+    const toggle = html.match(/<button id="toolbarToggle"[^>]*>/)?.[0] ?? "";
+    expect(toggle).toContain('aria-label="Collapse tools to the left"');
+    expect(toggle).not.toMatch(/\b(?:title|data-i18n-title)=/);
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
     expect(buttons).toHaveLength(11);
     for (const button of buttons) {
       expect(button).toMatch(/aria-label="[^"]+"/);
-      expect(button).toMatch(/title="[^"]+"/);
+      expect(button).not.toMatch(/\b(?:title|data-i18n-title)=/);
       expect(button).toContain('class="tool-glyph"');
       expect(button).toContain('aria-hidden="true"');
       expect(button).toMatch(/<span\b[^>]*(?:sr-only|tool-caption)/);

@@ -247,11 +247,11 @@ function updateDefinitionControls() {
   defineSelectedBtn.hidden = refreshSelectedBtn.hidden = !translateMode;
   refreshSelectedBtn.disabled = busy || pickedIds.size === 0;
   translateBtn.disabled = busy;
-  setToolLabel(translateBtn, t("reader.addDefinitions"), t("reader.addDefinitionsTitle"));
-  setToolLabel(defineSelectedBtn, t("reader.defineSelected", { count: pickedIds.size }), t("reader.defineTitle"));
+  setToolLabel(translateBtn, t("reader.addDefinitions"));
+  setToolLabel(defineSelectedBtn, t("reader.defineSelected", { count: pickedIds.size }));
   defineSelectedBtn.querySelector<HTMLElement>("[data-tool-count]")!.textContent = String(pickedIds.size);
   defineSelectedBtn.disabled = busy || pickedIds.size === 0;
-  setToolLabel(refreshSelectedBtn, t("reader.refreshSelected"), t("reader.refreshTitle"));
+  setToolLabel(refreshSelectedBtn, t("reader.refreshSelected"));
 }
 function updateModes() {
   updateDefinitionControls();

@@ -28,7 +28,7 @@ export function handleDeleteNote(note: HTMLElement) {
   clearDeleteSelection();
   setDeletePending(note);
   note.classList.add("delete-selected");
-  setStatus(msg("status.definitionSelected"));
+  setStatus("");
 }
 
 function isPending(note: HTMLElement): boolean {
@@ -37,5 +37,5 @@ function isPending(note: HTMLElement): boolean {
 
 export function toggleDeleteMode() {
   setDeleteMode(!isDeleteMode());
-  setStatus(msg(isDeleteMode() ? "reader.modeDelete" : "status.readingMode"));
+  setStatus("");
 }

@@ -47,16 +47,16 @@ content.addEventListener("click", event => activateTerm(event.target));
 content.addEventListener("keydown", event => {
   if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.matches(".term, .note")) { event.preventDefault(); activateTerm(event.target); }
 });
-function resetReadingMode(announce = true) {
+function resetReadingMode() {
   const wasInteractive = isTranslateMode() || isDeleteMode();
   cancelDefinitions(false);
   setDeleteMode(false);
-  if (wasInteractive) setStatus(announce ? msg("status.readingMode") : "");
+  if (wasInteractive) setStatus("");
   if (document.activeElement instanceof Element && document.activeElement.matches(".term, .note")) content.focus({ preventScroll: true });
 }
 const readPanel = document.getElementById("readPanel")!;
 readPanel.addEventListener("panel-activate", () => resetReadingMode());
-readPanel.addEventListener("panel-close", () => resetReadingMode(false));
+readPanel.addEventListener("panel-close", () => resetReadingMode());
 document.addEventListener("keydown", event => {
   if (event.key !== "Escape" || hasOpenNote()) return;
   if (activePanel() !== "readPanel") closePanel(activePanel());

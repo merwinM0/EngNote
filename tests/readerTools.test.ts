@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { setToolLabel } from "../public/ts/util";
 
 describe("compact reading tools", () => {
-  test("dynamic labels update only their caption, preserving the icon and count", () => {
+  test("dynamic captions and accessible names keep the icon/count without adding hover hints", () => {
     const caption = { textContent: "Old label" };
     const attributes = new Map<string, string>();
     const button = {
@@ -12,15 +12,23 @@ describe("compact reading tools", () => {
       querySelector: (selector: string) => selector === "[data-tool-label]" ? caption : null,
       setAttribute: (key: string, value: string) => attributes.set(key, value),
     } as unknown as HTMLButtonElement;
-    setToolLabel(button, "Define selected (2)", "Reuse notes first");
+    setToolLabel(button, "Define selected (2)");
     expect(caption.textContent).toBe("Define selected (2)");
     expect(button.textContent).toBe("Existing SVG and count");
     expect(attributes.get("aria-label")).toBe("Define selected (2)");
-    expect(button.title).toBe("Define selected (2) — Reuse notes first");
+    expect(button.title).toBe("");
     setToolLabel(button, "保存修改");
     expect(caption.textContent).toBe("保存修改");
     expect(attributes.get("aria-label")).toBe("保存修改");
-    expect(button.title).toBe("保存修改");
+    expect(button.title).toBe("");
+  });
+  test("mode guidance remains available to assistive technology without popup reminders", () => {
+    const state = readFileSync("public/ts/state.ts", "utf8");
+    expect(state).toContain('modeHint.textContent = translateMode ? t("reader.modeSelect")');
+    for (const file of ["main", "translate", "deleteNote"]) {
+      const source = readFileSync(`public/ts/${file}.ts`, "utf8");
+      expect(source).not.toMatch(/msg\("(?:reader\.modeSelect|reader\.modeDelete|status\.readingMode|status\.definitionSelected)"\)/);
+    }
   });
   test("collapsed tools retain the reading frame's left alignment instead of moving to the viewport edge", () => {
     const css = readFileSync("public/css/layout.css", "utf8");

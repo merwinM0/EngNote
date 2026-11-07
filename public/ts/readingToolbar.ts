@@ -12,7 +12,7 @@ export function initReadingToolbar() {
   let docked = false, collapsed = false, frame = 0;
   function label() {
     const text = t(collapsed ? "reader.expandTools" : "reader.collapseTools");
-    toggle.setAttribute("aria-label", text); toggle.title = text;
+    toggle.setAttribute("aria-label", text);
     toggle.setAttribute("aria-expanded", String(!collapsed));
   }
   function update() {

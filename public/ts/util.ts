@@ -10,11 +10,10 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ""
   return node;
 }
 
-/** Update a tool's copy without replacing its decorative SVG or selection count. */
-export function setToolLabel(button: HTMLButtonElement, label: string, description = label) {
+/** Keep icons, selection counts and accessible names, without adding hover hints. */
+export function setToolLabel(button: HTMLButtonElement, label: string) {
   button.querySelector<HTMLElement>("[data-tool-label]")!.textContent = label;
   button.setAttribute("aria-label", label);
-  button.title = description === label ? label : `${label} — ${description}`;
 }
 
 export function errorMessage(error: unknown): string {
