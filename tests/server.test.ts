@@ -225,9 +225,9 @@ describe("source server", () => {
     expect(toast).toContain('hidden>');
     expect(toast).toContain('id="dismissStatusBtn"');
     expect(toast).toContain('aria-label="Dismiss message"');
-    expect(toast).toContain('aria-describedby="statusText statusHint"');
+    expect(toast).toContain('aria-describedby="statusText"');
     expect(toast).toContain('class="tape"');
-    expect(toast).toContain('4 seconds, paused on hover');
+    expect(toast).not.toMatch(/statusHint|status-hint|notice\.hint|Click to dismiss|paused on hover/);
     expect(toast).toContain('id="statusProgress" class="tape-progress status-progress"');
     expect(toast).toContain('data-progress="determinate" role="progressbar"');
     expect(toast).toContain('class="tape-progress-reveal"');

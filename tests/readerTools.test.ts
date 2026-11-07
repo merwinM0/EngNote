@@ -22,6 +22,13 @@ describe("compact reading tools", () => {
     expect(attributes.get("aria-label")).toBe("保存修改");
     expect(button.title).toBe("保存修改");
   });
+  test("collapsed tools retain the reading frame's left alignment instead of moving to the viewport edge", () => {
+    const css = readFileSync("public/css/layout.css", "utf8");
+    const collapsed = css.match(/\.is-collapsed \.toolbar-shell\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(collapsed).toContain("width: 52px");
+    expect(collapsed).not.toMatch(/(?:^|;)\s*(?:left|right|inset|transform):/);
+    expect(css).toContain("left: var(--toolbar-left)");
+  });
   test("keeps tools in one accessible scrollable row instead of wrapping or shrinking targets", () => {
     const css = readFileSync("public/css/layout.css", "utf8");
     expect(css).toContain("flex-wrap: nowrap");

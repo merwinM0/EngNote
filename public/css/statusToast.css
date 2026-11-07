@@ -51,12 +51,11 @@
 [data-status-icon] { display: none; }
 .status-toast[data-type="info"] [data-status-icon="info"], .status-toast[data-type="ok"] [data-status-icon="ok"], .status-toast[data-type="error"] [data-status-icon="error"] { display: inline; }
 .status-copy { display: block; font-size: 13px; line-height: 1.8; white-space: pre-line; }
-.status-hint { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; }
 @keyframes status-arrive { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) {
   .status-toast { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
 }
 @media (forced-colors: active) {
   .status-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; }
-  .status-heading, .status-close, .status-hint { color: CanvasText; }
+  .status-heading, .status-close { color: CanvasText; }
 }

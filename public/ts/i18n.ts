@@ -285,7 +285,6 @@ const en = {
 
   "notice.region": "Notifications",
   "notice.dismiss": "Dismiss message",
-  "notice.hint": "Click to dismiss · 4 seconds, paused on hover",
   "notice.progress": "Message display time",
   "notice.remaining": "{seconds} seconds remaining",
   "notice.paused": "Paused · {seconds} seconds remaining",
@@ -626,7 +625,6 @@ const zh: Record<keyof typeof en, string> = {
 
   "notice.region": "消息提醒",
   "notice.dismiss": "关闭消息",
-  "notice.hint": "点击关闭 · 停留 4 秒，悬停暂停",
   "notice.progress": "消息显示计时",
   "notice.remaining": "剩余 {seconds} 秒",
   "notice.paused": "已暂停 · 剩余 {seconds} 秒",
