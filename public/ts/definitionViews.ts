@@ -1,7 +1,10 @@
+import { validBritishIPA } from "./pronunciation";
+import { isDefinitionMode, type DefinitionMode } from "./definitionMode";
 import type { NoteTapeColor } from "./noteTape";
 /** Bilingual note data is saved separately; the canonical article keeps its English 『notes』. */
-export type DefinitionView = { start: number; english: string; chinese: string; language: "en" | "zh"; term?: string };
-export type Definition = { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string; tape?: NoteTapeColor };
+export type DefinitionMetadata = { britishIPA?: string; mode?: DefinitionMode; contextKey?: string };
+export type DefinitionView = DefinitionMetadata & { start: number; english: string; chinese: string; language: "en" | "zh"; term?: string };
+export type Definition = DefinitionMetadata & { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string; tape?: NoteTapeColor };
 export type DefinitionEdit = { offset: number; value: string; deleteCount?: number };
 
 /** Display choices are per reader and never part of an article's dirty/save comparison. */
@@ -20,7 +23,10 @@ export function readDefinitionViews(value: unknown, text: string): DefinitionVie
       || notes.get(item.start) !== item.english) continue;
     const term = typeof item.term === "string" && item.term.length <= 3000 && /^[A-Za-z]+(?:['’\-][A-Za-z]+)*(?:\s+[A-Za-z]+(?:['’\-][A-Za-z]+)*)*$/.test(item.term)
       ? item.term.trim().replace(/\s+/g, " ") : undefined;
-    views.push({ start: item.start, english: item.english, chinese: item.chinese, language: item.language, ...(term ? { term } : {}) });
+    views.push({ start: item.start, english: item.english, chinese: item.chinese, language: item.language, ...(term ? { term } : {}),
+      ...(validBritishIPA(item.britishIPA) ? { britishIPA: item.britishIPA } : {}),
+      ...(isDefinitionMode(item.mode) ? { mode: item.mode } : {}),
+      ...(typeof item.contextKey === "string" && /^(context|article):[a-f0-9]{64}$/.test(item.contextKey) ? { contextKey: item.contextKey } : {}) });
     seen.add(item.start);
   }
   return views;
@@ -76,6 +82,6 @@ export class DefinitionViews {
   }
   snapshot(): DefinitionView[] {
     return Array.from(this.notes.values()).filter((note): note is Definition & { chinese: string } => !!note.chinese)
-      .map(({ start, english, chinese, language, term }) => ({ start, english, chinese, language, ...(term ? { term } : {}) }));
+      .map(({ start, english, chinese, language, term, britishIPA, mode, contextKey }) => ({ start, english, chinese, language, ...(term ? { term } : {}), ...(britishIPA ? { britishIPA } : {}), ...(mode ? { mode } : {}), ...(contextKey ? { contextKey } : {}) }));
   }
 }

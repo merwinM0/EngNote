@@ -7,7 +7,8 @@ describe("one-response bilingual dictionary", () => {
     expect(DICTIONARY_PROMPT).toContain('"definitions":[{"term":"fox"');
     expect(DICTIONARY_PROMPT).toContain("at most 20 words");
     expect(DICTIONARY_PROMPT).toContain("at most 20 characters");
-    expect(DICTIONARY_PROMPT).toContain("Both languages are required in this single response");
+    expect(DICTIONARY_PROMPT).toContain("Both languages and one independent britishIPA are required in this single response");
+    expect(DICTIONARY_PROMPT).toContain("British English IPA");
   });
   test("parses complete English/Chinese pairs and Markdown JSON wrappers", () => {
     const raw = "```json\n" + JSON.stringify([pair, { term: "take off", english: "to leave the ground", chinese: "离开地面起飞" }]) + "\n```";

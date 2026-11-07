@@ -1,3 +1,4 @@
+import { withIPA } from "./pronunciation";
 import { strToU8, zipSync } from "fflate";
 import { readDefinitionViews, type DefinitionView } from "./definitionViews";
 
@@ -11,7 +12,7 @@ export function wordExportText(text: string, definitions: readonly DefinitionVie
   const byStart = new Map(readDefinitionViews(definitions, text).map(note => [note.start, note]));
   return text.replace(/『([^』]*)』/g, (original: string, _english: string, start: number) => {
     const note = byStart.get(start);
-    return note?.language === "zh" ? `『${note.chinese}』` : original;
+    return note ? `『${withIPA(note.language === "zh" ? note.chinese : note.english, note.britishIPA)}』` : original;
   });
 }
 

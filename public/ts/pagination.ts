@@ -1,19 +1,20 @@
 /** Lossless pagination. All Unicode code points count, including punctuation and whitespace. */
-export const PAGE_LIMIT = 3000;
+export const PAGE_LIMIT = 5000;
 export const DOCUMENT_LIMIT = 100000; // UTF-16 units, matching the persisted API limit.
 export const characterCount = (text: string) => Array.from(text).length;
 export type Page = { text: string; start: number; end: number; count: number };
 
-export function paginate(text: string): Page[] {
+export function paginate(text: string, limit = PAGE_LIMIT): Page[] {
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new Error("Invalid page limit.");
   const chars = Array.from(text);
   const pages: Page[] = [];
   let start = 0;
   let unitOffset = 0;
   while (start < chars.length) {
-    let end = Math.min(start + PAGE_LIMIT, chars.length);
+    let end = Math.min(start + limit, chars.length);
     if (end < chars.length) {
       const chunk = chars.slice(start, end).join("");
-      const minimum = Math.floor(PAGE_LIMIT * .7);
+      const minimum = Math.floor(limit * .7);
       // Prefer a paragraph, sentence or word boundary without dropping any separators.
       let boundary = chunk.lastIndexOf("\n\n");
       if (boundary >= minimum) boundary += 2;
@@ -63,7 +64,7 @@ export class ReadingDocument {
   select(index: number) { this.index = Math.max(0, Math.min(index, this.pages.length - 1)); }
 
   locate(offset: number): number {
-    return Math.max(0, this.pages.findIndex((page, index) => offset <= page.end || index === this.pages.length - 1));
+    return Math.max(0, this.pages.findIndex((page, index) => offset < page.end || index === this.pages.length - 1));
   }
 
   replaceRange(start: number, end: number, value: string, focusOffset = start + value.length) {

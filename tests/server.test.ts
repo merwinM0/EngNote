@@ -207,7 +207,8 @@ describe("source server", () => {
     expect(toggle).toContain('aria-label="Collapse tools to the left"');
     expect(toggle).not.toMatch(/\b(?:title|data-i18n-title)=/);
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
-    expect(buttons).toHaveLength(11);
+    expect(buttons).toHaveLength(13);
+    for (const id of ["undoBtn", "redoBtn"]) expect(tools).toMatch(new RegExp(`id="${id}"[^>]*disabled`));
     for (const button of buttons) {
       expect(button).toMatch(/aria-label="[^"]+"/);
       expect(button).not.toMatch(/\b(?:title|data-i18n-title)=/);
@@ -334,6 +335,17 @@ describe("source server", () => {
     expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions[0].chinese).toBe("野生动物");
     const list = (await (await request("/api/entries")).json()).entries;
     expect(list.find((entry: { id: number }) => entry.id === id)).not.toHaveProperty("definitions");
+  });
+  test("persists independent IPA, mode and context fingerprint without modifying note offsets", async () => {
+    const content = "water『a clear liquid』", note = { start: 5, english: "a clear liquid", chinese: "水", language: "zh", term: "water", britishIPA: "/ˈwɔːtə/", mode: "context", contextKey: "context:" + "a".repeat(64) };
+    const created = await request("/api/entries", "POST", { title: "Water", content, definitions: [note] }, alice);
+    expect(created.status).toBe(201); const { id } = await created.json();
+    const loaded = await (await request(`/api/entries/${id}`)).json();
+    expect(loaded.entry.content).toBe(content); expect(loaded.entry.definitions).toEqual([{ ...note, language: "en" }]);
+    const changed = await request(`/api/entries/${id}`, "PUT", { content, definitions: [{ ...note, britishIPA: "invalid" }] }, alice);
+    expect(changed.status).toBe(200);
+    const legacy = await (await request(`/api/entries/${id}`)).json();
+    expect(legacy.entry.definitions[0].chinese).toBe("水"); expect(legacy.entry.definitions[0].britishIPA).toBeUndefined();
   });
   test("persists optional dictionary query identity without changing legacy note data", async () => {
     const content = "A fox『an animal』 reads.", definitions = [{ start: 5, english: "an animal", chinese: "动物", language: "en", term: "fox" }];

@@ -89,7 +89,7 @@ function persistDraft() {
   try {
     if (!getCurrentText()) sessionStorage.removeItem(ARTICLE_DRAFT_KEY);
     else {
-      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot() };
+      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot(), offset: documentModel.page.start };
       sessionStorage.setItem(ARTICLE_DRAFT_KEY, JSON.stringify(draft));
     }
   } catch {
@@ -103,7 +103,9 @@ function restoreDraft() {
     if (!raw) return;
     const draft = parseArticleDraft(raw);
     if (!draft) { sessionStorage.removeItem(ARTICLE_DRAFT_KEY); return; }
-    render(draft.text, draft.index, draft.definitions); restoreEntrySelection(draft.entry);
+    const offset = draft.offset ?? paginate(draft.text, 3000)[Math.max(0, Math.min(draft.index, paginate(draft.text, 3000).length - 1))]!.start;
+    render(draft.text, 0, draft.definitions);
+    goToPage(documentModel.locate(offset)); restoreEntrySelection(draft.entry);
     setStatus(msg(draft.entry ? "editor.draftRestoredSaved" : "editor.draftRestoredUnsaved"), "ok");
   } catch { /* Optional storage must never prevent reading. */ }
 }
@@ -133,6 +135,12 @@ export function initEditor() {
   window.addEventListener("entry-selection-changed", persistDraft);
   window.addEventListener("definition-view-changed", persistDraft);
   window.addEventListener("pagehide", persistDraft);
+  editor.addEventListener("beforeinput", event => {
+    if (mode === "edit" && (event.inputType === "historyUndo" || event.inputType === "historyRedo")) {
+      event.preventDefault();
+      document.getElementById(event.inputType === "historyUndo" ? "undoBtn" : "redoBtn")!.click();
+    }
+  });
   editor.addEventListener("input", event => { if (!(event instanceof InputEvent) || !event.isComposing) onInput(); });
   editor.addEventListener("compositionend", onInput);
   document.getElementById("editorForm")!.addEventListener("submit", event => { event.preventDefault(); if (mode === "paste") void applyImport(editor.value); });

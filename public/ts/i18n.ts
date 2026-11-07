@@ -8,6 +8,13 @@ export type UILanguage = "en" | "zh";
 export const UI_LANGUAGE_STORAGE = "er_ui_language_v1";
 
 const en = {
+  "reader.undo": "Undo",
+  "reader.redo": "Redo",
+  "ai.definitionMode": "Definition method",
+  "ai.modeGeneral": "Simple definitions",
+  "ai.modeContext": "Local context",
+  "ai.modeArticle": "Full article",
+  "ai.modeHint": "Simple sends only terms. Local context sends up to 600 Unicode characters on each side. Full article sends all pages (up to 24,000 UTF-16 units), once per batch; repeated batches can cost substantially more. Notes are excluded. This browser remembers your choice; only future requests are affected.",
   "ui.switchToZh": "Switch interface to Chinese",
   "ui.switchToEn": "Switch interface to English",
   "ui.chinese": "Chinese",
@@ -138,7 +145,7 @@ const en = {
   "editor.titlePaste": "Text in. A few new pages.",
   "editor.titleEdit": "Edit the current page.",
   "editor.titleWord": "Bring a Word article.",
-  "editor.descriptionPaste": "Paste with Ctrl / Cmd + V below. We never request clipboard access. Text is reflowed and split into pages of at most 3,000 characters.",
+  "editor.descriptionPaste": "Paste with Ctrl / Cmd + V below. We never request clipboard access. Text is reflowed and split into pages of at most 5,000 characters.",
   "editor.descriptionEdit": "Edit or paste directly into this page. Overflow moves to following pages and the editor follows your cursor. Definitions are written as 『meaning』.",
   "editor.labelPaste": "English article",
   "editor.labelEdit": "Page text",
@@ -149,7 +156,7 @@ const en = {
   "editor.apply": "Reflow & start reading",
   "editor.wordLabel": "Or import a Word document (.docx, up to 5 MB)",
   "editor.wordHint": "Extracted on your device. Importing Word replaces the whole article after confirmation. Save old .doc files as .docx first.",
-  "editor.previewEdit": "Page {page} / {total} · {count} / 3,000 characters. Changes apply as you type.",
+  "editor.previewEdit": "Page {page} / {total} · {count} / 5,000 characters. Changes apply as you type.",
   "editor.previewTooLong": "This article exceeds the 100,000-character limit. Shorten it before importing; nothing will be truncated.",
   "editor.previewPaste": "{count} characters after reflow · {pages} page(s). Punctuation, spaces and line breaks all count.",
   "editor.tooLong": "Use an article shorter than 100,000 characters. The current article has not changed.",
@@ -231,7 +238,7 @@ const en = {
   "ai.forgetKey": "Forget key",
   "ai.keepTab": "Keep for this tab",
   "ai.usageSummary": "Usage & dictionary cache",
-  "ai.usageHint": "General definitions are reused on this browser for up to 7 days (256 entries). Only queried terms and definitions are stored, never API keys. Use Refresh selected to regenerate.",
+  "ai.usageHint": "Definitions are reused on this browser for up to 7 days (256 entries). Only query identities, IPA and meanings are stored, never API keys or context text. Modes and contextual positions are isolated. Use Refresh selected to regenerate.",
   "ai.clearCache": "Clear dictionary cache",
   "ai.footnote": "a small tool, a quieter page.",
   "ai.triggerTitle": "Set up your DeepSeek key",
@@ -348,6 +355,13 @@ const en = {
 } as const;
 
 const zh: Record<keyof typeof en, string> = {
+  "reader.undo": "撤回",
+  "reader.redo": "恢复",
+  "ai.definitionMode": "释义方式",
+  "ai.modeGeneral": "单纯释义",
+  "ai.modeContext": "上下文参考释义",
+  "ai.modeArticle": "全文参考释义",
+  "ai.modeHint": "单纯释义只发送词条；上下文模式附带词条前后各最多 600 个 Unicode 字符；全文模式发送全部分页正文（最多 24,000 个 UTF-16 单元），每批发送一次，多批重复可能明显增加费用。均排除批注。本浏览器记住选择，仅影响后续请求。",
   "ui.switchToZh": "切换到中文界面",
   "ui.switchToEn": "切换到英文界面",
   "ui.chinese": "中文",
@@ -478,7 +492,7 @@ const zh: Record<keyof typeof en, string> = {
   "editor.titlePaste": "粘贴文字，生成新页面。",
   "editor.titleEdit": "编辑当前页。",
   "editor.titleWord": "导入一篇 Word 文章。",
-  "editor.descriptionPaste": "在下方按 Ctrl / Cmd + V 粘贴。我们不会请求剪贴板权限。文字会重新排版，并拆分为每页最多 3,000 个字符。",
+  "editor.descriptionPaste": "在下方按 Ctrl / Cmd + V 粘贴。我们不会请求剪贴板权限。文字会重新排版，并拆分为每页最多 5,000 个字符。",
   "editor.descriptionEdit": "直接在本页编辑或粘贴。超出部分会移到后面的页面，编辑器会跟随光标。释义写成 『meaning』 的形式。",
   "editor.labelPaste": "英文文章",
   "editor.labelEdit": "本页文本",
@@ -489,7 +503,7 @@ const zh: Record<keyof typeof en, string> = {
   "editor.apply": "重新排版并开始阅读",
   "editor.wordLabel": "或导入 Word 文档（.docx，最大 5 MB）",
   "editor.wordHint": "文件在你的设备上解析。导入 Word 会在确认后替换整篇文章。旧版 .doc 请先另存为 .docx。",
-  "editor.previewEdit": "第 {page} / {total} 页 · {count} / 3,000 个字符。输入会立即生效。",
+  "editor.previewEdit": "第 {page} / {total} 页 · {count} / 5,000 个字符。输入会立即生效。",
   "editor.previewTooLong": "文章超过 100,000 个字符的上限。请先缩短再导入；不会自动截断。",
   "editor.previewPaste": "重新排版后 {count} 个字符 · {pages} 页。标点、空格和换行都会计入。",
   "editor.tooLong": "请使用不超过 100,000 个字符的文章。当前文章没有改变。",
@@ -571,7 +585,7 @@ const zh: Record<keyof typeof en, string> = {
   "ai.forgetKey": "忘记密钥",
   "ai.keepTab": "仅保留在标签页",
   "ai.usageSummary": "用量与词典缓存",
-  "ai.usageHint": "通用释义会在本浏览器缓存最多 7 天（256 条）。只保存查询词组和释义，不保存 API key。需要更新时使用「重新生成所选释义」。",
+  "ai.usageHint": "释义会在本浏览器缓存最多 7 天（256 条）。只保存查询身份、音标和释义，不保存 API key 或语境原文；不同模式和语境位置相互隔离。需要更新时使用「重新生成所选释义」。",
   "ai.clearCache": "清除词典缓存",
   "ai.footnote": "一个小工具，一页更安静的文字。",
   "ai.triggerTitle": "设置你的 DeepSeek 密钥",
@@ -819,6 +833,9 @@ export function describeAIUsageLocalized(usage: AIUsageSnapshot): string {
 
 /** Best-effort translation for errors produced by pure modules or the API. */
 const ERROR_ZH: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
+  [/^Full-article definitions support at most 24,000 UTF-16 units of body text\. Choose another mode or a shorter article; nothing was sent\.$/, () => "全文参考释义最多支持 24,000 个 UTF-16 单元正文。请选择其他方式或更短文章；尚未发送请求。"],
+  [/^Definition context exceeds the 32,000-character batch budget\. Select fewer terms; nothing was sent for this batch\.$/, () => "参考语境超过每批 32,000 单元的输入预算。请减少选词；本批尚未发送请求。"],
+  [/^A definition term can contain at most 3,000 characters\. Select a shorter phrase; nothing was sent\.$/, () => "单个释义词组最多 3000 个字符。请选择更短词组；尚未发送请求。"],
   [/^Use AI setup to add your DeepSeek API key first\.$/, () => "请先在 AI 设置中添加 DeepSeek API key。"],
   [/^DeepSeek rejected this key\. Check your API key\.$/, () => "DeepSeek 拒绝了此密钥，请检查 API key。"],
   [/^DeepSeek is busy or your quota is exhausted\. Please try later\.$/, () => "DeepSeek 当前繁忙或额度已用尽，请稍后再试。"],

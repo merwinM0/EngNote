@@ -34,6 +34,8 @@
       <button id="editorBtn" class="btn tape-wheat tool-icon" type="button" aria-controls="editorPanel" aria-expanded="false" aria-label="Paste text">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14v-7M9 3h6v4H9zM13 15l7-7-3-3-7 7-1 4zM16 6l3 3"/></svg><span class="sr-only" data-tool-label>Paste text</span>
       </button>
+      <button id="undoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Undo" data-i18n-aria-label="reader.undo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a7 7 0 0 1 7 7v3"/></svg><span class="sr-only" data-i18n="reader.undo">Undo</span></button>
+      <button id="redoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Redo" data-i18n-aria-label="reader.redo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 6 6-6 6m6-6H10a7 7 0 0 0-7 7v3"/></svg><span class="sr-only" data-i18n="reader.redo">Redo</span></button>
       <button id="wordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Import Word" data-i18n-aria-label="reader.importWord">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 2v8m-3-3 3 3 3-3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.importWord">Import Word</span>
       </button>
@@ -72,7 +74,7 @@
             <button id="nextPageBtn" class="btn tape-clear tape-small" type="button" aria-label="Next page" data-i18n-aria-label="reader.nextPage" data-i18n="reader.next">Next →</button>
             <button id="backgroundBtn" class="btn tape-wheat tape-small" type="button" data-open-panel="backgroundPanel" aria-haspopup="dialog" aria-controls="backgroundPanel" aria-expanded="false" data-i18n="reader.background">Background</button>
           </div>
-          <span id="pageSummary" class="hint" aria-live="polite">0 / 3,000 characters</span>
+          <span id="pageSummary" class="hint" aria-live="polite">0 / 5,000 characters</span>
         </nav>
         <section id="readPanel" class="editor-card" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
           <div class="card-head"><h2 id="readerTitle">A fresh article</h2><button id="fontSizeBtn" class="btn btn-ghost tape-small" type="button" title="Change reading font size" data-i18n-title="reader.fontSize">Aa · M</button></div>
@@ -82,7 +84,7 @@
         </section>
         <section id="editorPanel" class="panel-sheet" role="region" aria-labelledby="editorTitle" data-panel-entry="editorBtn" hidden>
           <p class="eyebrow" data-i18n="editor.eyebrow">In your own words</p><h2 id="editorTitle">Text in. A few new pages.</h2>
-          <p id="editorDescription" class="panel-description">Paste with Ctrl / Cmd + V below. We never request clipboard access. Text is reflowed and split into pages of at most 3,000 characters.</p>
+          <p id="editorDescription" class="panel-description">Paste with Ctrl / Cmd + V below. We never request clipboard access. Text is reflowed and split into pages of at most 5,000 characters.</p>
           <form id="editorForm" novalidate>
             <label id="editorLabel" for="editorText">English article</label><textarea id="editorText" rows="13" spellcheck="false" placeholder="Click here, then press Ctrl / Cmd + V…" data-i18n-placeholder="editor.placeholder" data-panel-focus></textarea>
             <p id="editorPreview" class="hint">Punctuation, spaces and line breaks all count.</p>
@@ -156,13 +158,20 @@
       <p class="eyebrow" data-i18n="ai.eyebrow">A little help in the margins</p><h2 id="aiTitle" data-i18n-html="ai.titleHtml">A note for your<br /><em>reading companion.</em></h2>
       <p class="panel-description" data-i18n="ai.description">Bring your own DeepSeek key for tidy paragraphs, paired English and Chinese definitions and article titles.</p>
       <div class="definition-language-setting"><span data-i18n="ai.newDefinitions">New AI definitions</span><button id="definitionLanguageBtn" class="btn tape-mist tape-small" type="button" aria-label="Zh / Eng: Chinese first for new AI definitions" aria-pressed="false" aria-describedby="definitionLanguageHint"><span data-definition-language="zh">Zh</span> / <span data-definition-language="en" class="is-active">Eng</span></button></div>
+      <fieldset class="definition-mode-setting"><legend data-i18n="ai.definitionMode">Definition method</legend>
+        <label><input type="radio" name="definitionMode" value="general" checked> <span data-i18n="ai.modeGeneral">Simple definitions</span></label>
+        <label><input type="radio" name="definitionMode" value="context"> <span data-i18n="ai.modeContext">Local context</span></label>
+        <label><input type="radio" name="definitionMode" value="article"> <span data-i18n="ai.modeArticle">Full article</span></label>
+        <p class="hint" data-i18n="ai.modeHint">Simple sends only terms. Local context sends up to 600 characters on each side. Full article sends all pages (up to 24,000 UTF-16 units), once per batch; this can cost substantially more. Notes are excluded. Applies only to future requests.</p>
+        <p id="definitionModeStorage" class="hint" role="status" hidden></p>
+      </fieldset>
       <p id="definitionLanguageHint" class="hint definition-language-hint" role="status">New AI definitions start in English.</p>
       <form id="aiForm" novalidate>
         <label for="apiKey" class="key-label"><span data-i18n="ai.keyLabel">Write your API key here</span> <span aria-hidden="true">↴</span></label><div class="handwritten-field"><input id="apiKey" type="password" maxlength="512" autocomplete="off" placeholder="sk-your-deepseek-key" data-i18n-placeholder="ai.keyPlaceholder" spellcheck="false" autocapitalize="off" aria-describedby="aiMessage" data-panel-focus /></div>
         <div class="ai-key-actions"><button id="showKeyBtn" class="btn tape-clear tape-small" type="button" aria-controls="apiKey" aria-pressed="false">Show key</button><button id="forgetKeyBtn" class="btn tape-rose" type="button" data-i18n="ai.forgetKey">Forget key</button><button id="saveKeyBtn" class="btn btn-primary" type="submit" data-i18n="ai.keepTab">Keep for this tab</button></div>
         <p id="aiMessage" class="form-message" role="status" hidden></p>
       </form>
-      <details class="ai-usage"><summary data-i18n="ai.usageSummary">Usage &amp; dictionary cache</summary><p id="aiUsageSummary" class="hint" role="status">No AI requests in this tab yet.</p><p class="hint" data-i18n="ai.usageHint">General definitions are reused on this browser for up to 7 days (256 entries). Only queried terms and definitions are stored, never API keys. Use Refresh selected to regenerate.</p><button id="clearDictionaryCacheBtn" class="btn tape-clear tape-small" type="button" data-i18n="ai.clearCache">Clear dictionary cache</button><p id="dictionaryCacheMessage" class="hint" role="status" hidden></p></details>
+      <details class="ai-usage"><summary data-i18n="ai.usageSummary">Usage &amp; dictionary cache</summary><p id="aiUsageSummary" class="hint" role="status">No AI requests in this tab yet.</p><p class="hint" data-i18n="ai.usageHint">Definitions are reused on this browser for up to 7 days (256 entries). Only query identities, IPA and meanings are stored, never API keys or context text. Modes and contextual positions are isolated. Use Refresh selected to regenerate.</p><button id="clearDictionaryCacheBtn" class="btn tape-clear tape-small" type="button" data-i18n="ai.clearCache">Clear dictionary cache</button><p id="dictionaryCacheMessage" class="hint" role="status" hidden></p></details>
       <p class="ai-footnote" data-i18n="ai.footnote">a small tool, a quieter page.</p>
     </div>
   </dialog>

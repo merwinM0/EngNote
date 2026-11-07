@@ -1,6 +1,6 @@
 # API 说明
 
-[项目介绍](../README.md) · [架构设计](ARCHITECTURE.md) · [功能说明](FEATURES.md) · [运行与部署](DEPLOYMENT.md) · [更新记录](../CHANGELOG.md)
+[项目介绍](../README.md) · [架构设计](ARCHITECTURE.md) · [功能说明](FEATURES.md) · [运行与部署](DEPLOYMENT.md) · [更新记录](CHANGELOG.md)
 
 EngNote 有两类请求：浏览器向同源 Bun 后端请求文章和认证接口；AI 请求由浏览器直接发往 DeepSeek，不经本应用后端代理。
 
@@ -90,6 +90,9 @@ type DefinitionView = {
   chinese: string;
   language: "en" | "zh";
   term?: string;
+  britishIPA?: string;
+  mode?: "general" | "context" | "article";
+  contextKey?: string;
 };
 ```
 
@@ -97,6 +100,8 @@ type DefinitionView = {
 - 中文不能为空，最多 600 个 UTF-16 单元，必须含汉字且不含换行或 `『』` 标记。
 - 服务端将 `language` 统一规范化为 `en` 后保存 / 返回；每位读者自己的显示选择属于浏览器状态，不修改共享正文。
 - 可选 `term` 保存生成时的英文查询词组，用于缓存复用和主动刷新；不合法的查询身份会被忽略，不猜测旧批注来源。
+- 可选 `britishIPA` 独立校验：斜线包围、最多 160 UTF-16 单元、受限 IPA 字符；无效值忽略，不丢弃有效双语释义，不自动请求补齐。显示 / 导出时拼接一次，不写入正文、偏移或分页计数；每种释义的原 600 单元技术上限不变。
+- 可选 `mode` 只接受三种已知值；`contextKey` 接受 `context:` / `article:` 加 64 位小写十六进制 SHA-256。只作为查询复用身份，不存语境原文，不作为服务端权限依据。未知 / 非法附加字段丢弃，旧记录无需迁移。
 - 一组显式提供的双语元数据只要有一项无效，就返回 400，不部分保存正文与数据。
 
 文章表结构和无损迁移见[架构设计](ARCHITECTURE.md)。
@@ -173,11 +178,14 @@ Authorization: Bearer <当前标签页已确认的 API_KEY>
 
 | 任务 | 输入 | 输出与预算 |
 | --- | --- | --- |
-| 当前页排版 | 仅当前页正文 | 纯文本；`min(4096, max(512, ceil(当前页长度 × 1.2)))` |
-| 双语释义 | 去重后的查询词表，无整篇上下文 | JSON object；每批最多 12 个不同词组，预算为 `min(4096, 160 + 128 × 词条数 + ceil(词组总字符数 / 2))` |
+| 当前页排版 | 仅当前页正文 | 纯文本；`min(8192, max(512, ceil(当前页长度 × 1.2)))` |
+| 双语释义 | 默认仅词条；参考模式携带原词、正文 UTF-16 位置及语境身份，附局部语境或完整正文 | JSON object；每批最多 12 个不同词组，预算为 `min(4096, 160 + 128 × 词条数 + ceil(词组总字符数 / 2))` |
 | 文章标题 | 整篇正文，排除已有英文批注 | JSON object；单次 128 输出 token，必要时最多一次短标题修正 |
 
-- JSON 任务追加 `response_format: { "type": "json_object" }`，释义返回 `{"definitions":[{"term":"fox","english":"a wild animal","chinese":"野生动物"}]}`，兼容旧版 JSON 数组。
+- JSON 任务追加 `response_format: { "type": "json_object" }`，释义返回 `{"definitions":[{"term":"fox","britishIPA":"/fɒks/","english":"a wild animal","chinese":"野生动物"}]}`，兼容旧版 JSON 数组及无音标结果。三种模式均要求所选词形、对应语境的英式 IPA；中英文共用一份音标。
+- 单纯模式输入仍为词条数组。参考模式输入 `{mode, terms:[{term:不透明身份, text:原词, position:正文UTF16位置, length:所选原文长度, contextStart?:局部语境起始偏移, context?:局部语境}], article?:完整正文}`；响应 `term` 必须原样回传不透明身份，防止同词不同位置混用。正文均移除已有批注。
+- 局部语境前后各最多 600 Unicode 码点；全文含全部分页，最多 24,000 UTF-16 单元，每批正文只附一次。参考模式序列化输入每批最多 32,000 单元，最多 12 个身份；单词组最多 3000 单元。发请求前检查，不静默截断或切换模式；全文多批重复可能明显增加费用。
+- 缓存按模式、词条、位置和语境 SHA-256 指纹隔离，最多 256 条 / 7 天，不保存参考原文；已有批注也必须匹配模式与指纹才复用。切换设置只影响后续请求，不请求 AI 或修改已有批注。
 - 释义提示词要求同一响应包含英文与简体中文，英文最多 20 个单词、中文最多 20 个字符；解析时保留有效的较长旧结果，每种语言技术上限 600 字符，不静默截断。
 - 单次请求超时 90 秒，可与任务的中止信号组合。读取 `choices[0].message.content`、`finish_reason` 和 `usage`，校验非空与完整性。
 - `finish_reason=length` 会报告截断；释义层仅恢复完整且验证通过的条目，不猜测内容、不自动付费重试。其他失败也不自动重试或切换模型。

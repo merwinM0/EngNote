@@ -1,3 +1,4 @@
+import { validBritishIPA } from "./pronunciation";
 import { dictionaryKey, DICTIONARY_VERSION, isBilingualMeaning } from "./dictionary";
 import type { BilingualMeaning } from "./dictionary";
 
@@ -21,7 +22,7 @@ export class DictionaryCache {
         if (!entry || typeof entry !== "object" || typeof entry.term !== "string" || !dictionaryKey(entry.term) || entry.term.length > 3000
           || !isBilingualMeaning(entry.meaning) || !Number.isFinite(entry.expiresAt) || entry.expiresAt <= this.now()
           || entry.expiresAt > this.now() + DICTIONARY_CACHE_TTL) continue;
-        this.entries.set(dictionaryKey(entry.term), { term: dictionaryKey(entry.term), meaning: { english: entry.meaning.english, chinese: entry.meaning.chinese }, expiresAt: entry.expiresAt });
+        this.entries.set(dictionaryKey(entry.term), { term: dictionaryKey(entry.term), meaning: { english: entry.meaning.english, chinese: entry.meaning.chinese, ...(validBritishIPA(entry.meaning.britishIPA) ? { britishIPA: entry.meaning.britishIPA } : {}) }, expiresAt: entry.expiresAt });
       }
     } catch { /* Blocked or malformed storage must not prevent dictionary use. */ }
   }
@@ -40,7 +41,7 @@ export class DictionaryCache {
     if (!key || key.length > 3000 || !isBilingualMeaning(meaning)) return;
     this.entries.delete(key);
     for (const [stored, entry] of this.entries) if (entry.expiresAt <= this.now()) this.entries.delete(stored);
-    this.entries.set(key, { term: key, meaning: { english: meaning.english, chinese: meaning.chinese }, expiresAt: this.now() + DICTIONARY_CACHE_TTL });
+    this.entries.set(key, { term: key, meaning: { english: meaning.english, chinese: meaning.chinese, ...(validBritishIPA(meaning.britishIPA) ? { britishIPA: meaning.britishIPA } : {}) }, expiresAt: this.now() + DICTIONARY_CACHE_TTL });
     while (this.entries.size > DICTIONARY_CACHE_LIMIT) this.entries.delete(this.entries.keys().next().value!);
     this.persist();
   }

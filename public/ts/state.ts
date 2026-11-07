@@ -1,3 +1,6 @@
+import { ReadingHistory, type ReadingSnapshot } from "./readingHistory";
+import { withIPA } from "./pronunciation";
+import type { DefinitionMetadata } from "./definitionViews";
 import { el, setToolLabel } from "./util";
 import { randomNoteTape } from "./noteTape";
 import type { TextRange } from "./selectionRecovery";
@@ -35,7 +38,22 @@ export const getRevision = () => revision;
 export const getCurrentText = () => documentModel.text;
 export const getPageText = () => documentModel.page.text;
 
+export const readingHistory = new ReadingHistory();
+const snapshot = (): ReadingSnapshot => ({ text: documentModel.text, definitions: definitionViews.snapshot(), offset: documentModel.page.start });
+function historyControls() {
+  (document.getElementById("undoBtn") as HTMLButtonElement).disabled = !readingHistory.canUndo;
+  (document.getElementById("redoBtn") as HTMLButtonElement).disabled = !readingHistory.canRedo;
+}
+export function restoreHistory(redo = false) {
+  window.dispatchEvent(new Event("reading-history-request"));
+  if (busy) return;
+  const next = redo ? readingHistory.redo(snapshot()) : readingHistory.undo(snapshot());
+  if (!next) return;
+  documentModel.setText(next.text); definitionViews.reset(next.text, next.definitions);
+  documentModel.select(documentModel.locate(next.offset)); paint(true);
+}
 function updateNavigation() {
+  historyControls();
   (document.getElementById("exportWordBtn") as HTMLButtonElement).disabled = busy || !documentModel.text.trim();
   (document.getElementById("previousPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === 0;
   (document.getElementById("nextPageBtn") as HTMLButtonElement).disabled = busy || documentModel.index === documentModel.pages.length - 1;
@@ -75,7 +93,7 @@ export function refreshDefinitionNotes() {
     const definition = definitionViews.get(Number(note.dataset.definitionId));
     if (!definition) continue;
     const chinese = definition.language === "zh" && !!definition.chinese;
-    const text = chinese ? definition.chinese! : definition.english;
+    const text = withIPA(chinese ? definition.chinese! : definition.english, definition.britishIPA);
     note.textContent = text; note.lang = chinese ? "zh-Hans" : "en";
     const action = deleteMode ? t("reader.noteDeleteHint") : !definition.chinese
       ? t("reader.noteEnglishOnly")
@@ -144,23 +162,28 @@ function paint(changed = false) {
 }
 
 export function render(text: string, page: number | "last" = 0, definitions: DefinitionView[] = []) {
-  documentModel.setText(text, page); definitionViews.reset(text, definitions); paint(true);
+  documentModel.setText(text, page); definitionViews.reset(text, definitions); readingHistory.reset(); paint(true);
 }
 export function goToPage(index: number) {
   if (busy) return;
+  readingHistory.breakGroup();
   documentModel.select(index);
   paint();
 }
-export function editCurrentPage(value: string, cursor: number) {
+export function editCurrentPage(value: string, cursor: number, typing = true) {
+  const before = snapshot();
   const result = documentModel.editPage(value, cursor);
+  definitionViews.sync(documentModel.text);
+  readingHistory.record(before, snapshot(), typing);
   paint(true);
   return result;
 }
-export function addDefinitions(definitions: Array<{ offset: number; meaning: string; chinese: string; term?: string }>, language: DefinitionLanguage = "en") {
+export function addDefinitions(definitions: Array<DefinitionMetadata & { offset: number; meaning: string; chinese: string; term?: string }>, language: DefinitionLanguage = "en") {
   if (!definitions.length) return [];
+  const before = snapshot();
   const edits = definitions.map(item => {
     const previous = definitionViews.at(item.offset);
-    return { offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, term: item.term, deleteCount: previous ? previous.english.length + 2 : 0 };
+    return { ...item, offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, term: item.term, deleteCount: previous ? previous.english.length + 2 : 0 };
   }).sort((a, b) => b.offset - a.offset);
   let text = documentModel.text;
   for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
@@ -170,12 +193,17 @@ export function addDefinitions(definitions: Array<{ offset: number; meaning: str
   for (const edit of [...edits].reverse()) {
     const start = edit.offset + shift, note = definitionViews.at(start)!;
     Object.assign(note, { chinese: edit.chinese, language });
+    delete note.britishIPA; delete note.mode; delete note.contextKey;
+    if (edit.britishIPA) note.britishIPA = edit.britishIPA;
+    if (edit.mode) note.mode = edit.mode;
+    if (edit.contextKey) note.contextKey = edit.contextKey;
     // A replacement without query identity must not inherit the old note's term.
     if (edit.term) note.term = edit.term; else delete note.term;
     focus = start + edit.value.length;
     shift += edit.value.length - edit.deleteCount;
   }
   documentModel.select(documentModel.locate(focus));
+  readingHistory.record(before, snapshot());
   paint(true);
   return edits;
 }
@@ -183,7 +211,10 @@ export function removeDefinition(note: HTMLElement) {
   const start = Number(note.dataset.start), end = Number(note.dataset.end);
   const definition = definitionViews.get(Number(note.dataset.definitionId));
   if (!definition || !Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${definition.english}』`) return;
+  const before = snapshot();
   documentModel.replaceRange(start, end, "", start);
+  definitionViews.sync(documentModel.text);
+  readingHistory.record(before, snapshot());
   paint(true);
 }
 

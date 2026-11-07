@@ -1,3 +1,4 @@
+import { definitionModePreference, isDefinitionMode } from "./definitionMode";
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
 import { definitionLanguagePreference } from "./definitionPreference";
@@ -84,6 +85,16 @@ function restoreKey() {
 
 export function initAISettings() {
   restoreKey();
+  let modeStored = definitionModePreference.restore();
+  const updateMode = () => {
+    for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="definitionMode"]')) radio.checked = radio.value === definitionModePreference.mode;
+    const warning = document.getElementById("definitionModeStorage")!;
+    warning.hidden = modeStored; warning.textContent = t("ai.definitionStorage");
+  };
+  for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="definitionMode"]')) radio.addEventListener("change", () => {
+    if (radio.checked && isDefinitionMode(radio.value)) { modeStored = definitionModePreference.set(radio.value); updateMode(); }
+  });
+  updateMode();
   maskKey();
   dictionaryCache.restore();
   const usageSummary = document.getElementById("aiUsageSummary")!;
@@ -152,6 +163,7 @@ export function initAISettings() {
   });
   window.addEventListener("ui-language-changed", () => {
     updateTrigger();
+    updateMode();
     updateDefinitionLanguage();
     updateUsage();
     showButton.textContent = t(input.type === "text" ? "ai.hideKey" : "ai.showKey");

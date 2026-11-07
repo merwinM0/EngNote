@@ -13,12 +13,13 @@ function checkPages(text: string) {
   }
   return pages;
 }
-describe("lossless 3,000-character pages", () => {
+describe("lossless 5,000-character pages", () => {
   test("empty, exact limit, overflow and very long words", () => {
     expect(checkPages("")).toHaveLength(1);
-    expect(checkPages("a".repeat(3000))).toHaveLength(1);
-    expect(checkPages("a".repeat(3001))).toHaveLength(2);
-    expect(checkPages("a".repeat(9001))).toHaveLength(4);
+    expect(checkPages("a".repeat(4999))).toHaveLength(1);
+    expect(checkPages("a".repeat(5000))).toHaveLength(1);
+    expect(checkPages("a".repeat(5001))).toHaveLength(2);
+    expect(checkPages("a".repeat(15001))).toHaveLength(4);
   });
   test("counts punctuation, numbers, whitespace, line breaks and definition markers", () => {
     const text = "A 1!\n\nfox『an animal』\t".repeat(500);
@@ -32,7 +33,7 @@ describe("lossless 3,000-character pages", () => {
     expect(characterCount("a😀! ")).toBe(4);
   });
   test("prefers paragraph boundaries and keeps ordinary definitions intact", () => {
-    const text = "First paragraph. ".repeat(150) + "\n\n" + "fox『" + "a small animal ".repeat(40) + "』 walks away.";
+    const text = "First paragraph. ".repeat(270) + "\n\n" + "fox『" + "a small animal ".repeat(40) + "』 walks away.";
     const pages = checkPages(text);
     expect(pages[0]!.text.endsWith("\n\n")).toBe(true);
     expect(pages.some(page => page.text.includes("fox『") && page.text.includes("』"))).toBe(true);
@@ -68,8 +69,8 @@ describe("page editing", () => {
   });
   test("overflow creates pages and follows the insertion cursor", () => {
     const document = new ReadingDocument();
-    document.setText("a".repeat(3000) + "TAIL");
-    const value = "b".repeat(6500);
+    document.setText("a".repeat(5000) + "TAIL");
+    const value = "b".repeat(10500);
     const result = document.editPage(value, value.length);
     expect(document.text).toBe(value + "TAIL");
     expect(document.index).toBe(2);
@@ -78,20 +79,20 @@ describe("page editing", () => {
   });
   test("edits to a middle page preserve previous and following text", () => {
     const document = new ReadingDocument();
-    document.setText("a".repeat(3000) + "b".repeat(3000) + "c".repeat(100));
+    document.setText("a".repeat(5000) + "b".repeat(5000) + "c".repeat(100));
     document.select(1);
     document.editPage("replacement", 5);
-    expect(document.text).toBe("a".repeat(3000) + "replacement" + "c".repeat(100));
+    expect(document.text).toBe("a".repeat(5000) + "replacement" + "c".repeat(100));
     expect(document.index).toBe(1);
   });
   test("deletion repaginates without empty trailing pages", () => {
     const document = new ReadingDocument();
-    document.setText("a".repeat(6000));
+    document.setText("a".repeat(10000));
     document.select(1);
     document.editPage("", 0);
     expect(document.pages).toHaveLength(1);
     expect(document.index).toBe(0);
-    expect(document.text).toBe("a".repeat(3000));
+    expect(document.text).toBe("a".repeat(5000));
   });
   test("document limits fail atomically instead of truncating content", () => {
     const document = new ReadingDocument();

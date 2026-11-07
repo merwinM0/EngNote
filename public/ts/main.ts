@@ -1,6 +1,6 @@
 import { setStatus } from "./util";
 import { initUILanguage, msg, t } from "./i18n";
-import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render } from "./state";
+import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory } from "./state";
 import { initAISettings } from "./aiSettings";
 import { onFormat } from "./format";
 import { cancelDefinitions, onTranslateClick, onTermClick, translateSelected } from "./translate";
@@ -15,6 +15,18 @@ import { toggleDefinitionLanguage } from "./definitionLanguage";
 import { initReadingBackground } from "./readingBackground";
 import { initWordExport } from "./exportWord";
 import { initReadingToolbar } from "./readingToolbar";
+
+document.getElementById("undoBtn")!.addEventListener("click", () => restoreHistory());
+document.getElementById("redoBtn")!.addEventListener("click", () => restoreHistory(true));
+// Leave paste/title/key fields to native undo. The live page editor uses document history.
+document.addEventListener("keydown", event => {
+  if (hasOpenNote() || !(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing) return;
+  const target = event.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement && (target.id !== "editorText" || !document.getElementById("editorApplyBtn")!.hidden)) return;
+  if (event.key.toLowerCase() === "z" || event.key.toLowerCase() === "y") {
+    event.preventDefault(); restoreHistory(event.shiftKey || event.key.toLowerCase() === "y");
+  }
+});
 
 const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
 const fonts = [{ label: "M", size: "20px" }, { label: "L", size: "23px" }, { label: "S", size: "17px" }];
