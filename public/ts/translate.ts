@@ -24,7 +24,7 @@ export function onTranslateClick() {
   if (isBusy() || isTranslateMode()) return;
   if (!wordsById.size) return setStatus(msg("status.pasteFirst"), "error");
   setTranslateMode(true);
-  setStatus("");
+  setStatus(msg("reader.modeSelect"));
 }
 export async function translateSelected(refresh = false) {
   if (isBusy()) return;

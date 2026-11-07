@@ -37,5 +37,5 @@ function isPending(note: HTMLElement): boolean {
 
 export function toggleDeleteMode() {
   setDeleteMode(!isDeleteMode());
-  setStatus("");
+  setStatus(msg(isDeleteMode() ? "reader.modeDelete" : "status.readingMode"));
 }

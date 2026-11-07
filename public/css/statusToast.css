@@ -1,0 +1,57 @@
+/* A non-modal stationery note; manual popover keeps it above modal papers too. */
+.status-toast {
+  --status-accent: var(--accent);
+  position: fixed;
+  inset: auto;
+  top: max(24px, env(safe-area-inset-top));
+  right: max(24px, env(safe-area-inset-right));
+  z-index: 300;
+  width: min(360px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  padding: 16px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  overflow: visible;
+}
+.status-toast::backdrop { background: transparent; pointer-events: none; }
+.status-toast[data-type="ok"] { --status-accent: var(--accent-2); }
+.status-toast[data-type="error"] { --status-accent: var(--danger); }
+.status-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 72px);
+  overflow: auto;
+  padding: 24px 20px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-accent);
+  border-radius: 1px 2px 18px 1px / 1px 2px 4px 1px;
+  background: var(--sticky-paper);
+  color: var(--text);
+  box-shadow: var(--note-shadow);
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  animation: status-arrive .18s ease-out;
+}
+/* Keep the tape inside the scrollable card so long messages remain dismissible. */
+.status-card > .tape { top: 0; left: calc(50% - 43px); height: 16px; transform: rotate(-3deg); }
+.status-card:hover { border-color: var(--control-border); border-left-color: var(--status-accent); }
+.status-card:focus-visible { outline: 2px dashed var(--accent); outline-offset: 4px; }
+.status-close { position: absolute; top: 8px; right: 12px; color: var(--muted); font-size: 22px; line-height: 1; }
+.status-heading { display: flex; align-items: center; gap: 8px; padding-right: 16px; margin-bottom: 8px; color: var(--status-accent); font-size: 12px; font-weight: 600; }
+.status-symbol { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+[data-status-icon] { display: none; }
+.status-toast[data-type="info"] [data-status-icon="info"], .status-toast[data-type="ok"] [data-status-icon="ok"], .status-toast[data-type="error"] [data-status-icon="error"] { display: inline; }
+.status-copy { display: block; font-size: 13px; line-height: 1.8; white-space: pre-line; }
+.status-hint { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; }
+@keyframes status-arrive { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .status-toast { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+}
+@media (forced-colors: active) {
+  .status-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; }
+  .status-heading, .status-close, .status-hint { color: CanvasText; }
+}

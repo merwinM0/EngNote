@@ -25,24 +25,41 @@
   <main id="main">
     <h1 class="sr-only" data-i18n="reader.readingNotebook">Reading notebook</h1>
     <div class="toolbar" role="group" aria-label="Reading tools" data-i18n-aria-label="reader.tools">
-      <div class="toolbar-row">
-        <button id="readBtn" class="btn tape-sage" type="button" data-open-panel="readPanel" aria-controls="readPanel" aria-pressed="true" data-i18n="reader.read">Read</button>
-        <button id="editorBtn" class="btn tape-wheat" type="button" aria-controls="editorPanel" aria-expanded="false">Paste text</button>
-        <button id="wordBtn" class="btn tape-mist" type="button" data-i18n="reader.importWord">Import Word</button>
-        <button id="formatBtn" class="btn tape-lilac" type="button">✦ Tidy this page</button>
-        <button id="defineSelectedBtn" class="btn btn-primary" type="button" title="Reuse existing notes and cached definitions before requesting AI" disabled hidden>Define selected (0)</button>
-        <button id="refreshSelectedBtn" class="btn tape-clear" type="button" title="Bypass reuse and request new AI definitions for selected terms" disabled hidden>Refresh selected</button>
-      </div>
-      <div class="toolbar-row">
-        <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false">✎ Add definitions</button>
-        <button id="deleteBtn" class="btn tape-rose" type="button" aria-pressed="false" data-i18n="reader.removeNote">Remove a note</button>
-        <button id="saveBtn" class="btn btn-primary" type="button" aria-haspopup="dialog" aria-controls="savePanel" aria-expanded="false">Save article</button>
-        <button id="exportWordBtn" class="btn tape-mist" type="button" data-i18n="reader.exportWord" data-i18n-title="reader.exportWordTitle" title="Export all pages and notes as displayed to a plain white .docx document" disabled>Export Word</button>
-        <button id="clearBtn" class="btn btn-ghost" type="button" data-i18n="reader.clear">Clear</button>
-      </div>
+      <button id="readBtn" class="btn tape-sage tool-icon" type="button" data-open-panel="readPanel" aria-controls="readPanel" aria-pressed="true" aria-label="Read" title="Read" data-i18n-aria-label="reader.read" data-i18n-title="reader.read">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Zm0 0v15"/></svg><span class="sr-only" data-i18n="reader.read">Read</span>
+      </button>
+      <button id="editorBtn" class="btn tape-wheat tool-icon" type="button" aria-controls="editorPanel" aria-expanded="false" aria-label="Paste text" title="Paste text">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14v-7M9 3h6v4H9zM13 15l7-7-3-3-7 7-1 4zM16 6l3 3"/></svg><span class="sr-only" data-tool-label>Paste text</span>
+      </button>
+      <button id="wordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Import Word" title="Import Word" data-i18n-aria-label="reader.importWord" data-i18n-title="reader.importWord">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 2v8m-3-3 3 3 3-3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.importWord">Import Word</span>
+      </button>
+      <button id="formatBtn" class="btn tape-lilac tool-icon" type="button" aria-label="Tidy this page" title="Tidy this page">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h8M4 13h16M4 18h12M18 2l1.2 3.8L23 7l-3.8 1.2L18 12l-1.2-3.8L13 7l3.8-1.2z"/></svg><span class="sr-only" data-tool-label>Tidy this page</span>
+      </button>
+      <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false" aria-label="Add definitions" title="Add definitions">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 1-5L17 3l4 4L9 19zM14 6l4 4M3 21h8M17 14v7m-3-3h6"/></svg><span class="tool-caption" data-tool-label>Add definitions</span>
+      </button>
+      <button id="defineSelectedBtn" class="btn btn-primary tool-icon" type="button" aria-label="Define selected (0)" title="Reuse existing notes and cached definitions before requesting AI" disabled hidden>
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 19 12-12 3 3L8 22zM4 3v5M1.5 5.5h5M13 1v5m-2.5-2.5h5M21 16v5m-2.5-2.5h5"/></svg><span class="sr-only" data-tool-label>Define selected (0)</span><span class="tool-count" data-tool-count aria-hidden="true">0</span>
+      </button>
+      <button id="refreshSelectedBtn" class="btn tape-clear tool-icon" type="button" aria-label="Refresh selected" title="Bypass reuse and request new AI definitions for selected terms" disabled hidden>
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9a8 8 0 0 0-14-4L3 8m0-5v5h5M4 15a8 8 0 0 0 14 4l3-3m-5 0h5v5"/></svg><span class="sr-only" data-tool-label>Refresh selected</span>
+      </button>
+      <button id="deleteBtn" class="btn tape-rose tool-icon" type="button" aria-pressed="false" aria-label="Remove a note" title="Remove a note" data-i18n-aria-label="reader.removeNote" data-i18n-title="reader.modeDelete">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 15 10-11 8 8-8 9H8zM9 9l8 8M13 21h8"/></svg><span class="sr-only" data-i18n="reader.removeNote">Remove a note</span>
+      </button>
+      <button id="saveBtn" class="btn btn-primary" type="button" aria-haspopup="dialog" aria-controls="savePanel" aria-expanded="false" aria-label="Save article" title="Save article">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l4 4v14H3V3zM7 3v6h9V3M7 21v-8h10v8M13 5v2"/></svg><span class="tool-caption" data-tool-label>Save article</span>
+      </button>
+      <button id="exportWordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Export Word" data-i18n-aria-label="reader.exportWord" data-i18n-title="reader.exportWordTitle" title="Export all pages and notes as displayed to a plain white .docx document" disabled>
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 10V2m-3 3 3-3 3 3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.exportWord">Export Word</span>
+      </button>
+      <button id="clearBtn" class="btn btn-ghost tool-icon" type="button" aria-label="Clear" title="Clear" data-i18n-aria-label="reader.clear" data-i18n-title="reader.clear">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg><span class="sr-only" data-i18n="reader.clear">Clear</span>
+      </button>
     </div>
-    <p id="modeHint" class="mode-hint" aria-live="polite"></p>
-    <section id="statusBar" class="status-bar" role="status" aria-live="polite" hidden></section>
+    <p id="modeHint" class="sr-only"></p>
     <div class="layout">
       <div class="workspace main-col">
         <nav class="page-navigation" aria-label="Article pagination" data-i18n-aria-label="reader.pagination">
@@ -56,7 +73,7 @@
         </nav>
         <section id="readPanel" class="editor-card" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
           <div class="card-head"><h2 id="readerTitle">A fresh article</h2><button id="fontSizeBtn" class="btn btn-ghost tape-small" type="button" title="Change reading font size" data-i18n-title="reader.fontSize">Aa · M</button></div>
-          <div id="content" class="content paper-surface" data-paper="original" lang="en" tabindex="0" aria-label="Current article page" data-i18n-aria-label="reader.contentLabel" data-placeholder="Your next story starts here. Choose Paste text, then use Ctrl / Cmd + V, or import a Word document." data-i18n-data-placeholder="reader.contentPlaceholder"></div>
+          <div id="content" class="content paper-surface" data-paper="original" lang="en" tabindex="0" aria-describedby="modeHint" aria-label="Current article page" data-i18n-aria-label="reader.contentLabel" data-placeholder="Your next story starts here. Choose Paste text, then use Ctrl / Cmd + V, or import a Word document." data-i18n-data-placeholder="reader.contentPlaceholder"></div>
           <div class="paper-footer"><span id="wordCount">0 words on this page</span><span id="documentSummary">0 characters in this article</span></div>
           <nav class="page-bottom" aria-label="Continue reading" data-i18n-aria-label="reader.continueReading"><button class="btn tape-clear tape-small" type="button" data-page-step="-1" data-i18n="reader.previousPage">← Previous page</button><span data-page-position class="hint">1 / 1</span><button class="btn tape-sage tape-small" type="button" data-page-step="1" data-i18n="reader.nextPage">Next page →</button></nav>
         </section>
@@ -74,6 +91,14 @@
       </div>
     </div>
   </main>
+  <div id="statusAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <aside id="statusBar" class="status-toast" popover="manual" aria-label="Notifications" data-i18n-aria-label="notice.region" hidden>
+    <button id="dismissStatusBtn" class="status-card" type="button" aria-label="Dismiss message" data-i18n-aria-label="notice.dismiss" aria-describedby="statusText statusHint">
+      <span class="tape" aria-hidden="true"></span><span class="status-close" aria-hidden="true">×</span>
+      <span class="status-heading"><svg class="status-symbol" viewBox="0 0 24 24" aria-hidden="true"><g data-status-icon="info"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></g><g data-status-icon="ok"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></g><g data-status-icon="error"><path d="m12 3 10 18H2zM12 9v5m0 3v1"/></g></svg><span id="statusHeading">A small note</span></span>
+      <span id="statusText" class="status-copy"></span><span id="statusHint" class="status-hint" data-i18n="notice.hint">Click to dismiss · closes after 6 seconds</span>
+    </button>
+  </aside>
   <dialog id="backgroundPanel" class="note-window background-window" aria-labelledby="backgroundHeading" aria-describedby="backgroundDescription" data-note-entry="backgroundBtn">
     <div class="panel-sheet note-panel">
       <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close reading backgrounds" data-i18n-aria-label="reader.closeBackgrounds" data-close-note>×</button>

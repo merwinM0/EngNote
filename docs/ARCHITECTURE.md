@@ -77,14 +77,15 @@ EngNote/
 | `panels.ts` / `notes.ts` | 编辑面板、原生弹窗叠放、未保存确认、焦点与光标恢复 |
 | `auth.ts` / `aiSettings.ts` | 账号表单与 Cookie 会话、密钥草稿与确认存储 |
 | `readingBackground.ts` / `readingBackgroundPreference.ts` | 阅读纸张选择及浏览器偏好 |
-| `util.ts` | DOM 辅助、状态提示与同源 API 请求 |
+| `statusToast.ts` | 右上角便签消息、6 秒计时、弹窗内可交互宿主与焦点恢复 |
+| `util.ts` | DOM 辅助、保留图标的工具按钮文案更新、消息入口与同源 API 请求 |
 
 ### 样式与本地资源
 
 - `public/css/tokens.css` 定义水灰底、米白纸面、青色墨迹、半透明胶带及字体等共用变量。
 - `public/css/tape.css` 提供反光与撕边胶带。装饰层和点击区域、焦点轮廓分离，不裁切文字或键盘提示。
 - `public/css/reader.css` 按固定顺序导入设计变量、胶带、进度、布局、正文、收藏、面板、弹窗、阅读背景与响应式样式，保持 HMR 与生产级联顺序一致。
-- 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现。
+- 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。
 

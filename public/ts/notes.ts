@@ -7,7 +7,8 @@ function rememberCursor(element: HTMLElement | null): Cursor | null {
   if (!(element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) || element.selectionStart === null || element.selectionEnd === null) return null;
   return { start: element.selectionStart, end: element.selectionEnd, direction: element.selectionDirection ?? "none", top: element.scrollTop, left: element.scrollLeft };
 }
-export const hasOpenNote = () => stack.length > 0;
+export const activeNote = () => stack.at(-1)?.note ?? null;
+export const hasOpenNote = () => activeNote() !== null;
 
 function finish(note: HTMLDialogElement, restoreFocus = true) {
   const index = stack.findIndex(frame => frame.note === note);

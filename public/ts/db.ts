@@ -1,4 +1,4 @@
-import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage } from "./util";
+import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage, setToolLabel } from "./util";
 import { msg, setUIText, t, uiLanguage } from "./i18n";
 import type { MessageKey, UIMessage } from "./i18n";
 import { definitionViews, definitionViewChanged, getCurrentText, render, isBusy, setBusy } from "./state";
@@ -40,8 +40,8 @@ function updateSelection() {
     if (active) button?.setAttribute("aria-current", "true"); else button?.removeAttribute("aria-current");
   }
   document.getElementById("readerTitle")!.textContent = selected?.title ?? t("reader.defaultArticle");
-  saveBtn.textContent = selectionStatus === "checking" ? t("reader.restoring") : selectionStatus === "retry" ? t("reader.retrySaved")
-    : selected && canEdit(selected) ? t("reader.saveChanges") : t("reader.saveArticle");
+  setToolLabel(saveBtn, selectionStatus === "checking" ? t("reader.restoring") : selectionStatus === "retry" ? t("reader.retrySaved")
+    : selected && canEdit(selected) ? t("reader.saveChanges") : t("reader.saveArticle"));
   saveBtn.disabled = isBusy() || selectionStatus === "checking";
 }
 function selectEntry(entry: Entry | null, baseline = "", status: typeof selectionStatus = "ready") {

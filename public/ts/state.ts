@@ -1,4 +1,4 @@
-import { el } from "./util";
+import { el, setToolLabel } from "./util";
 import { t } from "./i18n";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
@@ -212,14 +212,11 @@ function updateDefinitionControls() {
   defineSelectedBtn.hidden = refreshSelectedBtn.hidden = !translateMode;
   refreshSelectedBtn.disabled = busy || pickedIds.size === 0;
   translateBtn.disabled = busy;
-  translateBtn.textContent = t("reader.addDefinitions");
-  translateBtn.setAttribute("aria-label", t("reader.addDefinitions"));
-  translateBtn.title = t("reader.addDefinitionsTitle");
-  defineSelectedBtn.textContent = t("reader.defineSelected", { count: pickedIds.size });
-  defineSelectedBtn.title = t("reader.defineTitle");
+  setToolLabel(translateBtn, t("reader.addDefinitions"), t("reader.addDefinitionsTitle"));
+  setToolLabel(defineSelectedBtn, t("reader.defineSelected", { count: pickedIds.size }), t("reader.defineTitle"));
+  defineSelectedBtn.querySelector<HTMLElement>("[data-tool-count]")!.textContent = String(pickedIds.size);
   defineSelectedBtn.disabled = busy || pickedIds.size === 0;
-  refreshSelectedBtn.textContent = t("reader.refreshSelected");
-  refreshSelectedBtn.title = t("reader.refreshTitle");
+  setToolLabel(refreshSelectedBtn, t("reader.refreshSelected"), t("reader.refreshTitle"));
 }
 function updateModes() {
   updateDefinitionControls();

@@ -191,8 +191,40 @@ describe("source server", () => {
     expect(tools).toMatch(/id="saveBtn"[^>]*>[\s\S]*?<\/button>\s*<button id="exportWordBtn"/);
     expect(tools).toContain('data-i18n="reader.exportWord"');
     expect(tools).toContain('data-i18n-title="reader.exportWordTitle"');
-    expect(tools).toContain('disabled>Export Word</button>');
+    expect(tools.match(/<button id="exportWordBtn"[^>]*>/)?.[0]).toContain('disabled');
+    expect(tools).toContain('data-i18n-aria-label="reader.exportWord"');
     expect(tools).not.toContain('id="exportWordBtn" data-open-panel="authPanel"');
+  });
+  test("reader has one icon tool row with named actions and a visible selection count", async () => {
+    const html = await (await request("/index.html")).text();
+    const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
+    expect(tools).not.toContain('toolbar-row');
+    const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
+    expect(buttons).toHaveLength(11);
+    for (const button of buttons) {
+      expect(button).toMatch(/aria-label="[^"]+"/);
+      expect(button).toMatch(/title="[^"]+"/);
+      expect(button).toContain('class="tool-glyph"');
+      expect(button).toContain('aria-hidden="true"');
+      expect(button).toMatch(/<span\b[^>]*(?:sr-only|tool-caption)/);
+    }
+    expect(tools).toContain('data-tool-count aria-hidden="true">0</span>');
+  });
+  test("reader feedback is a dismissible non-modal note outside the reading flow", async () => {
+    const html = await (await request("/index.html")).text();
+    const main = html.match(/<main\b[\s\S]*?<\/main>/)?.[0] ?? "";
+    expect(main).not.toContain('id="statusBar"');
+    expect(main).toContain('id="modeHint" class="sr-only"');
+    expect(main).toContain('aria-describedby="modeHint"');
+    const toast = html.match(/<aside id="statusBar"[\s\S]*?<\/aside>/)?.[0] ?? "";
+    expect(toast).toContain('popover="manual"');
+    expect(toast).toContain('hidden>');
+    expect(toast).toContain('id="dismissStatusBtn"');
+    expect(toast).toContain('aria-label="Dismiss message"');
+    expect(toast).toContain('aria-describedby="statusText statusHint"');
+    expect(toast).toContain('class="tape"');
+    expect(toast).toContain('closes after 6 seconds');
+    expect(html).toContain('id="statusAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"');
   });
   test("reading background opens a modal directly after the top Next button", async () => {
     const html = await (await request("/index.html")).text();

@@ -1,4 +1,4 @@
-import { setStatus, errorMessage } from "./util";
+import { setStatus, errorMessage, setToolLabel } from "./util";
 import { msg, setUIText, t } from "./i18n";
 import type { UIMessage } from "./i18n";
 import { reflowText } from "./text";
@@ -28,7 +28,7 @@ function message(text: UIMessage, error = false) {
   element.classList.toggle("error", error);
 }
 function updateEntry() {
-  entry.textContent = t(hasContent() ? "reader.editPage" : "reader.pasteText");
+  setToolLabel(entry, t(hasContent() ? "reader.editPage" : "reader.pasteText"));
 }
 function updatePreview() {
   const preview = document.getElementById("editorPreview")!;

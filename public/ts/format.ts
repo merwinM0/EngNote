@@ -1,4 +1,4 @@
-import { setStatus, errorMessage } from "./util";
+import { setStatus, errorMessage, setToolLabel } from "./util";
 import { msg, t } from "./i18n";
 import { getPageText, editCurrentPage, formatBtn, isBusy, setBusy, getRevision } from "./state";
 import { callDeepSeek } from "./deepseek";
@@ -13,7 +13,7 @@ export async function onFormat() {
   const revision = getRevision();
   setBusy(true);
   formatting = true;
-  formatBtn.textContent = t("reader.tidying");
+  setToolLabel(formatBtn, t("reader.tidying"));
   setStatus(msg("status.formatWorking"));
   try {
     const result = await callDeepSeek("You format English text. Join broken lines, separate paragraphs with one blank line, and fix spacing around punctuation. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations.", text, undefined, { maxTokens: Math.min(4096, Math.max(512, Math.ceil(text.length * 1.2))) });
@@ -26,9 +26,9 @@ export async function onFormat() {
       setStatus(msg("status.formatDone"), "ok");
     }
   } catch (error) { setStatus(() => errorMessage(error), "error"); }
-  finally { formatting = false; setBusy(false); formatBtn.textContent = t("reader.tidy"); }
+  finally { formatting = false; setBusy(false); setToolLabel(formatBtn, t("reader.tidy")); }
 }
 
 window.addEventListener("ui-language-changed", () => {
-  formatBtn.textContent = t(formatting ? "reader.tidying" : "reader.tidy");
+  setToolLabel(formatBtn, t(formatting ? "reader.tidying" : "reader.tidy"));
 });

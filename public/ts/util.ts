@@ -1,7 +1,7 @@
-import { localizeError, setUIText, t } from "./i18n";
-import type { UIMessage } from "./i18n";
+import { localizeError, t } from "./i18n";
 
 export { sanitizeEnglish, sanitizeTitle } from "./text";
+export { setStatus } from "./statusToast";
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -10,11 +10,11 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ""
   return node;
 }
 
-export function setStatus(message: UIMessage, type: "info" | "ok" | "error" = "info") {
-  const bar = document.getElementById("statusBar")!;
-  bar.hidden = !setUIText(bar, message);
-  bar.classList.toggle("error", type === "error");
-  bar.classList.toggle("ok", type === "ok");
+/** Update a tool's copy without replacing its decorative SVG or selection count. */
+export function setToolLabel(button: HTMLButtonElement, label: string, description = label) {
+  button.querySelector<HTMLElement>("[data-tool-label]")!.textContent = label;
+  button.setAttribute("aria-label", label);
+  button.title = description === label ? label : `${label} — ${description}`;
 }
 
 export function errorMessage(error: unknown): string {
