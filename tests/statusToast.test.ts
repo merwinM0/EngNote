@@ -50,6 +50,18 @@ describe("1.7-second pausable status notes", () => {
     f.advance(6000); expect(f.expired()).toBe(0);
     f.timer.restart(); f.advance(2000); expect(f.expired()).toBe(1);
   });
+  test("uses a smaller, lower note without a separate close glyph or reserved glyph space", () => {
+    const css = readFileSync("public/css/statusToast.css", "utf8");
+    expect(css).toContain("width: min(320px, calc(100% - 32px))");
+    expect(css).toContain("--status-top: max(48px, calc(env(safe-area-inset-top) + 24px))");
+    expect(css).toContain("--status-top: max(40px, calc(env(safe-area-inset-top) + 24px))");
+    expect(css).toContain("max-height: calc(var(--status-max-height) - 20px)");
+    expect(css).toContain(".status-copy { display: block; font-size: 12px; line-height: 1.7;");
+    expect(css).not.toContain(".status-close");
+    expect(css.match(/\.status-heading\s*\{([^}]+)\}/)?.[1]).not.toContain("padding-right");
+    const source = readFileSync("public/ts/statusToast.ts", "utf8");
+    expect(source).toContain('bar.addEventListener("click", dismissStatus)');
+  });
   test("uses a lower tape strip only for messages, preserving the shared progress style", () => {
     const css = readFileSync("public/css/statusToast.css", "utf8");
     expect(css).toContain(".status-progress .tape-progress-track { width: 100%; height: 28px; }");

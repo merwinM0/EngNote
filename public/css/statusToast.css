@@ -1,15 +1,17 @@
 /* A non-modal stationery note; manual popover keeps it above modal papers too. */
 .status-toast {
   --status-accent: var(--accent);
+  --status-top: max(48px, calc(env(safe-area-inset-top) + 24px));
+  --status-max-height: calc(100dvh - var(--status-top) - max(16px, env(safe-area-inset-bottom)));
   position: fixed;
   inset: auto;
-  top: max(24px, env(safe-area-inset-top));
+  top: var(--status-top);
   right: max(24px, env(safe-area-inset-right));
   z-index: 300;
-  width: min(360px, calc(100% - 32px));
-  max-height: calc(100dvh - 48px);
+  width: min(320px, calc(100% - 32px));
+  max-height: var(--status-max-height);
   margin: 0;
-  padding: 16px 0 8px;
+  padding: 12px 0 8px;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -22,7 +24,7 @@
   position: relative;
   display: block;
   width: 100%;
-  max-height: calc(100dvh - 72px);
+  max-height: calc(var(--status-max-height) - 20px);
   overflow: auto;
   padding: 0;
   border: 1px solid var(--border);
@@ -36,8 +38,8 @@
   overflow-wrap: anywhere;
   animation: status-arrive .18s ease-out;
 }
-.status-dismiss { display: block; width: 100%; padding: 24px 20px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; overflow-wrap: anywhere; }
-.status-progress.tape-progress { margin: 4px 20px 12px; }
+.status-dismiss { display: block; width: 100%; padding: 20px 16px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; overflow-wrap: anywhere; }
+.status-progress.tape-progress { margin: 4px 16px 8px; }
 .status-progress .tape-progress-track { width: 100%; height: 28px; }
 .status-progress .tape-progress-strip { top: 5px; height: 18px; transform: rotate(-1deg); }
 .status-progress .tape-progress-track::after { top: 4px; height: 19px; }
@@ -47,17 +49,16 @@
 .status-card:hover { border-color: var(--control-border); border-left-color: var(--status-accent); }
 .status-card:has(:focus-visible) { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .status-dismiss:focus-visible { outline: none; }
-.status-close { position: absolute; top: 8px; right: 12px; color: var(--muted); font-size: 22px; line-height: 1; }
-.status-heading { display: flex; align-items: center; gap: 8px; padding-right: 16px; margin-bottom: 8px; color: var(--status-accent); font-size: 12px; font-weight: 600; }
-.status-symbol { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.status-heading { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--status-accent); font-size: 11px; font-weight: 600; }
+.status-symbol { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 [data-status-icon] { display: none; }
 .status-toast[data-type="info"] [data-status-icon="info"], .status-toast[data-type="ok"] [data-status-icon="ok"], .status-toast[data-type="error"] [data-status-icon="error"] { display: inline; }
-.status-copy { display: block; font-size: 13px; line-height: 1.8; white-space: pre-line; }
+.status-copy { display: block; font-size: 12px; line-height: 1.7; white-space: pre-line; }
 @keyframes status-arrive { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) {
-  .status-toast { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+  .status-toast { --status-top: max(40px, calc(env(safe-area-inset-top) + 24px)); right: max(16px, env(safe-area-inset-right)); }
 }
 @media (forced-colors: active) {
   .status-card { background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none; }
-  .status-heading, .status-close { color: CanvasText; }
+  .status-heading { color: CanvasText; }
 }
