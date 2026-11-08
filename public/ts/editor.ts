@@ -1,13 +1,14 @@
-import { setStatus, errorMessage, setToolLabel } from "./util";
+import { api, setStatus, errorMessage, setToolLabel } from "./util";
 import { msg, setUIText, t } from "./i18n";
 import type { UIMessage } from "./i18n";
 import { reflowText } from "./text";
 import { characterCount, DOCUMENT_LIMIT, paginate } from "./pagination";
 import { definitionViews, documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
 import { confirmReplace, deselectEntry, getDraftEntry, restoreEntrySelection } from "./db";
-import { ARTICLE_DRAFT_KEY, parseArticleDraft } from "./articleDraft";
 import type { ArticleDraft } from "./articleDraft";
-import { activePanel, openPanel } from "./panels";
+import { ArticleWorkspaces } from "./articleWorkspace";
+import { getEmail, isSessionReady } from "./auth";
+import { activePanel, openPanel, confirmInPanel } from "./panels";
 
 const editor = document.getElementById("editorText") as HTMLTextAreaElement;
 const entry = document.getElementById("editorBtn") as HTMLButtonElement;
@@ -21,6 +22,10 @@ let draftTimer: ReturnType<typeof setTimeout> | undefined;
 let wordRequest = 0;
 let warnedStorage = false;
 const hasContent = () => !!getCurrentText().trim();
+const workspaces = new ArticleWorkspaces(() => sessionStorage);
+let workspaceAccount: string | null | undefined;
+let switchingWorkspace = false;
+let workspaceRequest = 0;
 
 function message(text: UIMessage, error = false) {
   const element = document.getElementById("editorMsg")!;
@@ -84,30 +89,67 @@ function onInput() {
     else message("");
   } catch (error) { editor.value = documentModel.page.text; message(() => errorMessage(error), true); }
 }
+function currentDraft(): ArticleDraft | null {
+  return getCurrentText() ? { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot(), offset: documentModel.page.start } : null;
+}
 function persistDraft() {
   clearTimeout(draftTimer);
-  try {
-    if (!getCurrentText()) sessionStorage.removeItem(ARTICLE_DRAFT_KEY);
-    else {
-      const draft: ArticleDraft = { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot(), offset: documentModel.page.start };
-      sessionStorage.setItem(ARTICLE_DRAFT_KEY, JSON.stringify(draft));
-    }
-  } catch {
+  if (switchingWorkspace || workspaceAccount === undefined && !getCurrentText()) return;
+  if (!workspaces.write(workspaceAccount ?? null, currentDraft())) {
     document.getElementById("draftHint")!.textContent = t("editor.storageWarning");
     if (!warnedStorage) { warnedStorage = true; setStatus(msg("editor.storageWarning"), "error"); }
   }
 }
-function restoreDraft() {
+async function restoreWorkspace() {
+  const account = getEmail();
+  if (workspaceAccount === account) return;
+  const request = ++workspaceRequest, initial = workspaceAccount === undefined;
+  const previousAccount = workspaceAccount ?? null, previousDraft = currentDraft();
+  persistDraft();
+  switchingWorkspace = true;
+  workspaceAccount = account;
+  importDraft = ""; editor.value = "";
+  render(""); deselectEntry();
+  let draft = workspaces.read(account);
   try {
-    const raw = sessionStorage.getItem(ARTICLE_DRAFT_KEY);
-    if (!raw) return;
-    const draft = parseArticleDraft(raw);
-    if (!draft) { sessionStorage.removeItem(ARTICLE_DRAFT_KEY); return; }
-    const offset = draft.offset ?? paginate(draft.text, 3000)[Math.max(0, Math.min(draft.index, paginate(draft.text, 3000).length - 1))]!.start;
-    render(draft.text, 0, draft.definitions);
-    goToPage(documentModel.locate(offset)); restoreEntrySelection(draft.entry);
-    setStatus(msg(draft.entry ? "editor.draftRestoredSaved" : "editor.draftRestoredUnsaved"), "ok");
-  } catch { /* Optional storage must never prevent reading. */ }
+    if (!draft) {
+      const legacy = workspaces.legacy();
+      // Old saved drafts had no account scope: authorize the ID before displaying any text.
+      if (legacy?.entry && account) {
+        try {
+          await api(`/api/entries/${legacy.entry.id}`);
+          if (request !== workspaceRequest || getEmail() !== account) return;
+          draft = legacy;
+        } catch { /* Leave unverified legacy data quarantined, not assigned to another user. */ }
+      } else if (legacy && !legacy.entry) {
+        workspaces.write(null, legacy);
+        draft = legacy;
+      }
+      if (draft && workspaces.write(account, draft)) workspaces.removeLegacy();
+    }
+    const guestDraft = previousAccount === null && account ? previousDraft ?? (initial && draft ? null : workspaces.read(null)) : null;
+    if (guestDraft?.text) {
+      const same = draft?.text === guestDraft.text && JSON.stringify(draft.definitions) === JSON.stringify(guestDraft.definitions);
+      const useGuest = !draft || same || await confirmInPanel(msg("confirm.replaceWorkspace"), msg("confirm.keepLocalDraft"), msg("confirm.useAccountDraft"));
+      if (request !== workspaceRequest || getEmail() !== account) return;
+      if (useGuest) draft = { ...guestDraft, entry: null };
+      else window.dispatchEvent(new Event("save-login-cancelled"));
+    }
+    if (request !== workspaceRequest || getEmail() !== account) return;
+    if (draft) {
+      const offset = draft.offset ?? paginate(draft.text, 3000)[Math.max(0, Math.min(draft.index, paginate(draft.text, 3000).length - 1))]!.start;
+      render(draft.text, 0, draft.definitions);
+      goToPage(documentModel.locate(offset)); restoreEntrySelection(draft.entry);
+      setStatus(msg(draft.entry ? "editor.draftRestoredSaved" : "editor.draftRestoredUnsaved"), "ok");
+    }
+  } finally {
+    if (request === workspaceRequest && getEmail() === account) {
+      switchingWorkspace = false;
+      configureEditor();
+      persistDraft();
+      window.dispatchEvent(new Event("workspace-ready"));
+    }
+  }
 }
 
 export function initEditor() {
@@ -127,7 +169,7 @@ export function initEditor() {
     wordFile.focus(); wordFile.click();
   });
   window.addEventListener("document-view-changed", () => {
-    syncEditor(); clearTimeout(draftTimer); draftTimer = setTimeout(persistDraft, 200);
+    syncEditor(); clearTimeout(draftTimer); if (!switchingWorkspace) draftTimer = setTimeout(persistDraft, 200);
   });
   window.addEventListener("document-changed", () => {
     if (!hasContent()) { importDraft = ""; if (mode === "paste") { editor.value = ""; updatePreview(); } }
@@ -167,7 +209,7 @@ export function initEditor() {
       importDraft = editor.value = reflowText(text);
       updatePreview(); message(msg("editor.wordReady"));
     } catch (error) { message(() => errorMessage(error), true); return; }
-    finally { setBusy(false); wordFile.value = ""; }
+    finally { if (revision === getRevision()) setBusy(false); wordFile.value = ""; }
     await applyImport(text);
   });
   window.addEventListener("ui-language-changed", () => {
@@ -175,5 +217,7 @@ export function initEditor() {
     updateEntry();
     updatePreview();
   });
-  restoreDraft(); syncEditor(); refreshEditorCopy(); updateEntry(); updatePreview();
+  window.addEventListener("session-changed", () => { queueMicrotask(() => { void restoreWorkspace(); }); });
+  if (isSessionReady()) void restoreWorkspace();
+  syncEditor(); refreshEditorCopy(); updateEntry(); updatePreview();
 }

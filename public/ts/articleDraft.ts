@@ -2,7 +2,7 @@ import { DOCUMENT_LIMIT } from "./pagination";
 import { readDefinitionViews } from "./definitionViews";
 import type { DefinitionView } from "./definitionViews";
 
-// Keep the original storage key so existing working text survives this upgrade.
+// Retain the legacy key for authorized migration into separate account/guest workspaces.
 export const ARTICLE_DRAFT_KEY = "er_article_draft_v1";
 export type DraftEntry = { id: number; title: string; savedText: string };
 export type ArticleDraft = { version: 2; text: string; index: number; entry: DraftEntry | null; definitions?: DefinitionView[]; offset?: number };

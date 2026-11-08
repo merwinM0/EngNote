@@ -42,11 +42,12 @@ export function closePanel(id: string) {
   else document.getElementById("readBtn")?.focus({ preventScroll: true });
 }
 
-export function confirmInPanel(message: UIMessage, action: UIMessage = msg("confirm.continue")): Promise<boolean> {
+export function confirmInPanel(message: UIMessage, action: UIMessage = msg("confirm.continue"), cancel: UIMessage = msg("confirm.keepEditing")): Promise<boolean> {
   confirmResult?.(false);
   confirmResult = null;
   setUIText(document.getElementById("confirmMessage")!, message);
   setUIText(document.getElementById("acceptChangeBtn")!, action);
+  setUIText(document.querySelector<HTMLElement>("#confirmPanel [data-close-note]")!, cancel);
   openPanel("confirmPanel");
   return new Promise(resolve => { confirmResult = resolve; });
 }

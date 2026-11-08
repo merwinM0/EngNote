@@ -1,5 +1,5 @@
 import { api, jsonBody, setStatus, errorMessage } from "./util";
-import { closePanel } from "./panels";
+import { closePanel, openPanel } from "./panels";
 import { msg, setUIText, t } from "./i18n";
 import type { UIMessage } from "./i18n";
 const authPanel = document.getElementById("authPanel") as HTMLDialogElement;
@@ -20,17 +20,32 @@ let submitting = false;
 let sendingCode = false;
 let cooldownUntil = 0;
 let cooldownTimer: ReturnType<typeof setInterval> | undefined;
+let sessionReady = false;
+let sessionRevision = 0;
+let sessionRequest = 0;
 export const isLoggedIn = () => email !== null;
 export const getEmail = () => email;
+export const isSessionReady = () => sessionReady;
+export function openLogin() { setMode("login"); openPanel("authPanel"); }
 function applySession(value: string | null) {
-  email = value;
+  const changed = !sessionReady || email !== value;
+  email = value; sessionReady = true; sessionRevision++;
   document.getElementById("signedInAccount")!.hidden = !value;
   document.getElementById("accountEmail")!.textContent = value ?? "";
   (document.getElementById("authForm") as HTMLFormElement).hidden = !!value;
   document.getElementById("authMethodTabs")!.hidden = !!value;
   accountButton.textContent = t(value ? "reader.account" : "reader.login");
   accountButton.title = t(value ? "auth.signedInAs" : "auth.signInTitle", value ? { email: value } : undefined);
-  window.dispatchEvent(new Event("session-changed"));
+  if (changed) window.dispatchEvent(new Event("session-changed"));
+}
+async function refreshSession() {
+  const revision = sessionRevision, request = ++sessionRequest;
+  try {
+    const data = await api<{ email: string }>("/api/auth/me");
+    if (request === sessionRequest && revision === sessionRevision) applySession(data.email);
+  } catch {
+    if (request === sessionRequest && revision === sessionRevision && !sessionReady) applySession(null);
+  }
 }
 function flash(message: UIMessage, ok = false) {
   authMsg.hidden = !setUIText(authMsg, message);
@@ -135,5 +150,7 @@ export function initAuth() {
     confirmAuthBtn.textContent = t(mode === "login" ? "auth.login" : "auth.register");
     updateCooldown();
   });
-  void api<{ email: string }>("/api/auth/me").then(data => applySession(data.email)).catch(() => applySession(null));
+  window.addEventListener("focus", () => { void refreshSession(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) void refreshSession(); });
+  void refreshSession();
 }

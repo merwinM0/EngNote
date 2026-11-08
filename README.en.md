@@ -4,7 +4,7 @@
 
 **Make reading English a little easier.**
 
-EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Paste an article or import Word, tidy paragraphs with AI, add bilingual definitions, and save articles to a public bookshelf.
+EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Paste an article or import Word, tidy paragraphs with AI, add bilingual definitions, and save articles to a private account collection.
 
 ![EngNote home](./home.png)
 
@@ -18,7 +18,7 @@ EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Past
 - Email accounts, saved articles on a draggable/zoomable board, and local white Word export using each note's displayed language.
 - English UI by default with a Chinese switch; UI and definition languages are independent.
 
-> Saved articles are public, not private notes. Only authors may update/delete their articles. Your confirmed DeepSeek key stays in this browser tab; AI requests go directly to DeepSeek, never through this app's backend. Reading, importing, AI and Word export require no account; saving requires login.
+> Saved articles are account-private: only their owner can view, update or delete them. Sharing is not supported. Reading, editing, importing, using your own AI key and Word export require no account; working drafts stay in this browser tab. Save article automatically opens login when needed, then resumes save confirmation without uploading automatically. Your confirmed DeepSeek key stays in this tab; AI requests go directly to DeepSeek, never through this app's backend.
 
 ## Quick start
 

@@ -2,7 +2,7 @@ import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage, se
 import { msg, setUIText, t, uiLanguage } from "./i18n";
 import type { MessageKey, UIMessage } from "./i18n";
 import { definitionViews, definitionViewChanged, getCurrentText, render, isBusy, setBusy } from "./state";
-import { isLoggedIn } from "./auth";
+import { getEmail, isLoggedIn, openLogin } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
@@ -28,6 +28,9 @@ let selectionStatus: "ready" | "checking" | "retry" = "ready";
 let selectionRequest = 0;
 let listRequest = 0;
 let openRequest = 0;
+let deleteRequest = 0;
+let loginSaveRequested = false;
+let workspaceReady = false;
 const articleLanguages = new ArticleDefinitionLanguages(() => sessionStorage);
 let warnedLanguageStorage = false;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
@@ -67,26 +70,28 @@ export function getDraftEntry(): DraftEntry | null {
   return selected ? { id: selected.id, title: selected.title, savedText } : null;
 }
 export function restoreEntrySelection(entry: DraftEntry | null) {
-  // initAuth's session-changed event will verify the ID after authentication resolves.
+  // Restore only after choosing the account workspace, then verify the saved association.
   selectEntry(entry ? { id: entry.id, title: entry.title, can_edit: false, created_at: "" } : null,
     entry?.savedText ?? "", entry ? "checking" : "ready");
+  if (entry && isLoggedIn()) void reconnectSelection();
 }
 async function reconnectSelection() {
-  if (!selected) return;
+  const account = getEmail();
+  if (!selected || !account) return;
   const id = selected.id, baseline = savedText, request = ++selectionRequest;
   selected.can_edit = false; selectionStatus = "checking"; updateSelection();
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${id}`);
-    if (request !== selectionRequest) return;
+    if (request !== selectionRequest || getEmail() !== account) return;
     // Keep working text, existing language choices and page position; only fill missing bilingual data.
     definitionViews.merge(data.entry.definitions);
     selectEntry(data.entry, data.entry.content);
     definitionViewChanged();
     const detail = data.entry.content !== baseline ? "status.resumedChanged" : isDirty() ? "status.resumedUnsaved" : "status.resumedPosition";
-    const action = canEdit(data.entry) ? "status.resumedOwner" : "status.resumedGuest";
+    const action = "status.resumedOwner";
     setStatus(() => t("status.resumed", { title: data.entry.title, detail: t(detail) + t(action) }), "ok");
   } catch (error) {
-    if (request !== selectionRequest) return;
+    if (request !== selectionRequest || getEmail() !== account) return;
     if (error instanceof ApiError && error.status === 404) {
       selectEntry(null);
       setStatus(msg("status.gone"), "info");
@@ -120,29 +125,37 @@ function refreshCollectionCopy() {
 
 async function openEntry(entry: Entry) {
   if (isBusy()) return;
+  const account = getEmail();
+  if (!account) return openLogin();
   const request = ++openRequest;
   if (!(await confirmReplace()) || request !== openRequest || isBusy() || !collectionPanel.open) return;
   const startingText = getCurrentText();
   showError("collectionMsg", msg("status.opening", { title: entry.title }));
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
-    if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
+    if (request !== openRequest || getEmail() !== account || isBusy() || getCurrentText() !== startingText) return;
     rememberDefinitionLanguages();
     const definitions = articleLanguages.apply(entry.id, data.entry.content, data.entry.definitions);
     render(data.entry.content, 0, definitions);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
     selectEntry(data.entry, getCurrentText());
-    const detail = canEdit(entry) ? "status.openedOwner" : "status.openedGuest";
+    const detail = "status.openedOwner";
     setStatus(() => t("status.opened", { title: entry.title, detail: t(detail) }), "ok");
   } catch (error) { if (request === openRequest) showError("collectionMsg", () => errorMessage(error)); }
 }
 export async function refreshList() {
-  const request = ++listRequest;
+  const request = ++listRequest, account = getEmail();
+  (document.getElementById("collectionLoginBtn") as HTMLButtonElement).hidden = !!account;
+  if (!account) {
+    entryList.replaceChildren(emptyCollection("collection.loginRequired"));
+    entryList.setAttribute("aria-busy", "false");
+    return;
+  }
   entryList.setAttribute("aria-busy", "true");
   try {
     const data = await api<{ entries: Entry[] }>("/api/entries");
-    if (request !== listRequest) return;
+    if (request !== listRequest || getEmail() !== account) return;
     const fragment = document.createDocumentFragment();
     if (!data.entries.length) fragment.append(emptyCollection("collection.empty"));
     for (const entry of data.entries) {
@@ -196,9 +209,11 @@ function titleError(message: UIMessage) {
   saveTitle.setAttribute("aria-invalid", "true");
   saveTitle.focus({ preventScroll: true });
 }
+function requestSaveLogin() { loginSaveRequested = true; openLogin(); }
 async function save(title?: string) {
   if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
-  if (!isLoggedIn()) return showError("saveMsg", msg("save.loginAgain"));
+  if (!isLoggedIn()) { closePanel("savePanel"); requestSaveLogin(); return; }
+  const account = getEmail();
   const text = getCurrentText(), definitions = definitionViews.snapshot();
   const entry = selected;
   const overwrite = entry && canEdit(entry) && saveTitle.readOnly;
@@ -215,7 +230,7 @@ async function save(title?: string) {
   try {
     if (task.phase === "summarizing") {
       title = await summarizeArticleTitle(text, (system, source, signal) => callDeepSeek(system, source, signal, { maxTokens: 128, jsonObject: true }), task.request.signal);
-      if (saveTask !== task || task.request.signal.aborted || getCurrentText() !== text) return;
+      if (saveTask !== task || task.request.signal.aborted || getEmail() !== account || getCurrentText() !== text) return;
       saveTitle.value = title;
       task.phase = "saving";
       updateSaveProgress();
@@ -223,6 +238,7 @@ async function save(title?: string) {
     const data = await api<{ id: number }>(overwrite ? `/api/entries/${entry.id}` : "/api/entries", {
       method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text, definitions } : { title, content: text, definitions }),
     });
+    if (saveTask !== task || getEmail() !== account) return;
     selectEntry(overwrite ? { ...entry, definitions } : { id: data.id, title: title!, can_edit: true, created_at: "", definitions }, text);
     rememberDefinitionLanguages();
     saveTask = null;
@@ -233,7 +249,8 @@ async function save(title?: string) {
     setStatus(msg("save.saved"), "ok");
     void refreshList();
   } catch (error) {
-    if (saveTask !== task || task.request.signal.aborted) return;
+    if (error instanceof ApiError && error.status === 401 && !error.staleSession) { requestSaveLogin(); return; }
+    if (saveTask !== task || task.request.signal.aborted || getEmail() !== account) return;
     if (task.phase === "summarizing") {
       manualTitleRequired = true;
       showError("saveMsg", () => t("save.titleError", { error: errorMessage(error) }));
@@ -253,10 +270,21 @@ async function save(title?: string) {
 export function initDb() {
   articleLanguages.restore();
   window.addEventListener("definition-view-changed", rememberDefinitionLanguages);
+  const continueSave = () => {
+    if (!loginSaveRequested || !workspaceReady || !isLoggedIn() || selectionStatus !== "ready" || isBusy()) return;
+    loginSaveRequested = false;
+    saveBtn.click();
+  };
+  window.addEventListener("workspace-ready", () => { workspaceReady = true; continueSave(); });
+  window.addEventListener("entry-selection-changed", () => { queueMicrotask(continueSave); });
+  window.addEventListener("save-login-cancelled", () => { loginSaveRequested = false; });
+  document.getElementById("authPanel")!.addEventListener("panel-close", () => { if (!isLoggedIn()) loginSaveRequested = false; });
+  document.getElementById("collectionLoginBtn")!.addEventListener("click", openLogin);
   saveBtn.addEventListener("click", () => {
-    if (isBusy() || selectionStatus === "checking") return;
+    if (isBusy()) return;
+    if (!isLoggedIn()) return requestSaveLogin();
+    if (selectionStatus === "checking") return;
     if (selectionStatus === "retry") { void reconnectSelection(); return; }
-    if (!isLoggedIn()) return setStatus(msg("status.loginToSave"), "error");
     if (!getCurrentText()) return setStatus(msg("status.pasteFirst"), "error");
     const overwrite = !!selected && canEdit(selected);
     saveTitle.value = overwrite ? selected!.title : "";
@@ -290,28 +318,38 @@ export function initDb() {
   document.getElementById("refreshListBtn")!.addEventListener("click", () => { void refreshList(); });
   document.getElementById("confirmDeleteBtn")!.addEventListener("click", async () => {
     if (isBusy() || !pendingDelete) return;
-    const entry = pendingDelete;
+    const entry = pendingDelete, account = getEmail(), request = ++deleteRequest;
     const button = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
     button.disabled = true;
     setBusy(true);
     try {
       await api(`/api/entries/${entry.id}`, { method: "DELETE" });
+      if (request !== deleteRequest || getEmail() !== account) return;
       articleLanguages.forget(entry.id);
       if (selected?.id === entry.id) deselectEntry();
       closePanel("deletePanel");
       setStatus(msg("collection.deleted"), "ok");
       void refreshList();
     } catch (error) {
+      if (request !== deleteRequest || getEmail() !== account) return;
       if ((document.getElementById("deletePanel") as HTMLDialogElement).open) showError("deleteMsg", () => errorMessage(error));
       else if (collectionPanel.open) showError("collectionMsg", () => errorMessage(error));
       else setStatus(() => errorMessage(error), "error");
     }
-    finally { setBusy(false); button.disabled = false; }
+    finally { if (request === deleteRequest) { setBusy(false); button.disabled = false; } }
   });
   window.addEventListener("session-changed", () => {
-    // Recheck ownership with the server, not flags stored by this or a previous account.
-    if (savePanel.open && !saveTask) closePanel("savePanel");
-    if (selected) void reconnectSelection(); else updateSelection();
+    // Invalidate every old-account response before the editor switches local workspaces.
+    openRequest++; selectionRequest++; listRequest++; deleteRequest++; pendingDelete = null; workspaceReady = false;
+    window.dispatchEvent(new Event("reading-history-request"));
+    if (saveTask) { saveTask.request.abort(); saveTask = null; updateSaveProgress(); }
+    setBusy(false);
+    for (const id of ["savePanel", "deletePanel", "confirmPanel"]) closePanel(id);
+    saveTitle.value = "";
+    for (const id of ["collectionMsg", "saveMsg", "deleteMsg"]) showError(id, "");
+    document.getElementById("deleteDescription")!.textContent = "";
+    (document.getElementById("confirmDeleteBtn") as HTMLButtonElement).disabled = false;
+    setStatus("");
     void refreshList();
   });
   // Never trigger a native confirmation popup; drafts cover refresh and tab navigation.

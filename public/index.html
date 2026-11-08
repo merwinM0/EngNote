@@ -132,9 +132,10 @@
       <span class="tape board-tape-left" aria-hidden="true"></span><span class="tape board-tape-right" aria-hidden="true"></span>
       <button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close saved articles" data-i18n-aria-label="collection.close" data-close-note data-panel-focus>×</button>
       <div class="collection-head"><h2 id="savedTitle" data-i18n="reader.savedArticles">Saved articles</h2><button id="refreshListBtn" class="btn tape-wheat tape-icon" type="button" aria-label="Refresh saved articles" data-i18n-aria-label="collection.refresh">↻</button></div>
-      <p class="sr-only" data-i18n="collection.shelf">A public reading shelf. Only the author can change an article.</p>
+      <p class="sr-only" data-i18n="collection.shelf">Your private collection. Only you can view, change or delete these articles.</p>
       <p id="collectionMsg" class="form-message" role="status" hidden></p>
-      <div id="collectionViewport" class="collection-viewport" tabindex="0" role="region" aria-label="Saved articles canvas" data-i18n-aria-label="collection.canvas"><ul id="entryList" class="entry-list"><li class="entry-empty" data-i18n="collection.loading">Loading the reading shelf…</li></ul></div>
+      <button id="collectionLoginBtn" class="btn tape-sage" type="button" data-i18n="reader.login" hidden>Login</button>
+      <div id="collectionViewport" class="collection-viewport" tabindex="0" role="region" aria-label="Saved articles canvas" data-i18n-aria-label="collection.canvas"><ul id="entryList" class="entry-list"><li class="entry-empty" data-i18n="collection.loading">Loading your articles…</li></ul></div>
       <div class="board-controls" role="group" aria-label="Canvas view" data-i18n-aria-label="collection.view">
         <output id="boardZoomValue" class="sr-only" role="status" aria-live="polite">100%</output>
         <button id="boardFitBtn" class="btn tape-clear tape-small" type="button" data-i18n="collection.fitAll">Fit all</button><button id="boardResetBtn" class="btn tape-clear tape-small" type="button" data-i18n="collection.reset">Reset 100%</button>

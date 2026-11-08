@@ -16,7 +16,7 @@ let db: Database;
 let server: ReturnType<typeof createServer>;
 let alice: string;
 let bob: string;
-async function request(path: string, method = "GET", data?: unknown, cookie?: string, extra?: Record<string, string>) {
+async function request(path: string, method = "GET", data?: unknown, cookie = alice, extra?: Record<string, string>) {
   return fetch(new URL(path, server.url), { method, headers: { ...(data === undefined ? {} : { "content-type": "application/json" }), ...(cookie ? { cookie } : {}), ...extra }, ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
 }
 async function create(cookie = alice) {
@@ -49,7 +49,7 @@ describe("source server", () => {
         const listener = createServer({ db, port: 0 });
         try {
           expect(listener.hostname).toBe("0.0.0.0");
-          expect((await fetch(`http://127.0.0.1:${listener.port}/api/entries`)).status).toBe(200);
+          expect((await fetch(`http://127.0.0.1:${listener.port}/index.html`)).status).toBe(200);
         } finally { await listener.stop(true); }
       }
     } finally {
@@ -296,6 +296,9 @@ describe("source server", () => {
     expect(board).toContain('id="refreshListBtn"');
     expect(board).toContain('aria-label="Close saved articles"');
     expect(board).toContain('id="entryList"');
+    expect(board).toContain('id="collectionLoginBtn"');
+    expect(board).toContain('Your private collection. Only you can view, change or delete these articles.');
+    expect(board).not.toContain('public reading shelf');
     expect(board).toContain("board-tape-left");
     expect(board).toContain("board-tape-right");
     expect(board).toContain('id="collectionViewport"');
@@ -307,17 +310,41 @@ describe("source server", () => {
     expect(board).toContain('id="boardResetBtn"');
     expect(board).not.toMatch(/board-scribble|board-footer|board-doodle|class="eyebrow"|<svg/);
   });
-  test("requires a real session for writes", async () => {
-    expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" })).status).toBe(401);
+  test("requires a real session for every article operation, including reads", async () => {
+    const id = await create();
+    for (const cookie of ["", "er_session=invalid"]) {
+      expect((await request("/api/entries", "GET", undefined, cookie)).status).toBe(401);
+      expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" }, cookie)).status).toBe(401);
+      for (const method of ["GET", "PUT", "DELETE"]) expect((await request(`/api/entries/${id}`, method, method === "PUT" ? { content: "Changed" } : undefined, cookie)).status).toBe(401);
+    }
     expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);
   });
-  test("supports CRUD with author-only updates and deletes", async () => {
+  test("isolates private lists, content and all mutations by authenticated owner", async () => {
+    const own = await create(alice), other = await create(bob);
+    for (const [cookie, allowed, denied] of [[alice, own, other], [bob, other, own]] as const) {
+      const list = await (await request("/api/entries", "GET", undefined, cookie)).json();
+      expect(list.entries.some((entry: { id: number }) => entry.id === allowed)).toBe(true);
+      expect(list.entries.some((entry: { id: number }) => entry.id === denied)).toBe(false);
+      for (const entry of list.entries) { expect(entry.can_edit).toBe(true); expect(entry.owner_email).toBeUndefined(); }
+      for (const method of ["GET", "PUT", "DELETE"]) {
+        const inaccessible = await request(`/api/entries/${denied}`, method, method === "PUT" ? { content: "Stolen", owner_email: "bob@example.com" } : undefined, cookie);
+        expect(inaccessible.status).toBe(404);
+        expect(await inaccessible.json()).toEqual({ ok: false, error: "Page not found." });
+      }
+      expect((await request(`/api/entries/${allowed}`, "GET", undefined, cookie)).status).toBe(200);
+    }
+    const forged = await request("/api/entries", "POST", { title: "Private", content: "Mine", owner_email: "bob@example.com" }, alice);
+    const { id } = await forged.json();
+    expect((await request(`/api/entries/${id}`, "GET", undefined, bob)).status).toBe(404);
+    expect((await request(`/api/entries/${id}`, "GET", undefined, alice)).status).toBe(200);
+  });
+  test("supports CRUD with owner-only reads, updates and deletes", async () => {
     const id = await create();
     const page = await (await request(`/api/entries/${id}`)).json();
     expect(page.entry.content).toContain("『an animal』");
-    expect(page.entry.can_edit).toBe(false); expect(page.entry.owner_email).toBeUndefined();
-    expect((await request(`/api/entries/${id}`, "PUT", { content: "No" }, bob)).status).toBe(403);
-    expect((await request(`/api/entries/${id}`, "DELETE", undefined, bob)).status).toBe(403);
+    expect(page.entry.can_edit).toBe(true); expect(page.entry.owner_email).toBeUndefined();
+    expect((await request(`/api/entries/${id}`, "PUT", { content: "No" }, bob)).status).toBe(404);
+    expect((await request(`/api/entries/${id}`, "DELETE", undefined, bob)).status).toBe(404);
     expect((await request(`/api/entries/${id}`, "PUT", { content: "Updated." }, alice)).status).toBe(200);
     expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe("Updated.");
     expect((await request(`/api/entries/${id}`, "DELETE", undefined, alice)).status).toBe(200);
@@ -345,7 +372,7 @@ describe("source server", () => {
     expect(loaded.definitions).toEqual(definitions);
     expect(JSON.parse(db.query<{ definitions: string }, [number]>("SELECT definitions FROM entries WHERE id = ?").get(id)!.definitions)).toEqual(definitions);
     const updated = [{ ...definitions[0]!, chinese: "野生动物" }, definitions[1]!];
-    expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, bob)).status).toBe(403);
+    expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, bob)).status).toBe(404);
     expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, alice)).status).toBe(200);
     expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual(updated);
     for (const language of ["zh", "en"]) {
@@ -399,11 +426,15 @@ describe("source server", () => {
     db.query("UPDATE entries SET definitions = 'invalid JSON' WHERE id = ?").run(id);
     expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe("No annotations.");
   });
-  test("historical articles stay readable but cannot be claimed or deleted", async () => {
+  test("quarantines ownerless history without deleting it or guessing an owner", async () => {
     const info = db.query("INSERT INTO entries (title, content) VALUES ('Legacy', 'Keep me')").run();
     const id = Number(info.lastInsertRowid);
-    expect((await request(`/api/entries/${id}`)).status).toBe(200);
-    expect((await request(`/api/entries/${id}`, "DELETE", undefined, alice)).status).toBe(403);
+    for (const cookie of [alice, bob]) {
+      const list = await (await request("/api/entries", "GET", undefined, cookie)).json();
+      expect(list.entries.some((entry: { id: number }) => entry.id === id)).toBe(false);
+      for (const method of ["GET", "PUT", "DELETE"]) expect((await request(`/api/entries/${id}`, method, method === "PUT" ? { content: "Claim", owner_email: "alice@example.com" } : undefined, cookie)).status).toBe(404);
+    }
+    expect(db.query("SELECT content, owner_email FROM entries WHERE id = ?").get(id)).toEqual({ content: "Keep me", owner_email: null });
   });
   test("validates runtime JSON types, lengths and content types", async () => {
     for (const data of [null, [], { title: 3, content: "Hi" }, { title: "Hi", content: {} }, { title: "中文", content: "Hi" }, { title: "a".repeat(21), content: "Hi" }, { title: "Hi", content: "a".repeat(100001) }]) {

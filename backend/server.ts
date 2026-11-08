@@ -18,6 +18,7 @@ export function openDatabase(path = process.env.DB_PATH || resolve(projectRoot, 
   const columns = db.query<{ name: string }, []>("PRAGMA table_info(entries)").all();
   if (!columns.some(column => column.name === "owner_email")) db.exec("ALTER TABLE entries ADD COLUMN owner_email TEXT");
   if (!columns.some(column => column.name === "definitions")) db.exec("ALTER TABLE entries ADD COLUMN definitions TEXT NOT NULL DEFAULT '[]'");
+  db.exec("CREATE INDEX IF NOT EXISTS entries_owner_id ON entries (owner_email, id)");
   initAuth(db);
   return db;
 }
@@ -104,14 +105,12 @@ export function createServer(options: { db: Database; port: number; hostname?: s
     if (path === "/api/entries") {
       const invalidMethod = allow(req, ["GET", "POST"]);
       if (invalidMethod) return invalidMethod;
-      if (req.method === "GET") {
-        // Public shelf remains readable. Ownership is computed server-side, never supplied by the client.
-        const email = await resolveToken(token(req));
-        const rows = db.query<Omit<StoredEntry, "content" | "definitions">, []>("SELECT id, title, created_at, owner_email FROM entries ORDER BY id DESC").all();
-        return json({ ok: true, entries: rows.map(({ owner_email, ...entry }) => ({ ...entry, can_edit: !!email && owner_email === email })) });
-      }
       const email = await resolveToken(token(req));
-      if (!email) throw new HttpError("Please log in to save a page.", 401);
+      if (!email) throw new HttpError("Please log in.", 401);
+      if (req.method === "GET") {
+        const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at">, [string]>("SELECT id, title, created_at FROM entries WHERE owner_email = ? ORDER BY id DESC").all(email);
+        return json({ ok: true, entries: rows.map(entry => ({ ...entry, can_edit: true })) });
+      }
       const data = await body(req);
       const title = text(data.title, "Title", 20);
       if (/\p{Script=Han}/u.test(title)) throw new HttpError("Use an English title.", 400);
@@ -125,18 +124,17 @@ export function createServer(options: { db: Database; port: number; hostname?: s
     if (single) {
       const invalidMethod = allow(req, ["GET", "PUT", "DELETE"]);
       if (invalidMethod) return invalidMethod;
+      const email = await resolveToken(token(req));
+      if (!email) throw new HttpError("Please log in.", 401);
       const id = Number(single[1]);
       if (!Number.isSafeInteger(id) || id < 1) throw new HttpError("Invalid article ID.", 400);
-      const entry = db.query<StoredEntry, [number]>("SELECT * FROM entries WHERE id = ?").get(id);
+      // Scope every read/write lookup; unknown and inaccessible IDs are indistinguishable.
+      const entry = db.query<StoredEntry, [number, string]>("SELECT * FROM entries WHERE id = ? AND owner_email = ?").get(id, email);
       if (!entry) throw new HttpError("Page not found.", 404);
       if (req.method === "GET") {
-        const email = await resolveToken(token(req));
         const { owner_email, definitions, ...page } = entry;
-        return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), can_edit: !!email && owner_email === email } });
+        return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), can_edit: true } });
       }
-      const email = await resolveToken(token(req));
-      if (!email) throw new HttpError("Please log in to change this page.", 401);
-      if (entry.owner_email !== email) throw new HttpError("Only the author can change this page. Save your own copy instead.", 403);
       if (req.method === "DELETE") db.query("DELETE FROM entries WHERE id = ? AND owner_email = ?").run(id, email);
       else {
         const data = await body(req);
