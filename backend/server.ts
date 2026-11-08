@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import home from "../public/home.html";
 import reader from "../public/index.html";
 import { initAuth, register, login, requestCode, resolveToken, logout, SESSION_TTL } from "./auth";
-import { definitionContent, readDefinitionViews } from "../public/ts/definitionViews";
+import { readDefinitionViews } from "../public/ts/definitionViews";
 import type { DefinitionView } from "../public/ts/definitionViews";
 
 const projectRoot = resolve(import.meta.dir, "..");
@@ -52,15 +52,16 @@ function allow(req: Request, methods: string[]) {
 }
 type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null; definitions: string };
 function storedDefinitions(raw: string, content: string): DefinitionView[] {
-  try { return definitionContent(readDefinitionViews(JSON.parse(raw), content)); } catch { return []; }
+  try { return readDefinitionViews(JSON.parse(raw), content); } catch { return []; }
 }
 function requestDefinitions(value: unknown, content: string): DefinitionView[] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) throw new HttpError("Definitions must be an array of bilingual notes.", 400);
-  const normalized = value.map(item => item && typeof item === "object" ? { ...item, language: "en" } : item);
+  // Old clients may omit the display choice; never overwrite an explicit en/zh choice.
+  const normalized = value.map(item => item && typeof item === "object" && item.language === undefined ? { ...item, language: "en" } : item);
   const valid = readDefinitionViews(normalized, content);
   if (valid.length !== value.length) throw new HttpError("Each bilingual definition must match a unique English note in the article and contain valid Chinese.", 400);
-  return definitionContent(valid);
+  return valid.sort((a, b) => a.start - b.start);
 }
 
 export function createServer(options: { db: Database; port: number; hostname?: string }) {

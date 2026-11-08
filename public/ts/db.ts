@@ -7,7 +7,8 @@ import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
 import type { DraftEntry } from "./articleDraft";
-import { definitionContent, readDefinitionViews } from "./definitionViews";
+import { definitionContent } from "./definitionViews";
+import { ArticleDefinitionLanguages } from "./articleDefinitionLanguages";
 import type { DefinitionView } from "./definitionViews";
 
 type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string; definitions?: DefinitionView[] };
@@ -27,8 +28,18 @@ let selectionStatus: "ready" | "checking" | "retry" = "ready";
 let selectionRequest = 0;
 let listRequest = 0;
 let openRequest = 0;
+const articleLanguages = new ArticleDefinitionLanguages(() => sessionStorage);
+let warnedLanguageStorage = false;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
 const isDirty = () => getCurrentText() !== savedText || JSON.stringify(definitionContent(definitionViews.snapshot())) !== savedDefinitions;
+function rememberDefinitionLanguages() {
+  // Discarding content edits must not overwrite choices for the saved article version.
+  if (!selected || isDirty()) return;
+  if (!articleLanguages.remember(selected.id, getCurrentText(), definitionViews.snapshot()) && !warnedLanguageStorage) {
+    warnedLanguageStorage = true;
+    setStatus(msg("editor.storageWarning"), "error");
+  }
+}
 export async function confirmReplace(action: UIMessage = msg("confirm.replaceArticle"), message: UIMessage = msg("confirm.replaceMessage")): Promise<boolean> {
   return !isDirty() || await confirmInPanel(message, action);
 }
@@ -116,12 +127,8 @@ async function openEntry(entry: Entry) {
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
     if (request !== openRequest || isBusy() || getCurrentText() !== startingText) return;
-    const preferences = selected?.id === entry.id && data.entry.content === getCurrentText() ? definitionViews.snapshot() : [];
-    const byStart = new Map(preferences.map(view => [view.start, view]));
-    const definitions = readDefinitionViews([...(data.entry.definitions ?? []), ...preferences], data.entry.content).map(view => {
-      const previous = byStart.get(view.start);
-      return { ...view, language: previous?.english === view.english && previous.chinese === view.chinese ? previous.language : "en" };
-    });
+    rememberDefinitionLanguages();
+    const definitions = articleLanguages.apply(entry.id, data.entry.content, data.entry.definitions);
     render(data.entry.content, 0, definitions);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
@@ -192,7 +199,7 @@ function titleError(message: UIMessage) {
 async function save(title?: string) {
   if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
   if (!isLoggedIn()) return showError("saveMsg", msg("save.loginAgain"));
-  const text = getCurrentText(), definitions = definitionContent(definitionViews.snapshot());
+  const text = getCurrentText(), definitions = definitionViews.snapshot();
   const entry = selected;
   const overwrite = entry && canEdit(entry) && saveTitle.readOnly;
   if (!overwrite && !title && !getStoredApiKey()) {
@@ -217,6 +224,7 @@ async function save(title?: string) {
       method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text, definitions } : { title, content: text, definitions }),
     });
     selectEntry(overwrite ? { ...entry, definitions } : { id: data.id, title: title!, can_edit: true, created_at: "", definitions }, text);
+    rememberDefinitionLanguages();
     saveTask = null;
     setBusy(false);
     updateSaveProgress();
@@ -243,6 +251,8 @@ async function save(title?: string) {
   }
 }
 export function initDb() {
+  articleLanguages.restore();
+  window.addEventListener("definition-view-changed", rememberDefinitionLanguages);
   saveBtn.addEventListener("click", () => {
     if (isBusy() || selectionStatus === "checking") return;
     if (selectionStatus === "retry") { void reconnectSelection(); return; }
@@ -286,6 +296,7 @@ export function initDb() {
     setBusy(true);
     try {
       await api(`/api/entries/${entry.id}`, { method: "DELETE" });
+      articleLanguages.forget(entry.id);
       if (selected?.id === entry.id) deselectEntry();
       closePanel("deletePanel");
       setStatus(msg("collection.deleted"), "ok");

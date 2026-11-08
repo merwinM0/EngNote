@@ -72,6 +72,7 @@ EngNote/
 | `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
 | `definitionMode.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
 | `definitionPreference.ts` | 后续新释义的默认显示语言，与界面语言独立 |
+| `articleDefinitionLanguages.ts` | 按文章及内容 / 批注版本隔离的有界标签页阅读语言记录，仅存指纹与逐条选择 |
 | `dictionary.ts` / `dictionaryLookup.ts` / `dictionaryCache.ts` | 双语响应校验、分批去重、已有释义复用和有界查询缓存 |
 | `deepseek.ts` / `deepseekClient.ts` / `aiUsage.ts` | 已确认密钥、可测试请求传输、预算、截断和用量统计 |
 | `format.ts` / `translate.ts` / `articleTitle.ts` | 当前页排版、所选词释义、整篇文章标题总结 |
@@ -155,7 +156,7 @@ type DefinitionView = {
 - 分页后拼接必须与正文完全一致，不丢弃页边界分隔符，也不拆开 Unicode 代理对。
 - 整篇正文上限为 100000 个 UTF-16 单元，与后端 `content.length` 校验一致；不能将这两个限制混为同一种计数。
 - 正文始终保存 `『英文释义』`。中文、独立音标、可选查询词组、模式 / 语境指纹和显示语言通过偏移关联；音标不进入正文计数；切换显示语言不改正文，不触发未保存状态，也不改变分页。
-- `DefinitionViews` 为当前批注维护身份，追踪编辑引起的偏移；批注本身被改写时不继续使用旧中文。保存时将 `language` 规范化为 `en`，使新读者默认从英文开始。
+- `DefinitionViews` 为当前批注维护身份，追踪编辑引起的偏移；批注本身被改写时不继续使用旧中文。显式保存和 API 读取保留每条 `language`，不再统一为英文；`definitionContent()` 只用于排除显示差异的未保存比较，不得用于序列化保存。
 
 ### 选词分组
 
@@ -194,9 +195,12 @@ type DefinitionView = {
 | 界面语言 | `er_ui_language_v1`，`localStorage` |
 | 释义方式 | `er_definition_mode_v1`，`localStorage`，默认 general；只影响后续请求 |
 | 撤回 / 恢复历史 | 当前页面内存，最多 50 个快照 / 约 8MB；800ms 连续输入合并，不随草稿保存 |
-| 新释义默认语言 | `er_default_definition_language`，`localStorage` |
+| 新释义默认语言 | `er_default_definition_language`，`localStorage`，不覆盖已保存批注 |
+| 各篇文章的阅读显示语言 | `er_article_definition_languages_v1`，`sessionStorage`；最近 100 篇、最多 256 KiB，仅存版本 SHA-256 指纹与排序后的语言列表，不存正文、释义或凭证；存储受限时保留有界内存 |
 | 阅读纸张 | `er_reading_background`，`localStorage` |
 | 词典查询缓存 | `er_dictionary_cache_v2`，`localStorage`，最多 256 条、7 天有效，按最近最少使用淘汰 |
+
+文章显式保存使用 `DefinitionViews.snapshot()` 保留逐条语言；阅读点击切换不产生未保存状态或后台写请求。离开干净的保存版本前及切换语言时记录本标签页选择，打开文章时只对正文与语言无关批注内容指纹完全一致的版本回填；不同文章、改写内容和不同批注不串用，删除记录同时清理偏好。存储上限之外的旧文章回退到服务端保存的选择。旧版曾强制改成英文的选择无法从数据库推断回去，无需数据库结构迁移，也不自动重新请求 AI。
 
 草稿新增可选正文 `offset` 以跨分页配置恢复位置；旧记录按原 3000 上限计算旧页起点，再映射到 5000 新分页。所有批注偏移仍针对完整正文，无需迁移数据库。
 

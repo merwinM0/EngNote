@@ -332,7 +332,7 @@ describe("source server", () => {
     expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe(content + "\nLast page.");
     expect((await request(`/api/entries/${id}`, "PUT", { content: "  \n " }, alice)).status).toBe(400);
   });
-  test("saves bilingual definitions with articles and defaults shared views to English", async () => {
+  test("saves and reloads each bilingual note's chosen language without resetting mixed views", async () => {
     const content = "A fox『an animal』 meets a bird『a flying animal』.";
     const definitions = [{ start: content.indexOf("『"), english: "an animal", chinese: "一种动物", language: "zh" },
       { start: content.lastIndexOf("『"), english: "a flying animal", chinese: "会飞的动物", language: "en" }];
@@ -341,11 +341,20 @@ describe("source server", () => {
     const id = (await saved.json()).id;
     const loaded = (await (await request(`/api/entries/${id}`)).json()).entry;
     expect(loaded.content).toBe(content);
-    expect(loaded.definitions).toEqual(definitions.map(view => ({ ...view, language: "en" })));
+    expect(loaded.definitions).toEqual(definitions);
+    expect(JSON.parse(db.query<{ definitions: string }, [number]>("SELECT definitions FROM entries WHERE id = ?").get(id)!.definitions)).toEqual(definitions);
     const updated = [{ ...definitions[0]!, chinese: "野生动物" }, definitions[1]!];
     expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, bob)).status).toBe(403);
     expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: updated }, alice)).status).toBe(200);
-    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions[0].chinese).toBe("野生动物");
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual(updated);
+    for (const language of ["zh", "en"]) {
+      const uniform = updated.map(view => ({ ...view, language }));
+      expect((await request(`/api/entries/${id}`, "PUT", { content, definitions: uniform }, alice)).status).toBe(200);
+      expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual(uniform);
+      // Legacy PUTs that omit metadata must not reset the stored languages either.
+      expect((await request(`/api/entries/${id}`, "PUT", { content }, alice)).status).toBe(200);
+      expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual(uniform);
+    }
     const list = (await (await request("/api/entries")).json()).entries;
     expect(list.find((entry: { id: number }) => entry.id === id)).not.toHaveProperty("definitions");
   });
@@ -354,7 +363,7 @@ describe("source server", () => {
     const created = await request("/api/entries", "POST", { title: "Water", content, definitions: [note] }, alice);
     expect(created.status).toBe(201); const { id } = await created.json();
     const loaded = await (await request(`/api/entries/${id}`)).json();
-    expect(loaded.entry.content).toBe(content); expect(loaded.entry.definitions).toEqual([{ ...note, language: "en" }]);
+    expect(loaded.entry.content).toBe(content); expect(loaded.entry.definitions).toEqual([note]);
     const changed = await request(`/api/entries/${id}`, "PUT", { content, definitions: [{ ...note, britishIPA: "invalid" }] }, alice);
     expect(changed.status).toBe(200);
     const legacy = await (await request(`/api/entries/${id}`)).json();
@@ -371,7 +380,8 @@ describe("source server", () => {
     const content = "A fox『an animal』 reads.", id = await create();
     const valid = { start: content.indexOf("『"), english: "an animal", chinese: "动物", language: "en" };
     for (const definitions of [null, {}, [null], [{ ...valid, start: 999 }], [{ ...valid, english: "different" }],
-      [{ ...valid, chinese: "animal" }], [{ ...valid, chinese: "中".repeat(601) }], [valid, valid], [{ ...valid, chinese: "" }]]) {
+      [{ ...valid, chinese: "animal" }], [{ ...valid, chinese: "中".repeat(601) }], [valid, valid], [{ ...valid, chinese: "" }],
+      [{ ...valid, language: "fr" }], [{ ...valid, language: null }]]) {
       expect((await request(`/api/entries/${id}`, "PUT", { content, definitions }, alice)).status).toBe(400);
       expect((await request("/api/entries", "POST", { title: "Invalid pair", content, definitions }, alice)).status).toBe(400);
     }
@@ -382,7 +392,7 @@ describe("source server", () => {
     const saved = await request("/api/entries", "POST", { title: "Compatibility", content, definitions }, alice);
     const id = (await saved.json()).id;
     expect((await request(`/api/entries/${id}`, "PUT", { content: content + " More." }, alice)).status).toBe(200);
-    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toHaveLength(1);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual([{ ...definitions[0], language: "en" }]);
     expect((await request(`/api/entries/${id}`, "PUT", { content: "No annotations." }, alice)).status).toBe(200);
     expect((await (await request(`/api/entries/${id}`)).json()).entry.definitions).toEqual([]);
     db.query("UPDATE entries SET definitions = 'invalid JSON' WHERE id = ?").run(id);

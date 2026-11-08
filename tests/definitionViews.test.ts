@@ -80,22 +80,23 @@ describe("saved bilingual content", () => {
   test("keeps the original query identity across drafts and saves, while legacy notes remain readable", () => {
     const views = setup(), first = chooseChinese(views);
     first.term = "fox";
-    const shared = definitionContent(views.snapshot());
+    const shared = views.snapshot();
     expect(shared[0]?.term).toBe("fox");
     const restored = new DefinitionViews(); restored.reset(text, shared);
     expect(restored.at(first.start)?.term).toBe("fox");
-    expect(restored.at(first.start)?.language).toBe("en");
+    expect(restored.at(first.start)?.language).toBe("zh");
     const invalid = [{ ...shared[0]!, term: '<script>bad</script>' }];
     expect(readDefinitionViews(invalid, text)[0]?.term).toBeUndefined();
     expect(readDefinitionViews(invalid, text)[0]?.chinese).toBe("一种动物");
   });
-  test("reader language choices are excluded from dirty comparisons and default to English when shared", () => {
+  test("language-neutral dirty comparisons do not change the snapshots used for saves", () => {
     const views = setup(); chooseChinese(views);
     const chosen = views.snapshot();
     expect(chosen[0]!.language).toBe("zh");
     expect(definitionContent(chosen)[0]!.language).toBe("en");
     const english = chosen.map(view => ({ ...view, language: "en" as const }));
     expect(definitionContent(chosen)).toEqual(definitionContent(english));
+    expect(views.snapshot()[0]!.language).toBe("zh");
   });
   test("server data fills missing Chinese without changing the reader's existing choices", () => {
     const views = setup(), first = chooseChinese(views), second = views.at(text.indexOf("『", first.start + 1))!;
@@ -103,7 +104,7 @@ describe("saved bilingual content", () => {
       { start: second.start, english: second.english, chinese: "另一种动物", language: "zh" }]);
     expect(first.language).toBe("zh");
     expect(first.chinese).toBe("一种动物");
-    expect(second.language).toBe("en");
+    expect(second.language).toBe("zh");
     expect(second.chinese).toBe("另一种动物");
   });
   test("replacing a legacy note preserves other bilingual identities and offsets", () => {

@@ -7,7 +7,7 @@ export type DefinitionView = DefinitionMetadata & { start: number; english: stri
 export type Definition = DefinitionMetadata & { id: number; start: number; english: string; chinese?: string; language: "en" | "zh"; term?: string; tape?: NoteTapeColor };
 export type DefinitionEdit = { offset: number; value: string; deleteCount?: number };
 
-/** Display choices are per reader and never part of an article's dirty/save comparison. */
+/** Language-neutral dirty comparison ONLY. Persist snapshot() to retain each note's language. */
 export function definitionContent(views: DefinitionView[]): DefinitionView[] {
   return views.map(view => ({ ...view, language: "en" as const })).sort((a, b) => a.start - b.start);
 }
@@ -49,7 +49,7 @@ export class DefinitionViews {
   merge(saved: unknown) {
     for (const view of readDefinitionViews(saved, this.text)) {
       const note = this.at(view.start);
-      if (note?.english === view.english && !note.chinese) Object.assign(note, view, { language: "en" });
+      if (note?.english === view.english && !note.chinese) Object.assign(note, view);
     }
   }
   sync(text: string, insertions?: DefinitionEdit[]) {
