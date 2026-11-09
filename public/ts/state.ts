@@ -33,6 +33,7 @@ let revision = 0;
 let deletePending: HTMLElement | null = null;
 export const isTranslateMode = () => translateMode;
 export const isDeleteMode = () => deleteMode;
+export const isDeletePending = (note: HTMLElement) => deletePending === note;
 export const isBusy = () => busy;
 export const getRevision = () => revision;
 export const getCurrentText = () => documentModel.text;
@@ -103,6 +104,8 @@ export function refreshDefinitionNotes() {
       note.tabIndex = 0; note.setAttribute("role", "button");
       note.setAttribute("aria-label", `${text}. ${action}`);
     } else { note.removeAttribute("tabindex"); note.removeAttribute("role"); note.removeAttribute("aria-label"); }
+    if (deleteMode) note.setAttribute("aria-pressed", String(deletePending === note));
+    else note.removeAttribute("aria-pressed");
     note.setAttribute("aria-disabled", String(busy));
   }
 }
@@ -111,13 +114,13 @@ export function definitionViewChanged() {
   window.dispatchEvent(new Event("definition-view-changed"));
 }
 
-function paint(changed = false) {
+function paint(changed = false, keepDeleteMode = false) {
   const retained = changed ? [] : retainedRanges;
   definitionViews.sync(documentModel.text);
   revision++;
   clearPicked();
   setTranslateMode(false);
-  setDeleteMode(false);
+  setDeleteMode(keepDeleteMode && deleteMode);
   wordsById.clear();
   const fragment = document.createDocumentFragment();
   const page = documentModel.page;
@@ -215,7 +218,8 @@ export function removeDefinition(note: HTMLElement) {
   documentModel.replaceRange(start, end, "", start);
   definitionViews.sync(documentModel.text);
   readingHistory.record(before, snapshot());
-  paint(true);
+  // Repaint clears the target, but a successful removal is not an exit from deletion.
+  paint(true, true);
 }
 
 export function clearPicked() {
@@ -311,8 +315,20 @@ export function setDeleteMode(on: boolean) {
   if (on) { translateMode = false; clearPicked(); }
   updateModes();
 }
-export function clearDeleteSelection() { deletePending?.classList.remove("delete-selected"); deletePending = null; }
-export function setDeletePending(note: HTMLElement) { deletePending = note; }
+export function clearDeleteSelection() {
+  if (deletePending) {
+    deletePending.classList.remove("delete-selected");
+    if (deleteMode) deletePending.setAttribute("aria-pressed", "false");
+    else deletePending.removeAttribute("aria-pressed");
+  }
+  deletePending = null;
+}
+export function setDeletePending(note: HTMLElement) {
+  clearDeleteSelection();
+  deletePending = note;
+  note.classList.add("delete-selected");
+  note.setAttribute("aria-pressed", "true");
+}
 
 // Static page labels are handled by i18n.applyTranslations; these are rendered by JS.
 window.addEventListener("ui-language-changed", () => {

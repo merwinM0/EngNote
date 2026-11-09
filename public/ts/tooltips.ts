@@ -31,7 +31,7 @@ export function initTooltips(root: HTMLElement) {
     if (!active) return;
     if (active.hidden || !active.getClientRects().length || document.querySelector("dialog[open]")) { hide(); return; }
     name.textContent = active.getAttribute("aria-label") ?? active.textContent;
-    description.textContent = descriptions[active.id] ? t(descriptions[active.id]!) : "";
+    description.textContent = active.dataset.toolDescription ?? (descriptions[active.id] ? t(descriptions[active.id]!) : "");
     const rect = active.getBoundingClientRect();
     const position = tooltipPosition(rect.left, rect.right, rect.bottom, tooltip.getBoundingClientRect().width, window.innerWidth);
     tooltip.style.left = `${position.left}px`; tooltip.style.top = `${position.top}px`;
@@ -67,6 +67,6 @@ export function initTooltips(root: HTMLElement) {
   window.addEventListener("resize", hide, options);
   window.addEventListener("ui-language-changed", refresh, options);
   const observer = new MutationObserver(refresh);
-  observer.observe(root, { attributes: true, subtree: true, attributeFilter: ["aria-label", "hidden"] });
+  observer.observe(root, { attributes: true, subtree: true, attributeFilter: ["aria-label", "hidden", "data-tool-description"] });
   return () => { hide(); observer.disconnect(); events.abort(); tooltip.remove(); };
 }

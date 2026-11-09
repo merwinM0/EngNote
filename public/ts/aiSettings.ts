@@ -1,4 +1,3 @@
-import { definitionModePreference, nextDefinitionMode } from "./definitionMode";
 import { setStatus } from "./util";
 import { openPanel, closePanel } from "./panels";
 import { definitionLanguagePreference } from "./definitionPreference";
@@ -85,23 +84,6 @@ function restoreKey() {
 
 export function initAISettings() {
   restoreKey();
-  let modeStored = definitionModePreference.restore();
-  const modeSettings = document.getElementById("definitionModeSettings") as HTMLDetailsElement;
-  const modeButton = document.getElementById("definitionModeBtn") as HTMLButtonElement;
-  const modeNames = { general: "ai.modeGeneral", context: "ai.modeContext", article: "ai.modeArticle" } as const;
-  const modeHints = { general: "ai.modeGeneralHint", context: "ai.modeContextHint", article: "ai.modeArticleHint" } as const;
-  const updateMode = () => {
-    const mode = definitionModePreference.mode;
-    modeButton.querySelector<HTMLElement>("[data-mode-label]")!.textContent = t(modeNames[mode]);
-    modeButton.setAttribute("aria-label", t("ai.modeCycle", { current: t(modeNames[mode]), next: t(modeNames[nextDefinitionMode(mode)]) }));
-    document.getElementById("definitionModeHint")!.textContent = t(modeHints[mode]);
-    const warning = document.getElementById("definitionModeStorage")!;
-    warning.hidden = modeStored; warning.textContent = t("ai.definitionStorage");
-  };
-  modeButton.addEventListener("click", () => {
-    modeStored = definitionModePreference.cycle(); updateMode();
-  });
-  updateMode();
   maskKey();
   dictionaryCache.restore();
   const usageSummary = document.getElementById("aiUsageSummary")!;
@@ -117,7 +99,6 @@ export function initAISettings() {
     updateDefinitionLanguage();
   });
   panel.addEventListener("panel-open", () => {
-    modeSettings.open = false; updateMode();
     input.value = activeKey;
     input.removeAttribute("aria-invalid");
     maskKey();
@@ -171,7 +152,6 @@ export function initAISettings() {
   });
   window.addEventListener("ui-language-changed", () => {
     updateTrigger();
-    updateMode();
     updateDefinitionLanguage();
     updateUsage();
     showButton.textContent = t(input.type === "text" ? "ai.hideKey" : "ai.showKey");

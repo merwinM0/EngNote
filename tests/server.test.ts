@@ -177,15 +177,17 @@ describe("source server", () => {
     for (const id of ["showKeyBtn", "forgetKeyBtn", "saveKeyBtn"]) expect(actions).toContain(`id="${id}"`);
     expect(settings.match(/<form id="aiForm"[\s\S]*?<\/form>/)?.[0]).not.toContain('id="definitionLanguageBtn"');
   });
-  test("definition method is collapsed by default with one tape cycle button and a live hint", async () => {
+  test("definition method lives in the reading toolbar with accessible help, not AI setup", async () => {
     const html = await (await request("/index.html")).text();
-    const settings = html.match(/<details id="definitionModeSettings"[\s\S]*?<\/details>/)?.[0] ?? "";
-    expect(settings).toContain('<summary data-i18n="ai.definitionMode">');
-    expect(settings.match(/<button\b/g)).toHaveLength(1);
-    expect(settings).toContain('id="definitionModeBtn" class="btn tape-mist"');
-    expect(settings).toContain('aria-describedby="definitionModeHint definitionModeScope"');
-    expect(settings).toContain('id="definitionModeHint" class="hint" role="status"');
-    expect(settings).not.toMatch(/<details[^>]*\bopen\b|type="radio"|<fieldset/);
+    const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
+    const settings = html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(tools).toContain('id="definitionModeBtn" class="btn tape-mist"');
+    expect(tools).toContain('aria-label="Definition method: Simple definitions"');
+    expect(tools).toContain('aria-describedby="definitionModeHint"');
+    expect(html).toContain('id="definitionModeHint" class="sr-only"');
+    expect(html.match(/id="definitionModeBtn"/g)).toHaveLength(1);
+    expect(settings).not.toContain('definitionMode');
+    expect(html).not.toMatch(/definitionModeSettings|definitionModeScope|Click the tape to cycle modes/);
     const clear = html.match(/<button id="clearBtn"[\s\S]*?<\/button>/)?.[0] ?? "";
     expect(clear).toContain('m14 10 6-7'); // broom handle, not the former bin shape
     expect(clear).not.toContain('M3 6h18M9 6');
@@ -220,7 +222,7 @@ describe("source server", () => {
     expect(toggle).toContain('aria-label="Collapse tools to the left"');
     expect(toggle).not.toMatch(/\b(?:title|data-i18n-title)=/);
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
-    expect(buttons).toHaveLength(13);
+    expect(buttons).toHaveLength(14);
     for (const id of ["undoBtn", "redoBtn"]) expect(tools).toMatch(new RegExp(`id="${id}"[^>]*disabled`));
     for (const button of buttons) {
       expect(button).toMatch(/aria-label="[^"]+"/);

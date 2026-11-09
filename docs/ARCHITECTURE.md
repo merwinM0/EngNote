@@ -70,13 +70,13 @@ EngNote/
 | `wordExport.ts` / `exportWord.ts` | 纯 OOXML / ZIP 生成与浏览器下载 |
 | `definitionViews.ts` / `definitionLanguage.ts` | 每条批注的双语内容、独立显示状态与本地切换 |
 | `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
-| `definitionMode.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
+| `definitionMode.ts` / `definitionModeControl.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好与功能栏选择 / 介绍、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
 | `definitionPreference.ts` | 后续新释义的默认显示语言，与界面语言独立 |
 | `articleDefinitionLanguages.ts` | 按文章及内容 / 批注版本隔离的有界标签页阅读语言记录，仅存指纹与逐条选择 |
 | `dictionary.ts` / `dictionaryLookup.ts` / `dictionaryCache.ts` | 双语响应校验、分批去重、已有释义复用和有界查询缓存 |
 | `deepseek.ts` / `deepseekClient.ts` / `aiUsage.ts` | 已确认密钥、可测试请求传输、预算、截断和用量统计 |
 | `format.ts` / `translate.ts` / `articleTitle.ts` | 当前页排版、所选词释义、整篇文章标题总结 |
-| `deleteNote.ts` | 两次点击删除注释，并同步移除对应双语数据 |
+| `deleteNote.ts` | 单目标两次点击确认，点击其他批注只切换目标；删除后保持模式，同步移除对应双语数据 |
 | `db.ts` / `collectionCanvas.ts` / `boardGeometry.ts` | 保存与加载、白板手势、缩放几何和焦点可见性 |
 | `panels.ts` / `notes.ts` | 编辑面板、原生弹窗叠放、未保存确认、焦点与光标恢复 |
 | `auth.ts` / `aiSettings.ts` | 账号表单与 Cookie 会话、密钥草稿与确认存储 |
@@ -92,7 +92,7 @@ EngNote/
 - `public/css/tape.css` 提供反光与撕边胶带。装饰层和点击区域、焦点轮廓分离，不裁切文字或键盘提示。
 - `public/css/reader.css` 按固定顺序导入设计变量、胶带、进度、布局、正文、收藏、面板、弹窗、阅读背景与响应式样式，保持 HMR 与生产级联顺序一致。
 - 阅读纸张的本地 SVG 只输出中性浮雕明暗；`readingBackground.css` 将其以 `soft-light` 混合到独立纸色，避免用不透明色层遮盖纹理。预览、空白页和正文使用相同材质尺度；原版与强制颜色模式不受混色影响。
-- AI 释义方式使用原生 `<details>` 默认折叠，展开后单个胶带按钮按三种模式循环；提示与无障碍名称随模式 / 界面语言更新，切换不请求 AI，不确认密钥草稿。
+- 释义方式独立于 AI 设置，在阅读功能栏使用单个胶带按钮按三种模式循环；`definitionModeControl.ts` 同步当前名称、隐藏无障碍描述与 `data-tool-description`，由工具栏共用悬停 / 聚焦浮层展示当前模式范围与费用介绍，不常驻显示操作 / 偏好说明。切换不请求 AI、不确认密钥草稿，进行中的任务仍固定发起时的方式。
 - 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。
@@ -215,6 +215,7 @@ type DefinitionView = {
 - 仅导入和编辑使用页内面板；保存、删除、未保存确认、收藏、AI 设置与账号使用原生 `<dialog>`，不替换正文或编辑区。
 - 利用浏览器 top layer 提供模态与背景不可交互；支持叠放确认便签、Esc、点击遮罩、当前弹窗内 Tab 循环和关闭后焦点 / 编辑光标恢复。不使用 `window.confirm` 或离页原生确认。
 - AI 任务用操作锁避免冲突，用页面版本、请求序号与中止信号阻止迟到结果覆盖新内容。临时进度与失败标记不写入文章。先排版后注释，避免 AI 移动已有批注。
+- 删除目标由 `state.ts` 中单一 `deletePending` 引用管理，同步虚线高亮与 `aria-pressed`；切换目标不修改正文或历史。仅删除操作的重绘保留删除模式并清空目标，其他正文替换和历史恢复仍重置临时模式，避免旧 DOM 目标在重排后误用。
 - 编辑、AI 整理及一整次释义任务的完整结果在 `state.ts` 记录前后快照；历史恢复取消释义 / 排版并递增页面版本。导入、清空、打开文章及刷新恢复为历史边界；保存不重置历史，不回滚服务端基线或身份。
 - 释义、排版和标题总结支持中止；已经提交到后端的数据库写入不会因关闭弹窗而被宣称回滚。
 - 认证使用 `er_session` HttpOnly / SameSite=Strict Cookie，浏览器不再在 localStorage 保留 Token；API 不把登录 Token 返回给前端 JavaScript。

@@ -2,6 +2,7 @@ import { setStatus } from "./util";
 import { initUILanguage, msg, t } from "./i18n";
 import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory } from "./state";
 import { initAISettings } from "./aiSettings";
+import { initDefinitionModeControl } from "./definitionModeControl";
 import { onFormat } from "./format";
 import { cancelDefinitions, onTranslateClick, onTermClick, translateSelected } from "./translate";
 import { handleDeleteNote, toggleDeleteMode } from "./deleteNote";
@@ -82,4 +83,4 @@ translateBtn.addEventListener("click", () => {
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("refreshSelectedBtn")!.addEventListener("click", () => { void translateSelected(true); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
-initUILanguage(); initPanels(); initReadingToolbar(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();
+initUILanguage(); initPanels(); initReadingToolbar(); initDefinitionModeControl(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();
