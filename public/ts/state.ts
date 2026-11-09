@@ -1,4 +1,6 @@
 import { ReadingHistory, type ReadingSnapshot } from "./readingHistory";
+import { validateFormatting, rebaseFormatting, editFormatting, formattedPageParagraphs, type DocumentFormatting, type TextEdit } from "./documentFormatting";
+import { appendStyledText, paragraphAppender } from "./formattedReading";
 import { withIPA } from "./pronunciation";
 import type { DefinitionMetadata } from "./definitionViews";
 import { el, setToolLabel } from "./util";
@@ -13,6 +15,8 @@ import type { DefinitionLanguage } from "./definitionPreference";
 
 export const documentModel = new ReadingDocument();
 export const definitionViews = new DefinitionViews();
+let documentFormatting: DocumentFormatting | null = null;
+export const getDocumentFormatting = () => documentFormatting;
 export const content = document.getElementById("content") as HTMLDivElement;
 export const formatBtn = document.getElementById("formatBtn") as HTMLButtonElement;
 export const translateBtn = document.getElementById("translateBtn") as HTMLButtonElement;
@@ -40,7 +44,7 @@ export const getCurrentText = () => documentModel.text;
 export const getPageText = () => documentModel.page.text;
 
 export const readingHistory = new ReadingHistory();
-const snapshot = (): ReadingSnapshot => ({ text: documentModel.text, definitions: definitionViews.snapshot(), offset: documentModel.page.start });
+const snapshot = (): ReadingSnapshot => ({ text: documentModel.text, definitions: definitionViews.snapshot(), offset: documentModel.page.start, formatting: documentFormatting });
 function historyControls() {
   (document.getElementById("undoBtn") as HTMLButtonElement).disabled = !readingHistory.canUndo;
   (document.getElementById("redoBtn") as HTMLButtonElement).disabled = !readingHistory.canRedo;
@@ -50,6 +54,7 @@ export function restoreHistory(redo = false) {
   if (busy) return;
   const next = redo ? readingHistory.redo(snapshot()) : readingHistory.undo(snapshot());
   if (!next) return;
+  documentFormatting = validateFormatting(next.formatting, next.text);
   documentModel.setText(next.text); definitionViews.reset(next.text, next.definitions);
   documentModel.select(documentModel.locate(next.offset)); paint(true);
 }
@@ -125,10 +130,15 @@ function paint(changed = false, keepDeleteMode = false) {
   const fragment = document.createDocumentFragment();
   const page = documentModel.page;
   let cursor = 0;
-  for (const match of page.text.matchAll(/[^\n]+(?:\n(?!\n)[^\n]+)*/g)) {
+  content.classList.toggle("word-document", !!documentFormatting);
+  const appendParagraph = paragraphAppender(fragment);
+  const blocks = documentFormatting
+    ? formattedPageParagraphs(documentFormatting, documentModel.text, page.start, page.end)
+    : Array.from(page.text.matchAll(/[^\n]+(?:\n(?!\n)[^\n]+)*/g), match => ({ start: page.start + match.index, text: match[0], format: undefined }));
+  for (const block of blocks) {
     const p = el("p");
-    let offset = page.start + match.index;
-    for (const piece of splitParagraph(match[0])) {
+    let offset = block.start;
+    for (const piece of splitParagraph(block.text)) {
       if (piece.type === "note") {
         const note = el("span", "note", piece.text);
         note.dataset.start = String(offset);
@@ -142,8 +152,9 @@ function paint(changed = false, keepDeleteMode = false) {
       }
       let position = 0;
       for (const wordMatch of piece.text.matchAll(WORD_PATTERN)) {
-        p.append(document.createTextNode(piece.text.slice(position, wordMatch.index)));
-        const word = el("span", "term", wordMatch[0]);
+        appendStyledText(p, piece.text.slice(position, wordMatch.index), offset + position, documentFormatting);
+        const word = el("span", "term");
+        appendStyledText(word, wordMatch[0], offset + wordMatch.index, documentFormatting);
         const id = cursor++;
         word.dataset.wordId = String(id);
         const start = offset + wordMatch.index;
@@ -151,10 +162,10 @@ function paint(changed = false, keepDeleteMode = false) {
         p.append(word);
         position = wordMatch.index + wordMatch[0].length;
       }
-      p.append(document.createTextNode(piece.text.slice(position)));
+      appendStyledText(p, piece.text.slice(position), offset + position, documentFormatting);
       offset += piece.text.length;
     }
-    fragment.append(p);
+    appendParagraph(p, block.format);
   }
   content.replaceChildren(fragment);
   if (retained.length) { retainedRanges = retained; setTranslateMode(true); applyRetainedPicks(); }
@@ -164,8 +175,10 @@ function paint(changed = false, keepDeleteMode = false) {
   if (changed) window.dispatchEvent(new Event("document-changed"));
 }
 
-export function render(text: string, page: number | "last" = 0, definitions: DefinitionView[] = []) {
-  documentModel.setText(text, page); definitionViews.reset(text, definitions); readingHistory.reset(); paint(true);
+export function render(text: string, page: number | "last" = 0, definitions: DefinitionView[] = [], formatting: DocumentFormatting | null = null) {
+  const checked = validateFormatting(formatting, text);
+  documentModel.setText(text, page); documentFormatting = checked;
+  definitionViews.reset(text, definitions); readingHistory.reset(); paint(true);
 }
 export function goToPage(index: number) {
   if (busy) return;
@@ -173,9 +186,21 @@ export function goToPage(index: number) {
   documentModel.select(index);
   paint();
 }
-export function editCurrentPage(value: string, cursor: number, typing = true) {
-  const before = snapshot();
+export function editCurrentPage(value: string, cursor: number, typing = true, edits?: TextEdit[]) {
+  const before = snapshot(), page = documentModel.page;
+  const nextText = before.text.slice(0, page.start) + value + before.text.slice(page.end);
+  let formatting = documentFormatting;
+  if (edits) {
+    let text = before.text;
+    for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
+      const global = { ...edit, start: page.start + edit.start, end: page.start + edit.end };
+      formatting = editFormatting(formatting, text, global);
+      text = text.slice(0, global.start) + global.value + text.slice(global.end);
+    }
+    if (text !== nextText) throw new Error("Paragraph edits do not match the formatted text.");
+  } else formatting = rebaseFormatting(formatting, before.text, nextText);
   const result = documentModel.editPage(value, cursor);
+  documentFormatting = formatting;
   definitionViews.sync(documentModel.text);
   readingHistory.record(before, snapshot(), typing);
   paint(true);
@@ -188,9 +213,12 @@ export function addDefinitions(definitions: Array<DefinitionMetadata & { offset:
     const previous = definitionViews.at(item.offset);
     return { ...item, offset: item.offset, value: `『${item.meaning}』`, chinese: item.chinese, term: item.term, deleteCount: previous ? previous.english.length + 2 : 0 };
   }).sort((a, b) => b.offset - a.offset);
-  let text = documentModel.text;
-  for (const edit of edits) text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
-  documentModel.setText(text);
+  let text = documentModel.text, formatting = documentFormatting;
+  for (const edit of edits) {
+    formatting = editFormatting(formatting, text, { start: edit.offset, end: edit.offset + edit.deleteCount, value: edit.value });
+    text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
+  }
+  documentModel.setText(text); documentFormatting = formatting;
   definitionViews.sync(text, edits);
   let shift = 0, focus = 0;
   for (const edit of [...edits].reverse()) {
@@ -215,7 +243,9 @@ export function removeDefinition(note: HTMLElement) {
   const definition = definitionViews.get(Number(note.dataset.definitionId));
   if (!definition || !Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${definition.english}』`) return;
   const before = snapshot();
+  const formatting = editFormatting(documentFormatting, documentModel.text, { start, end, value: "" });
   documentModel.replaceRange(start, end, "", start);
+  documentFormatting = formatting;
   definitionViews.sync(documentModel.text);
   readingHistory.record(before, snapshot());
   // Repaint clears the target, but a successful removal is not an exit from deletion.

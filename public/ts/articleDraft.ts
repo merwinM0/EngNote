@@ -1,18 +1,19 @@
 import { DOCUMENT_LIMIT } from "./pagination";
+import { readFormatting, type DocumentFormatting } from "./documentFormatting";
 import { readDefinitionViews } from "./definitionViews";
 import type { DefinitionView } from "./definitionViews";
 
 // Retain the legacy key for authorized migration into separate account/guest workspaces.
 export const ARTICLE_DRAFT_KEY = "er_article_draft_v1";
-export type DraftEntry = { id: number; title: string; savedText: string };
-export type ArticleDraft = { version: 2; text: string; index: number; entry: DraftEntry | null; definitions?: DefinitionView[]; offset?: number };
+export type DraftEntry = { id: number; title: string; savedText: string; savedFormatting?: DocumentFormatting | null };
+export type ArticleDraft = { version: 2; text: string; index: number; entry: DraftEntry | null; definitions?: DefinitionView[]; offset?: number; formatting?: DocumentFormatting | null };
 
 function readEntry(value: unknown): DraftEntry | null {
   if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "number" || !Number.isSafeInteger(value.id) || value.id < 1
     || !("title" in value) || typeof value.title !== "string" || !value.title.trim() || value.title.length > 20
     || !("savedText" in value) || typeof value.savedText !== "string" || !value.savedText.trim() || value.savedText.length > DOCUMENT_LIMIT) return null;
   // Persist identity and the last saved baseline, never client-supplied edit permissions.
-  return { id: value.id, title: value.title, savedText: value.savedText };
+  return { id: value.id, title: value.title, savedText: value.savedText, ...("savedFormatting" in value ? { savedFormatting: readFormatting(value.savedFormatting, value.savedText) } : {}) };
 }
 
 export function parseArticleDraft(raw: string): ArticleDraft | null {
@@ -26,6 +27,7 @@ export function parseArticleDraft(raw: string): ArticleDraft | null {
       ...("offset" in value && typeof value.offset === "number" && Number.isSafeInteger(value.offset) && value.offset >= 0 && value.offset <= value.text.length ? { offset: value.offset } : {}),
       entry: value.version === 2 && "entry" in value ? readEntry(value.entry) : null,
       ...("definitions" in value ? { definitions: readDefinitionViews(value.definitions, value.text) } : {}),
+      ...("formatting" in value ? { formatting: readFormatting(value.formatting, value.text) } : {}),
     };
   } catch { return null; }
 }

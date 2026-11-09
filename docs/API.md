@@ -40,7 +40,7 @@ HTTPS 请求或 `COOKIE_SECURE=true` 时追加 `Secure`。浏览器自动携带�
 
 列表按当前会话的作者邮箱在 SQL 查询中隔离，再按 ID 倒序；每项为 `{ id, title, created_at, can_edit }`，不返回完整正文或双语数据。
 
-单篇 `entry` 包含 `id`、`title`、`content`、`created_at`、`definitions`、`can_edit`。查询已限定当前作者，因此有效响应的 `can_edit` 为 `true`；接口不公开 `owner_email`。
+单篇 `entry` 包含 `id`、`title`、`content`、`created_at`、`definitions`、`formatting`、`can_edit`。查询已限定当前作者，因此有效响应的 `can_edit` 为 `true`；接口不公开 `owner_email`。
 
 - 文章 ID 必须为正安全整数。未登录返回 401；不存在、属于其他账号或无作者的历史记录均返回相同 JSON 404，不泄露记录是否存在。
 - 读取文章时保留每条双语批注已保存的 `language`，包括中英混合或全部中文；失效的历史元数据不会阻止正文读取。
@@ -69,6 +69,7 @@ HTTPS 请求或 `COOKIE_SECURE=true` 时追加 `Secure`。浏览器自动携带�
 | `title` | 字符串，去除首尾空白后 1–20 个 UTF-16 单元，不含汉字 |
 | `content` | 完整正文字符串，1–100000 个 UTF-16 单元，不能全为空白；不裁去首尾空白 |
 | `definitions` | 可省略，默认为 `[]`；提供时必须是全部有效的双语批注数组 |
+| `formatting` | 可省略或为 `null`（无 Word 格式），否则为下述完整的受限格式对象 |
 
 后端不替空标题调用 AI；界面的留空标题总结由浏览器完成，再将有效标题提交到此接口。
 
@@ -78,6 +79,7 @@ PUT 请求使用 `{ "content": "完整正文", "definitions": [] }`，正文规�
 
 - 显式提供 `definitions` 时完整校验；传 `[]` 会清空双语元数据，但不会主动删除正文里的英文批注。
 - 省略 `definitions` 时保留仍匹配新正文的旧元数据，兼容旧客户端；已删除或改写批注的旧中文会被丢弃。
+- 省略 `formatting` 时按正文差异映射旧格式；显式传 `null` 清空格式，传格式对象则完整校验。正文、批注与格式在同一次 SQL 写入中保存，非法格式返回 400 且不更新任何字段。
 - DELETE 无需请求体，删除整篇记录而不是某个网页分页。
 - 未登录返回 401；读取、更新或删除他人文章、无作者历史文章统一返回 404。客户端不能通过提交 `owner_email` 认领文章；创建始终绑定当前会话作者。
 
@@ -104,6 +106,16 @@ type DefinitionView = {
 - 可选 `mode` 只接受三种已知值；`contextKey` 接受 `context:` / `article:` 加 64 位小写十六进制 SHA-256。只作为查询复用身份，不存语境原文，不作为服务端权限依据。未知 / 非法附加字段丢弃，旧记录无需迁移。
 - 一组显式提供的双语元数据只要有一项无效，就返回 400，不部分保存正文与数据。
 
+### Word 正文格式
+
+`formatting` 为 `{ version: 1, runs, paragraphs }`：
+
+- `runs` 是按偏移排序、互不重叠的 `{start,end,style}`；`style` 仅接受字体名、字号、粗斜体、下划线、删除线、六位十六进制颜色 / 高亮（`none` 清除高亮）、上下标和字距，不能含任意 CSS、HTML 或 URL。
+- `paragraphs` 包含完整正文以 `\n\n` 划分的每个段落，逐项 `{start,end,style,marker?,cell?}` 必须精确匹配正文范围。支持受限对齐、段间距、行距、缩进、标题、分页前标记、列表文字和表格单元格元数据。
+- 偏移均为 UTF-16，字体范围不能拆开代理对。表格必须连续、顺序正确、无重叠单元格，同一单元格元数据一致，并受行数 / 合并跨度预算限制。
+- 序列化 JSON 最多 256000 个 UTF-16 单元、6000 个字体范围、3000 个段落；总请求仍受 1 MiB 限制。服务端校验数值、颜色与字体，未知字段不进入规范化结果。
+- 旧记录自动追加可空 `formatting` 列；缺少 / 损坏格式读取为 `null`，不阻止原有正文读取。
+
 文章表结构和无损迁移见[架构设计](ARCHITECTURE.md)。
 
 ## 3. 认证接口
@@ -123,6 +135,7 @@ type DefinitionView = {
 - 注册验证码为六位数字，有效期 **300 秒**；同邮箱发信冷却 **60 秒**，验证码验证失败达到 5 次后需重新获取。
 - 注册成功会消费验证码，但不自动登录；客户端随后执行登录。
 - 登录尝试达到 10 次后暂时拒绝，失败提示等待 15 分钟；成功登录清除尝试计数。
+- 会话绑定 `{userId,email}` 并核对当前数据库用户，删除后立即失去授权；同邮箱新注册账号不能复用旧会话。旧版仅邮箱会话升级后需要重新登录。文章 SQL 再次核对原用户 ID，拒绝删除期间的在途写入。
 - 验证码和会话存 Redis。仅非生产模式允许 Redis 不可用时回退进程内存；生产存储不可用会使认证相关请求失败，不提供静默降级。
 - 仅**非生产且未配置 `SMTP_HOST`**时，不实际发信，在日志和响应中提供开发验证码。已配置 SMTP 但发送失败时返回失败，生产不会暴露 `devCode`。
 - 发信冷却、验证码或注册校验失败通常为 400；登录失败为 401。具体错误文字保留在 `error` 中，由前端按界面语言转换已知提示。
@@ -160,7 +173,7 @@ Authorization: Bearer <当前标签页已确认的 API_KEY>
   "messages": [
     {
       "role": "system",
-      "content": "You format English text. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations."
+      "content": "Only tidy paragraph breaks. Preserve all words, punctuation, capitalization, tabs and horizontal spacing. Output only the text; no rewriting, markdown or explanations."
     },
     {
       "role": "user",
@@ -178,8 +191,8 @@ Authorization: Bearer <当前标签页已确认的 API_KEY>
 
 | 任务 | 输入 | 输出与预算 |
 | --- | --- | --- |
-| 当前页排版 | 仅当前页正文 | 纯文本；`min(8192, max(512, ceil(当前页长度 × 1.2)))` |
-| 双语释义 | 默认仅词条；参考模式携带原词、正文 UTF-16 位置及语境身份，附局部语境或完整正文 | JSON object；每批最多 12 个不同词组，预算为 `min(4096, 160 + 128 × 词条数 + ceil(词组总字符数 / 2))` |
+| 当前页段落整理 | 仅当前页正文，不含 Word 格式数据 | 纯文本，仅接受通过原词 / 标点 / 空白完整性校验的段落变更；`min(8192, max(512, ceil(当前页长度 × 1.2)))` |
+| 双语释义 | 默认局部上下文；单纯模式只含词条，参考模式携带原词、正文 UTF-16 位置及语境身份，附局部语境或完整正文 | JSON object；每批最多 12 个不同词组，预算为 `min(4096, 160 + 128 × 词条数 + ceil(词组总字符数 / 2))` |
 | 文章标题 | 整篇正文，排除已有英文批注 | JSON object；单次 128 输出 token，必要时最多一次短标题修正 |
 
 - JSON 任务追加 `response_format: { "type": "json_object" }`，释义返回 `{"definitions":[{"term":"fox","britishIPA":"/fɒks/","english":"a wild animal","chinese":"野生动物"}]}`，兼容旧版 JSON 数组及无音标结果。三种模式均要求所选词形、对应语境的英式 IPA；中英文共用一份音标。

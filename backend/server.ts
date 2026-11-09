@@ -1,27 +1,15 @@
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
+export { openDatabase } from "./database";
+import { readFormatting, validateFormatting, rebaseFormatting } from "../public/ts/documentFormatting";
 import { resolve } from "node:path";
 import home from "../public/home.html";
 import reader from "../public/index.html";
-import { initAuth, register, login, requestCode, resolveToken, logout, SESSION_TTL } from "./auth";
+import { initAuth, register, login, requestCode, resolveToken, resolveSession, logout, SESSION_TTL } from "./auth";
 import { readDefinitionViews } from "../public/ts/definitionViews";
 import type { DefinitionView } from "../public/ts/definitionViews";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const COOKIE_NAME = "er_session";
-export function openDatabase(path = process.env.DB_PATH || resolve(projectRoot, "data.db")): Database {
-  const db = new Database(path, { create: true });
-  db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
-  db.exec(`CREATE TABLE IF NOT EXISTS entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')), owner_email TEXT, definitions TEXT NOT NULL DEFAULT '[]'
-  )`);
-  const columns = db.query<{ name: string }, []>("PRAGMA table_info(entries)").all();
-  if (!columns.some(column => column.name === "owner_email")) db.exec("ALTER TABLE entries ADD COLUMN owner_email TEXT");
-  if (!columns.some(column => column.name === "definitions")) db.exec("ALTER TABLE entries ADD COLUMN definitions TEXT NOT NULL DEFAULT '[]'");
-  db.exec("CREATE INDEX IF NOT EXISTS entries_owner_id ON entries (owner_email, id)");
-  initAuth(db);
-  return db;
-}
 class HttpError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 function json(body: unknown, status = 200, headers?: HeadersInit) {
   return Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
@@ -51,9 +39,16 @@ function sessionCookie(req: Request, value: string, age: number) {
 function allow(req: Request, methods: string[]) {
   if (!methods.includes(req.method)) return json({ ok: false, error: "Method not allowed." }, 405, { allow: methods.join(", ") });
 }
-type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null; definitions: string };
+type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null; definitions: string; formatting: string | null };
 function storedDefinitions(raw: string, content: string): DefinitionView[] {
   try { return readDefinitionViews(JSON.parse(raw), content); } catch { return []; }
+}
+function storedFormatting(raw: string | null, content: string) {
+  try { return readFormatting(raw ? JSON.parse(raw) : null, content); } catch { return null; }
+}
+function requestFormatting(value: unknown, content: string) {
+  try { return validateFormatting(value, content); }
+  catch (error) { throw new HttpError(error instanceof Error ? error.message : "Invalid Word formatting.", 400); }
 }
 function requestDefinitions(value: unknown, content: string): DefinitionView[] {
   if (value === undefined) return [];
@@ -67,6 +62,7 @@ function requestDefinitions(value: unknown, content: string): DefinitionView[] {
 
 export function createServer(options: { db: Database; port: number; hostname?: string }) {
   const { db } = options;
+  initAuth(db);
   const appOrigin = process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).origin : null;
   if (appOrigin && !/^https?:\/\//.test(appOrigin)) throw new Error("APP_ORIGIN must be an HTTP(S) origin.");
   async function handleApi(req: Request, path: string): Promise<Response> {
@@ -105,10 +101,10 @@ export function createServer(options: { db: Database; port: number; hostname?: s
     if (path === "/api/entries") {
       const invalidMethod = allow(req, ["GET", "POST"]);
       if (invalidMethod) return invalidMethod;
-      const email = await resolveToken(token(req));
-      if (!email) throw new HttpError("Please log in.", 401);
+      const session = await resolveSession(token(req)), email = session?.email;
+      if (!session || !email) throw new HttpError("Please log in.", 401);
       if (req.method === "GET") {
-        const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at">, [string]>("SELECT id, title, created_at FROM entries WHERE owner_email = ? ORDER BY id DESC").all(email);
+        const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at">, [string, number, string]>("SELECT id, title, created_at FROM entries WHERE owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?) ORDER BY id DESC").all(email, session.userId, email);
         return json({ ok: true, entries: rows.map(entry => ({ ...entry, can_edit: true })) });
       }
       const data = await body(req);
@@ -117,31 +113,37 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       const content = text(data.content, "Content", 100000, false);
       if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
       const definitions = requestDefinitions(data.definitions, content);
-      const result = db.query("INSERT INTO entries (title, content, owner_email, definitions) VALUES (?, ?, ?, ?)").run(title, content, email, JSON.stringify(definitions));
+      const formatting = requestFormatting(data.formatting, content);
+      const result = db.query("INSERT INTO entries (title, content, owner_email, definitions, formatting) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(title, content, email, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, session.userId, email);
+      if (result.changes !== 1) throw new HttpError("Please log in.", 401);
       return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
     }
     const single = path.match(/^\/api\/entries\/(\d+)$/);
     if (single) {
       const invalidMethod = allow(req, ["GET", "PUT", "DELETE"]);
       if (invalidMethod) return invalidMethod;
-      const email = await resolveToken(token(req));
-      if (!email) throw new HttpError("Please log in.", 401);
+      const session = await resolveSession(token(req)), email = session?.email;
+      if (!session || !email) throw new HttpError("Please log in.", 401);
       const id = Number(single[1]);
       if (!Number.isSafeInteger(id) || id < 1) throw new HttpError("Invalid article ID.", 400);
       // Scope every read/write lookup; unknown and inaccessible IDs are indistinguishable.
-      const entry = db.query<StoredEntry, [number, string]>("SELECT * FROM entries WHERE id = ? AND owner_email = ?").get(id, email);
+      const entry = db.query<StoredEntry, [number, string, number, string]>("SELECT * FROM entries WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").get(id, email, session.userId, email);
       if (!entry) throw new HttpError("Page not found.", 404);
       if (req.method === "GET") {
-        const { owner_email, definitions, ...page } = entry;
-        return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), can_edit: true } });
+        const { owner_email, definitions, formatting, ...page } = entry;
+        return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), formatting: storedFormatting(formatting, page.content), can_edit: true } });
       }
-      if (req.method === "DELETE") db.query("DELETE FROM entries WHERE id = ? AND owner_email = ?").run(id, email);
+      if (req.method === "DELETE") db.query("DELETE FROM entries WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(id, email, session.userId, email);
       else {
         const data = await body(req);
         const content = text(data.content, "Content", 100000, false);
         if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
         const definitions = "definitions" in data ? requestDefinitions(data.definitions, content) : storedDefinitions(entry.definitions, content);
-        db.query("UPDATE entries SET content = ?, definitions = ? WHERE id = ? AND owner_email = ?").run(content, JSON.stringify(definitions), id, email);
+        let formatting;
+        try { formatting = "formatting" in data ? requestFormatting(data.formatting, content) : rebaseFormatting(storedFormatting(entry.formatting, entry.content), entry.content, content); }
+        catch (error) { throw new HttpError(error instanceof Error ? error.message : "Invalid Word formatting.", 400); }
+        const updated = db.query("UPDATE entries SET content = ?, definitions = ?, formatting = ? WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(content, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, id, email, session.userId, email);
+        if (updated.changes !== 1) throw new HttpError("Please log in.", 401);
       }
       return json({ ok: true, id });
     }

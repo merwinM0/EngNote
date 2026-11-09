@@ -1,6 +1,6 @@
 import { getDraftEntry } from "./db";
 import { msg, t } from "./i18n";
-import { definitionViews, getCurrentText, isBusy } from "./state";
+import { definitionViews, getCurrentText, getDocumentFormatting, isBusy } from "./state";
 import { errorMessage, setStatus } from "./util";
 import { createWordDocument, WORD_DOCUMENT_TYPE, wordExportFilename } from "./wordExport";
 
@@ -15,7 +15,7 @@ export function initWordExport(): void {
     try {
       const title = getDraftEntry()?.title ?? "";
       const filename = wordExportFilename(title);
-      const bytes = createWordDocument(text, definitionViews.snapshot(), title);
+      const bytes = createWordDocument(text, definitionViews.snapshot(), title, getDocumentFormatting());
       const blob = new Blob([new Uint8Array(bytes).buffer], { type: WORD_DOCUMENT_TYPE });
       url = URL.createObjectURL(blob);
       const link = document.createElement("a");

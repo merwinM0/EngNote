@@ -17,7 +17,9 @@ test("rejects oversized expanded XML before it is decompressed", () => {
   expect(bytes.length).toBeLessThan(MAX_WORD_BYTES);
   expect(() => extractWordXml(bytes)).toThrow("expands");
 });
-test("rejects DTD and entity declarations", () => {
-  const bytes = zipSync({ "word/document.xml": strToU8('<!DOCTYPE x [<!ENTITY y "no">]>' + xml) });
-  expect(() => extractWordXml(bytes)).toThrow("declarations");
+test("rejects DTD and entity declarations in document and style parts", () => {
+  for (const name of ["word/document.xml", "word/styles.xml"]) {
+    const bytes = zipSync({ "word/document.xml": strToU8(xml), [name]: strToU8('<!DOCTYPE x [<!ENTITY y "no">]>' + xml) });
+    expect(() => extractWordXml(bytes)).toThrow("declarations");
+  }
 });

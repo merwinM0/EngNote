@@ -3,6 +3,8 @@ import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { deleteUserWithArticles, previewUser } from "../backend/userAdmin";
+import { paragraphRanges } from "../public/ts/documentFormatting";
 
 // No real SMTP, Redis, or user database may be touched by tests.
 process.env.NODE_ENV = "test";
@@ -11,7 +13,7 @@ process.env.SMTP_HOST = "";
 process.env.COOKIE_SECURE = "false";
 process.env.APP_ORIGIN = "";
 const { createServer, openDatabase } = await import("../backend/server");
-const { closeStore } = await import("../backend/redis");
+const { closeStore, setex } = await import("../backend/redis");
 let db: Database;
 let server: ReturnType<typeof createServer>;
 let alice: string;
@@ -74,7 +76,7 @@ describe("source server", () => {
   test("serves both HTML entries and returns real 404s", async () => {
     expect((await request("/")).status).toBe(200);
     expect((await request("/index.html")).status).toBe(200);
-    for (const path of ["/.env", "/data.db", "/index.ts", "/public/ts/main.ts", "/%2e%2e%2f.env", "/missing.css"]) expect((await request(path)).status).toBe(404);
+    for (const path of ["/.env", "/data.db", "/index.ts", "/public/ts/main.ts", "/scripts/users.ts", "/backend/userAdmin.ts", "/.engnote-backups/backup.sqlite", "/%2e%2e%2f.env", "/missing.css"]) expect((await request(path)).status).toBe(404);
     const missing = await request("/api/missing");
     expect(missing.status).toBe(404); expect(missing.headers.get("content-type")).toContain("application/json");
   });
@@ -439,6 +441,68 @@ describe("source server", () => {
       for (const method of ["GET", "PUT", "DELETE"]) expect((await request(`/api/entries/${id}`, method, method === "PUT" ? { content: "Claim", owner_email: "alice@example.com" } : undefined, cookie)).status).toBe(404);
     }
     expect(db.query("SELECT content, owner_email FROM entries WHERE id = ?").get(id)).toEqual({ content: "Keep me", owner_email: null });
+  });
+  test("persists safe Word formatting and rebases legacy updates without exposing another account", async () => {
+    const content = "Styled text.\n\nNext.";
+    const formatting = { version: 1, runs: [{ start: 0, end: content.length, style: { font: "Georgia", size: 16, bold: true } }], paragraphs: paragraphRanges(content).map(range => ({ ...range, style: { align: "center" } })) };
+    const created = await request("/api/entries", "POST", { title: "Word styles", content, formatting });
+    expect(created.status).toBe(201); const id = (await created.json()).id;
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.formatting).toEqual(formatting);
+    expect((await request(`/api/entries/${id}`, "GET", undefined, bob)).status).toBe(404);
+    for (const invalid of [{ ...formatting, version: 4 }, { ...formatting, runs: [{ start: 0, end: 1, style: { font: "url(https://evil.example)" } }] }, { ...formatting, paragraphs: [] }]) {
+      expect((await request(`/api/entries/${id}`, "PUT", { content: "Do not replace", formatting: invalid })).status).toBe(400);
+      expect((await (await request(`/api/entries/${id}`)).json()).entry.content).toBe(content);
+    }
+    expect((await request(`/api/entries/${id}`, "PUT", { content: content.replace("text", "words") })).status).toBe(200);
+    const updated = (await (await request(`/api/entries/${id}`)).json()).entry;
+    expect(updated.formatting.runs[0].style.font).toBe("Georgia"); expect(updated.formatting.paragraphs[1].start).toBe(formatting.paragraphs[1]!.start + 1);
+    expect((await request(`/api/entries/${id}`, "PUT", { content: updated.content, formatting: null })).status).toBe(200);
+    expect((await (await request(`/api/entries/${id}`)).json()).entry.formatting).toBeNull();
+  });
+  test("deleted users lose all old sessions, including after the same email registers again", async () => {
+    const email = "delete-session@example.com", hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
+    db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
+    const login = await request("/api/auth/login", "POST", { email, password: "password123" });
+    const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+    const id = await create(cookie);
+    expect((await request("/api/auth/me", "GET", undefined, cookie)).status).toBe(200);
+    const directory = mkdtempSync(join(tmpdir(), "engnote-session-delete-"));
+    try { deleteUserWithArticles(db, previewUser(db, email)!, directory); }
+    finally { rmSync(directory, { recursive: true, force: true }); }
+    expect((await request("/api/auth/me", "GET", undefined, cookie)).status).toBe(401);
+    expect((await request(`/api/entries/${id}`, "GET", undefined, cookie)).status).toBe(401);
+    expect(db.query("SELECT id FROM entries WHERE id = ?").get(id)).toBeNull();
+    db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
+    expect((await request("/api/auth/me", "GET", undefined, cookie)).status).toBe(401);
+    const fresh = await request("/api/auth/login", "POST", { email, password: "password123" });
+    expect(fresh.status).toBe(200);
+    expect((await request("/api/auth/me", "GET", undefined, fresh.headers.get("set-cookie")!.split(";")[0]!)).status).toBe(200);
+    expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);
+  });
+  test("in-flight saves cannot recreate deleted users' data or write into a re-registered account", async () => {
+    for (const method of ["POST", "PUT"]) {
+      const email = `in-flight-${method.toLowerCase()}@example.com`, hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
+      db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
+      const logged = await request("/api/auth/login", "POST", { email, password: "password123" });
+      const cookie = logged.headers.get("set-cookie")!.split(";")[0]!, id = await create(cookie);
+      const reached = Promise.withResolvers<void>(), release = Promise.withResolvers<void>(), original = Request.prototype.json;
+      const reader = spyOn(Request.prototype, "json").mockImplementation(async function (this: Request) {
+        if (this.headers.get("x-test-hold") === "save") { reached.resolve(); await release.promise; }
+        return original.call(this);
+      });
+      const directory = mkdtempSync(join(tmpdir(), "engnote-in-flight-"));
+      try {
+        const pending = request(method === "POST" ? "/api/entries" : `/api/entries/${id}`, method, { title: "Late save", content: "Must not survive." }, cookie, { "x-test-hold": "save" });
+        await reached.promise;
+        deleteUserWithArticles(db, previewUser(db, email)!, directory);
+        db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
+        release.resolve(); expect((await pending).status).toBe(401);
+        expect((db.query("SELECT COUNT(*) AS count FROM entries WHERE owner_email = ?").get(email) as { count: number }).count).toBe(0);
+      } finally { release.resolve(); reader.mockRestore(); rmSync(directory, { recursive: true, force: true }); }
+    }
+    const token = "a".repeat(32);
+    await setex(`auth:token:${token}`, 86400, "alice@example.com");
+    expect((await request("/api/auth/me", "GET", undefined, `er_session=${token}`)).status).toBe(401);
   });
   test("validates runtime JSON types, lengths and content types", async () => {
     for (const data of [null, [], { title: 3, content: "Hi" }, { title: "Hi", content: {} }, { title: "中文", content: "Hi" }, { title: "a".repeat(21), content: "Hi" }, { title: "Hi", content: "a".repeat(100001) }]) {

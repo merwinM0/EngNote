@@ -7,10 +7,25 @@
 .content:empty::before { content: attr(data-placeholder); display: block; color: var(--muted); font-style: italic; max-width: 440px; font-size: 20px; }
 .content p { margin: 0 0 24px; white-space: pre-wrap; }
 .content p:last-child { margin-bottom: 0; }
+.content.word-document { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.2; }
+.content.word-document p { min-height: 1em; max-width: 100%; }
+.word-list-marker { display: inline; white-space: pre; }
+.word-page-break { border-top: 1px dashed var(--border); padding-top: 12px; }
+.word-table-scroll { max-width: 100%; overflow-x: auto; margin-block: 12px; }
+.word-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.word-table td { border: 1px solid var(--control-border); padding: 6px 8px; overflow-wrap: anywhere; vertical-align: top; }
+@media (max-width: 700px) {
+  /* Clamp imported inline indents to the small screen, not the document's font styles. */
+  .content.word-document p { padding-left: min(var(--word-left, 0pt), 8vw) !important; padding-right: min(var(--word-right, 0pt), 8vw) !important; text-indent: clamp(-8vw, var(--word-indent, 0pt), 8vw) !important; }
+}
+@media (forced-colors: active) {
+  .word-run, .word-table td { color: CanvasText !important; background: Canvas !important; }
+}
 .content .term { border-radius: 2px; }
 .content.select-mode .term, .content .note[role="button"] { cursor: pointer; }
 .content.select-mode .term:hover { background: var(--panel-2); }
 .content .term.picked { color: var(--accent-2); background: var(--selected); box-shadow: 0 -2px 0 var(--accent) inset; }
+.content .term.picked .word-run { color: inherit !important; background: transparent !important; }
 /* Paint torn tape as a background, so wrapping text and focus rings stay intact. */
 .content .note {
   --tape-color: var(--note-bg);

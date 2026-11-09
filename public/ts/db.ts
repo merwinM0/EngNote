@@ -1,7 +1,8 @@
+import type { DocumentFormatting } from "./documentFormatting";
 import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage, setToolLabel } from "./util";
 import { msg, setUIText, t, uiLanguage } from "./i18n";
 import type { MessageKey, UIMessage } from "./i18n";
-import { definitionViews, definitionViewChanged, getCurrentText, render, isBusy, setBusy } from "./state";
+import { definitionViews, definitionViewChanged, getCurrentText, getDocumentFormatting, render, isBusy, setBusy } from "./state";
 import { getEmail, isLoggedIn, openLogin } from "./auth";
 import { openPanel, closePanel, confirmInPanel } from "./panels";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
@@ -11,7 +12,7 @@ import { definitionContent } from "./definitionViews";
 import { ArticleDefinitionLanguages } from "./articleDefinitionLanguages";
 import type { DefinitionView } from "./definitionViews";
 
-type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string; definitions?: DefinitionView[] };
+type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string; definitions?: DefinitionView[]; formatting?: DocumentFormatting | null };
 const savePanel = document.getElementById("savePanel") as HTMLDialogElement;
 const collectionPanel = document.getElementById("collectionPanel") as HTMLDialogElement;
 const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
@@ -24,6 +25,7 @@ let selected: Entry | null = null;
 let pendingDelete: Entry | null = null;
 let savedText = "";
 let savedDefinitions = "[]";
+let savedFormatting = "null";
 let selectionStatus: "ready" | "checking" | "retry" = "ready";
 let selectionRequest = 0;
 let listRequest = 0;
@@ -34,7 +36,7 @@ let workspaceReady = false;
 const articleLanguages = new ArticleDefinitionLanguages(() => sessionStorage);
 let warnedLanguageStorage = false;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
-const isDirty = () => getCurrentText() !== savedText || JSON.stringify(definitionContent(definitionViews.snapshot())) !== savedDefinitions;
+const isDirty = () => getCurrentText() !== savedText || JSON.stringify(definitionContent(definitionViews.snapshot())) !== savedDefinitions || JSON.stringify(getDocumentFormatting()) !== savedFormatting;
 function rememberDefinitionLanguages() {
   // Discarding content edits must not overwrite choices for the saved article version.
   if (!selected || isDirty()) return;
@@ -62,16 +64,17 @@ function selectEntry(entry: Entry | null, baseline = "", status: typeof selectio
   selectionRequest++;
   selected = entry; savedText = baseline; selectionStatus = status;
   savedDefinitions = JSON.stringify(definitionContent(entry?.definitions ?? []));
+  savedFormatting = JSON.stringify(entry?.formatting ?? null);
   updateSelection();
   window.dispatchEvent(new Event("entry-selection-changed"));
 }
 export function deselectEntry() { openRequest++; selectEntry(null); }
 export function getDraftEntry(): DraftEntry | null {
-  return selected ? { id: selected.id, title: selected.title, savedText } : null;
+  return selected ? { id: selected.id, title: selected.title, savedText, savedFormatting: JSON.parse(savedFormatting) as DocumentFormatting | null } : null;
 }
 export function restoreEntrySelection(entry: DraftEntry | null) {
   // Restore only after choosing the account workspace, then verify the saved association.
-  selectEntry(entry ? { id: entry.id, title: entry.title, can_edit: false, created_at: "" } : null,
+  selectEntry(entry ? { id: entry.id, title: entry.title, can_edit: false, created_at: "", formatting: entry.savedFormatting } : null,
     entry?.savedText ?? "", entry ? "checking" : "ready");
   if (entry && isLoggedIn()) void reconnectSelection();
 }
@@ -136,7 +139,7 @@ async function openEntry(entry: Entry) {
     if (request !== openRequest || getEmail() !== account || isBusy() || getCurrentText() !== startingText) return;
     rememberDefinitionLanguages();
     const definitions = articleLanguages.apply(entry.id, data.entry.content, data.entry.definitions);
-    render(data.entry.content, 0, definitions);
+    render(data.entry.content, 0, definitions, data.entry.formatting);
     closePanel("collectionPanel");
     openPanel("readPanel", false);
     selectEntry(data.entry, getCurrentText());
@@ -214,7 +217,7 @@ async function save(title?: string) {
   if (isBusy() || selectionStatus !== "ready" || !savePanel.open) return;
   if (!isLoggedIn()) { closePanel("savePanel"); requestSaveLogin(); return; }
   const account = getEmail();
-  const text = getCurrentText(), definitions = definitionViews.snapshot();
+  const text = getCurrentText(), definitions = definitionViews.snapshot(), formatting = getDocumentFormatting();
   const entry = selected;
   const overwrite = entry && canEdit(entry) && saveTitle.readOnly;
   if (!overwrite && !title && !getStoredApiKey()) {
@@ -236,10 +239,10 @@ async function save(title?: string) {
       updateSaveProgress();
     }
     const data = await api<{ id: number }>(overwrite ? `/api/entries/${entry.id}` : "/api/entries", {
-      method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text, definitions } : { title, content: text, definitions }),
+      method: overwrite ? "PUT" : "POST", ...jsonBody(overwrite ? { content: text, definitions, formatting } : { title, content: text, definitions, formatting }),
     });
     if (saveTask !== task || getEmail() !== account) return;
-    selectEntry(overwrite ? { ...entry, definitions } : { id: data.id, title: title!, can_edit: true, created_at: "", definitions }, text);
+    selectEntry(overwrite ? { ...entry, definitions, formatting } : { id: data.id, title: title!, can_edit: true, created_at: "", definitions, formatting }, text);
     rememberDefinitionLanguages();
     saveTask = null;
     setBusy(false);

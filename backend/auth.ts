@@ -108,15 +108,30 @@ export async function login(
 
   await delKey(attemptKey);
   const token = crypto.randomUUID().replace(/-/g, "");
-  await setex(TOKEN_EMAIL_PREFIX + token, SESSION_TTL, row.email);
+  // Bind sessions to the account incarnation, not an email that can be registered again.
+  if (!db.query("SELECT id FROM users WHERE id = ? AND email = ?").get(row.id, row.email)) return { ok: false, error: "Email or password is incorrect" };
+  await setex(TOKEN_EMAIL_PREFIX + token, SESSION_TTL, JSON.stringify({ userId: row.id, email: row.email }));
   return { ok: true, email: row.email, token };
 }
 
 // ---------------- Session ----------------
 
-export async function resolveToken(token: string): Promise<string | null> {
+export type AuthSession = { userId: number; email: string };
+export async function resolveSession(token: string): Promise<AuthSession | null> {
   if (!/^[a-f0-9]{32}$/.test(token)) return null;
-  return get(TOKEN_EMAIL_PREFIX + token);
+  const raw = await get(TOKEN_EMAIL_PREFIX + token);
+  if (!raw) return null;
+  try {
+    const session: unknown = JSON.parse(raw);
+    if (!session || typeof session !== "object" || !("userId" in session) || typeof session.userId !== "number" || !Number.isSafeInteger(session.userId) || !("email" in session) || typeof session.email !== "string") return null;
+    const current = db.query<{ email: string }, [number, string]>("SELECT email FROM users WHERE id = ? AND email = ?").get(session.userId, session.email);
+    return current ? { userId: session.userId, email: current.email } : null;
+  } catch { return null; } // Legacy email-only sessions deliberately require a fresh login.
+
+}
+
+export async function resolveToken(token: string): Promise<string | null> {
+  return (await resolveSession(token))?.email ?? null;
 }
 
 export async function logout(token: string): Promise<void> {

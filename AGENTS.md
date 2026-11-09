@@ -2,8 +2,10 @@
 
 ## 结构与开发验证
 
-- `public/index.html`、`public/home.html` 为入口，`public/ts/` 放原生 DOM TypeScript 与共享纯函数，`public/css/` 放样式；`backend/` 提供认证与文章 API，`tests/` 放 Bun 测试。
-- 保持 HTML + TypeScript + CSS + Bun 技术栈；正文为完整字符串，分页为切片，偏移使用 UTF-16，分页计数使用 Unicode 码点。
+- `public/index.html`、`public/home.html` 为入口，`public/ts/` 放原生 DOM TypeScript 与共享纯函数，`public/css/` 放样式；`backend/` 提供认证与文章 API，`scripts/users.ts` 为本机终端管理入口，`tests/` 放 Bun 测试。
+- 保持 HTML + TypeScript + CSS + Bun 技术栈；正文为完整字符串，分页为切片，偏移使用 UTF-16，分页计数使用 Unicode 码点。Word 排版使用受限格式元数据，不接纳任意 HTML / CSS；编辑、释义、历史、草稿与 API 必须同步映射格式。
+- AI 整理只负责段落，应用前验证词句、标点与非段落空白未被改写，不允许依赖提示词代替完整性校验。
+- 终端查看只读打开已有数据库；删除用户必须显式确认、先生成私有一致性备份，再在事务内核对预览并删除其全部文章。管理工具不暴露网络 API，测试只操作临时数据库。
 - 文章为账号私有：所有文章接口必须鉴权并按当前作者限定查询；不得提供公开列表、共享读取或跨账号草稿恢复。匿名阅读和标签页草稿不需要登录，云端保存必须登录并由用户确认。
 - 浏览器不导入服务端模块；AI 请求直连 DeepSeek，密钥不写入文章、缓存、历史或后端。
 - 开发使用 `bun dev`；修改前阅读 README、路线图与相关 docs，维护中英文 README。完整验证命令见下方 Git 提交约定。
@@ -19,6 +21,6 @@
 - 每轮修改完成并通过相关验证后，主动创建一次 Git 提交，无需用户再次提醒。
 - 提交说明使用中文，准确概括本轮改动；按完整需求提交，不为单个文件或中间步骤创建零碎提交。
 - 仅提交任务相关改动，不覆盖、撤销或擅自提交无关的用户修改；用户明确要求提交当前全部改动时按其指定范围执行。
-- 不提交密钥、`.env`、SQLite 数据库、`node_modules`、构建产物或临时验证文件。
+- 不提交密钥、`.env`、SQLite 数据库及 `.engnote-backups/` 等备份、`node_modules`、构建产物或临时验证文件。
 - 代码改动后运行 `bun run typecheck`、`bun test`、`bun run build` 及相关专项检查；提交前执行 `git diff --check`。
 - 如验证或提交失败，说明原因，不把失败的操作报告为已完成。

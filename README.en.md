@@ -11,12 +11,13 @@ EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Past
 ## Highlights
 
 - Notebook-style reading, tape notes and selectable paper textures on desktop and mobile.
-- Paste, live editing, local `.docx` import, lossless pagination (up to 5000 Unicode characters per page), and tab-local draft recovery.
-- DeepSeek paragraph formatting and paired English/Chinese definitions sharing British IPA, with simple, local-context or full-article modes in the toolbar (local context by default) and hover descriptions; switch a note's language without another request. Saving and reopening retain each note's choice, including mixed-language articles.
+- Paste, live editing, local `.docx` import with supported body fonts, font effects, paragraphs, lists and tables, lossless pagination (up to 5000 Unicode characters per page), and tab-local draft recovery.
+- DeepSeek paragraph-only tidying without rewriting words or punctuation, and paired English/Chinese definitions sharing British IPA, with simple, local-context or full-article modes in the toolbar (local context by default) and hover descriptions; switch a note's language without another request. Saving and reopening retain each note's choice, including mixed-language articles.
 - Bounded undo/redo and shortcuts for text, AI formatting and notes; note deletion uses two-step confirmation for one target at a time and stays active after removal. Importing, clearing and switching articles isolate history.
 - Bounded dictionary cache, explicit refresh and reported AI usage.
-- Email accounts, saved articles on a draggable/zoomable board, and local white Word export using each note's displayed language.
+- Email accounts, saved articles on a draggable/zoomable board, and local white-paper Word export using each note's displayed language while retaining supported source fonts and layout.
 - English UI by default with a Chinese switch; UI and definition languages are independent.
+- Local terminal administration: inspect users, article lists and full contents; delete a user and all their articles only after explicit confirmation and a database backup. No public admin API.
 
 > Saved articles are account-private: only their owner can view, update or delete them. Sharing is not supported. Reading, editing, importing, using your own AI key and Word export require no account; working drafts stay in this browser tab. Save article automatically opens login when needed, then resumes save confirmation without uploading automatically. Your confirmed DeepSeek key stays in this tab; AI requests go directly to DeepSeek, never through this app's backend.
 
@@ -47,8 +48,11 @@ Semantic HTML, native DOM TypeScript and CSS (no UI framework); Bun HTML bundlin
 | `bun run typecheck` | Browser and backend TypeScript checks |
 | `bun test` | Unit and API tests |
 | `bun run build` | Frontend inspection output in `dist/`, not a full deployment |
+| `bun run users` | Inspect users/articles and confirm backed-up cascade deletion; [commands and recovery](docs/DEPLOYMENT.md#9-终端用户与文章管理) |
 
 Deploy the Bun backend too, not just `dist/`. See [deployment](docs/DEPLOYMENT.md).
+
+See [Word support and local font fallback](docs/FEATURES.md#word-导入). Images, floating objects, headers and footers are not imported; browser pagination is not identical to Word's print pagination.
 
 ## Documentation
 

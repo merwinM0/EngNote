@@ -26,5 +26,5 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["index.ts", "seed.ts", "backend/**/*.ts", "tests/**/*.ts"]
+  "include": ["index.ts", "seed.ts", "backend/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]
 }

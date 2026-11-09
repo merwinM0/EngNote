@@ -2,6 +2,7 @@ import { setStatus, errorMessage, setToolLabel } from "./util";
 import { msg, t } from "./i18n";
 import { getPageText, editCurrentPage, formatBtn, isBusy, setBusy, getRevision } from "./state";
 import { callDeepSeek } from "./deepseek";
+import { PARAGRAPH_PROMPT, paragraphTidying } from "./paragraphTidying";
 
 let formatting = false;
 let activeRequest: AbortController | null = null;
@@ -23,13 +24,11 @@ export async function onFormat() {
   setToolLabel(formatBtn, t("reader.tidying"));
   setStatus(msg("status.formatWorking"));
   try {
-    const result = await callDeepSeek("You format English text. Join broken lines, separate paragraphs with one blank line, and fix spacing around punctuation. Preserve every fact, number and word. Output only the formatted text; no markdown or explanations.", text, request.signal, { maxTokens: Math.min(8192, Math.max(512, Math.ceil(text.length * 1.2))) });
+    const result = await callDeepSeek(PARAGRAPH_PROMPT, text, request.signal, { maxTokens: Math.min(8192, Math.max(512, Math.ceil(text.length * 1.2))) });
     if (activeRequest === request && !request.signal.aborted && getRevision() === revision) {
-      // Page boundaries are not paragraph boundaries. Keep separators around this slice.
-      const leading = text.match(/^\s*/)?.[0] ?? "";
-      const trailing = text.match(/\s*$/)?.[0] ?? "";
-      const formatted = leading + result.trim() + trailing;
-      editCurrentPage(formatted, formatted.length, false);
+      const formatted = paragraphTidying(text, result);
+      // Tidying is not typing at the end of the page: keep the current reading anchor.
+      editCurrentPage(formatted.text, 0, false, formatted.edits);
       setStatus(msg("status.formatDone"), "ok");
     }
   } catch (error) { if (activeRequest === request && !request.signal.aborted) setStatus(() => errorMessage(error), "error"); }

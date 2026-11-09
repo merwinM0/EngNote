@@ -16,7 +16,8 @@ EngNote 是框架无关的 Bun 全栈应用。服务端直接导入两个 HTML �
 ```
 
 - [`index.ts`](../index.ts) 解析端口、打开数据库、启动服务并输出本机 / 局域网地址；退出时停止接收请求、关闭 Redis 和 SQLite。
-- [`backend/server.ts`](../backend/server.ts) 挂载页面、初始化数据库及迁移，处理 API、会话 Cookie、请求来源与作者权限。
+- [`backend/server.ts`](../backend/server.ts) 挂载页面，处理 API、会话 Cookie、请求来源与作者权限；[`backend/database.ts`](../backend/database.ts) 统一数据库路径、建表与无损迁移。
+- [`scripts/users.ts`](../scripts/users.ts) 与 [`backend/userAdmin.ts`](../backend/userAdmin.ts) 提供本机终端查看与经确认、备份后的级联删除，不加载网页服务器或新增管理接口。
 - 浏览器模块只使用原生 DOM 和 Web API。后端可复用无 DOM 副作用的正文 / 释义校验模块，不将 SMTP、Redis 或数据库代码引入前端。
 - 开发时前端 HMR，服务端由 `--watch` 重启；生产 `bun start` 仍运行源码，但关闭开发功能。`dist/` 只是可选的前端构建检查产物。
 
@@ -30,9 +31,12 @@ EngNote/
 ├── docs/                     # 架构、功能、API、部署说明
 ├── index.ts                  # 服务启动与退出
 ├── seed.ts                   # 仅本地开发使用的测试账号脚本
+├── scripts/users.ts          # 终端用户 / 文章查看与确认级联删除
 ├── backend/
 │   ├── config.ts             # 端口默认值与地址显示
-│   ├── server.ts             # HTML 路由、REST API、迁移与校验
+│   ├── server.ts             # HTML 路由、REST API 与校验
+│   ├── database.ts           # 数据库路径、模式与无损迁移
+│   ├── userAdmin.ts          # 只读检查、预览核对、受限备份及事务删除
 │   ├── auth.ts               # 注册、登录、验证码与会话
 │   ├── redis.ts              # Redis / 开发内存存储与 TTL
 │   ├── mail.ts               # Nodemailer 与 SMTP 配置
@@ -66,8 +70,9 @@ EngNote/
 | `pagination.ts` | 完整正文模型、无损分页、全局偏移与光标定位 |
 | `text.ts` / `state.ts` | 文本规则、渲染、词组选择、阅读 / 释义 / 删除模式和操作锁 |
 | `editor.ts` / `articleDraft.ts` / `articleWorkspace.ts` | 粘贴、编辑、导入；分离匿名 / 各账号的标签页草稿，鉴权后恢复旧文章关联，退出与切号隔离阅读区 |
-| `word.ts` | 有大小限制的 `.docx` 解压与正文提取 |
-| `wordExport.ts` / `exportWord.ts` | 纯 OOXML / ZIP 生成与浏览器下载 |
+| `word.ts` / `wordFormattingImport.ts` | 受限 `.docx` 白名单解压、正文 / 默认样式 / 继承 / 主题字体 / 列表 / 表格解析 |
+| `documentFormatting.ts` / `formattedReading.ts` | 可共享的格式校验与偏移映射；受限样式和原生 DOM 渲染 |
+| `wordExport.ts` / `wordFormattingExport.ts` / `exportWord.ts` | 保留支持的格式与各批注当前语言的 OOXML / ZIP 生成及浏览器下载 |
 | `definitionViews.ts` / `definitionLanguage.ts` | 每条批注的双语内容、独立显示状态与本地切换 |
 | `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
 | `definitionMode.ts` / `definitionModeControl.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好与功能栏选择 / 介绍、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
@@ -75,7 +80,7 @@ EngNote/
 | `articleDefinitionLanguages.ts` | 按文章及内容 / 批注版本隔离的有界标签页阅读语言记录，仅存指纹与逐条选择 |
 | `dictionary.ts` / `dictionaryLookup.ts` / `dictionaryCache.ts` | 双语响应校验、分批去重、已有释义复用和有界查询缓存 |
 | `deepseek.ts` / `deepseekClient.ts` / `aiUsage.ts` | 已确认密钥、可测试请求传输、预算、截断和用量统计 |
-| `format.ts` / `translate.ts` / `articleTitle.ts` | 当前页排版、所选词释义、整篇文章标题总结 |
+| `format.ts` / `paragraphTidying.ts` / `translate.ts` / `articleTitle.ts` | 当前页段落整理及词句 / 标点完整性校验、所选词释义、整篇文章标题总结 |
 | `deleteNote.ts` | 单目标两次点击确认，点击其他批注只切换目标；删除后保持模式，同步移除对应双语数据 |
 | `db.ts` / `collectionCanvas.ts` / `boardGeometry.ts` | 保存与加载、白板手势、缩放几何和焦点可见性 |
 | `panels.ts` / `notes.ts` | 编辑面板、原生弹窗叠放、未保存确认、焦点与光标恢复 |
@@ -102,8 +107,8 @@ EngNote/
 正文的唯一内容源是 `ReadingDocument.text`，不是 DOM，也不是相互独立的分页字符串。分页只是这份完整正文的切片。
 
 ```text
-粘贴 / Word 导入
-  → 本地合并错误断行，以空行分段
+粘贴导入 → 本地合并错误断行，以空行分段
+Word 导入 → 保留原段落，提取受限格式元数据
   → ReadingDocument.text
   → paginate() → Page[]
   → 当前页按段落渲染为 <p>
@@ -173,15 +178,18 @@ type DefinitionView = {
 
 数据库默认位于项目根目录 `data.db`，可通过 `DB_PATH` 修改。启用 WAL 和 5 秒 busy timeout。
 
-- `entries(id, title, content, created_at, owner_email, definitions)`：一篇文章存一份完整正文，包含全部分页与英文批注；`definitions` 是双语 JSON 数组。
+- `entries(id, title, content, created_at, owner_email, definitions, formatting)`：一篇文章存一份完整正文，包含全部分页与英文批注；`definitions` 是双语 JSON 数组，`formatting` 为可空、版本化 Word 正文格式 JSON。
+- 格式使用正文 UTF-16 范围：`runs[{start,end,style}]` 与 `paragraphs[{start,end,style,marker?,cell?}]`，不存任意 CSS / HTML、外链、密钥或原始 ZIP。白名单验证颜色、字体名、数值与完整段落边界；最多 256000 个序列化 UTF-16 单元、6000 个范围 / 表格跨度预算、3000 个段落，限制重叠单元格及稀疏表格行数。未知 / 损坏的旧格式读取降级为空，显式写入非法格式原子拒绝。
+- 格式编辑先计算新元数据再提交正文，使用明确释义编辑或段落空白编辑逐段映射，普通手动编辑采用最小前后缀差异；新文字继承邻近字体。格式纳入历史、草稿、未保存比较与保存基线。
 - `users(id, email, password_hash, created_at)`：邮箱账号，密码使用 `Bun.password` 的 Argon2id 慢哈希，不存明文。
-- 启动时为旧文章表无损追加 `owner_email` 与 `definitions`；旧作者不推断，双语列默认 `[]`。无作者历史文章保留在数据库中但隔离于所有账号列表与读取接口，不自动认领或删除；经确认的人工归属迁移另行处理。
-- 有效双语数据必须匹配正文中的英文批注；读取旧文章时忽略失效元数据，写入新元数据时原子校验。更新请求省略 `definitions` 时，保留仍匹配新正文的旧批注。
+- 启动时为旧文章表无损追加 `owner_email`、`definitions` 与可空 `formatting`；旧作者不推断，双语列默认 `[]`。无作者历史文章保留在数据库中但隔离于所有账号列表与读取接口，不自动认领或删除；经确认的人工归属迁移另行处理。
+- 有效双语数据必须匹配正文中的英文批注；读取旧文章时忽略失效元数据，写入新元数据时原子校验。更新请求省略 `definitions` 时，保留仍匹配新正文的旧批注；省略 `formatting` 时映射现有格式，显式 `null` 才清空。
 
 ### Redis 与会话
 
 - 保存验证码、60 秒发信冷却、验证码尝试次数、登录尝试次数以及会话 Token；验证码使用 `auth:code:<email>`，会话使用 `auth:token:<token>` 键。
 - 验证码有效期 5 分钟；Cookie 与服务端会话均为 24 小时，不因页面访问而续期。
+- 会话值为 `{userId,email}`，每次鉴权同时核对 SQLite 中的账户身份。删除后及相同邮箱重注册后旧会话均失效；旧版仅邮箱会话升级后需重新登录。SQL 读写还核对该 `userId` 仍存在，防止删除期间已经鉴权、随后才读完请求体的保存请求写回孤儿文章。Redis 中的旧 Token 可自然到期，不再具有授权能力。
 - Redis 不可用时仅非生产模式可降级为进程内 Map，带 TTL 和容量限制；重启后需要重新登录。生产认证不静默降级。
 - 邮件发送失败不把验证码当作已发送；仅非生产且未配置 SMTP 主机时返回本地开发验证码。
 
@@ -190,7 +198,7 @@ type DefinitionView = {
 | 状态 | 位置与生命周期 |
 | --- | --- |
 | 已确认 DeepSeek 密钥 | 当前标签页 `sessionStorage`，刷新恢复，关闭标签页后清除 |
-| 工作草稿、正文阅读偏移、页码、文章关联、每条释义显示语言 | 当前标签页 `sessionStorage`，分别保存在 `er_article_draft_v1:guest` 与 `er_article_draft_v1:account:<编码邮箱>`；这些作用域不是授权凭据，恢复文章关联仍需服务端确认 |
+| 工作草稿、Word 格式、正文阅读偏移、页码、文章关联、每条释义显示语言 | 当前标签页 `sessionStorage`，分别保存在 `er_article_draft_v1:guest` 与 `er_article_draft_v1:account:<编码邮箱>`；这些作用域不是授权凭据，恢复文章关联仍需服务端确认 |
 | AI 用量 | `er_ai_usage_v1`，当前标签页 `sessionStorage`，不含密钥、提示词或正文 |
 | 界面语言 | `er_ui_language_v1`，`localStorage` |
 | 释义方式 | `er_definition_mode_v1`，`localStorage`，默认 context（上下文参考）；无有效记录时使用默认，已有有效选择不覆盖；只影响后续请求 |

@@ -11,6 +11,7 @@ public/dist
 data.db
 data.db-shm
 data.db-wal
+.engnote-backups/
 
 # legacy executable build artifacts (source scripts are used instead)
 /Engreading

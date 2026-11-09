@@ -10,11 +10,13 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.browser.json",
     "test": "bun test ./tests",
     "build": "bun build ./public/home.html ./public/index.html --target browser --outdir dist --minify",
-    "seed": "bun seed.ts"
+    "seed": "bun seed.ts",
+    "users": "bun scripts/users.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/nodemailer": "^8.0.1"
+    "@types/nodemailer": "^8.0.1",
+    "@xmldom/xmldom": "0.8.15"
   },
   "peerDependencies": {
     "typescript": "^5"

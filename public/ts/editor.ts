@@ -1,9 +1,10 @@
 import { api, setStatus, errorMessage, setToolLabel } from "./util";
+import { rebaseFormatting, type DocumentFormatting } from "./documentFormatting";
 import { msg, setUIText, t } from "./i18n";
 import type { UIMessage } from "./i18n";
 import { reflowText } from "./text";
 import { characterCount, DOCUMENT_LIMIT, paginate } from "./pagination";
-import { definitionViews, documentModel, editCurrentPage, getCurrentText, getRevision, goToPage, isBusy, render, setBusy } from "./state";
+import { definitionViews, documentModel, editCurrentPage, getCurrentText, getDocumentFormatting, getRevision, goToPage, isBusy, render, setBusy } from "./state";
 import { confirmReplace, deselectEntry, getDraftEntry, restoreEntrySelection } from "./db";
 import type { ArticleDraft } from "./articleDraft";
 import { ArticleWorkspaces } from "./articleWorkspace";
@@ -16,6 +17,8 @@ const wordFile = document.getElementById("wordFile") as HTMLInputElement;
 const applyButton = document.getElementById("editorApplyBtn") as HTMLButtonElement;
 let mode: "paste" | "edit" = "paste";
 let importDraft = "";
+let importFormatting: DocumentFormatting | null = null;
+let importHasUnsupportedObjects = false;
 let openingWord = false;
 let importingWord = false;
 let draftTimer: ReturnType<typeof setTimeout> | undefined;
@@ -45,7 +48,7 @@ function updatePreview() {
     preview.textContent = t("editor.previewTooLong");
     return;
   }
-  const text = reflowText(editor.value);
+  const text = importFormatting ? editor.value : reflowText(editor.value);
   preview.textContent = t("editor.previewPaste", { count: characterCount(text).toLocaleString(), pages: paginate(text).length });
 }
 function refreshEditorCopy() {
@@ -65,22 +68,26 @@ function configureEditor(word = false) {
 function syncEditor() {
   updateEntry();
   if (mode !== "edit") return;
-  if (!hasContent()) { importDraft = ""; configureEditor(); return; }
+  if (!hasContent()) { importDraft = ""; importFormatting = null; importHasUnsupportedObjects = false; configureEditor(); return; }
   if (editor.value !== documentModel.page.text) editor.value = documentModel.page.text;
   updatePreview();
 }
 async function applyImport(raw: string) {
   if (isBusy()) return;
   if (raw.length > DOCUMENT_LIMIT) return message(msg("editor.tooLong"), true);
-  const text = reflowText(raw);
+  const text = importFormatting ? raw : reflowText(raw);
   if (!text) return message(msg("editor.empty"), true);
   if (!(await confirmReplace()) || isBusy()) return;
-  render(text); deselectEntry(); openPanel("readPanel", false); message("");
-  setStatus(msg("editor.reflowDone", { count: documentModel.pages.length }), "ok");
+  render(text, 0, [], importFormatting); deselectEntry(); openPanel("readPanel", false); message("");
+  setStatus(msg(importHasUnsupportedObjects ? "editor.wordImportedObjects" : importFormatting ? "editor.wordImported" : "editor.reflowDone", { count: documentModel.pages.length }), "ok");
 }
 function onInput() {
   if (isBusy()) return;
-  if (mode === "paste") { importDraft = editor.value; updatePreview(); message(""); return; }
+  if (mode === "paste") {
+    try { importFormatting = rebaseFormatting(importFormatting, importDraft, editor.value); importDraft = editor.value; updatePreview(); message(""); }
+    catch (error) { editor.value = importDraft; message(() => errorMessage(error), true); }
+    return;
+  }
   try {
     const result = editCurrentPage(editor.value, editor.selectionEnd);
     editor.value = documentModel.page.text;
@@ -90,7 +97,7 @@ function onInput() {
   } catch (error) { editor.value = documentModel.page.text; message(() => errorMessage(error), true); }
 }
 function currentDraft(): ArticleDraft | null {
-  return getCurrentText() ? { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot(), offset: documentModel.page.start } : null;
+  return getCurrentText() ? { version: 2, text: getCurrentText(), index: documentModel.index, entry: getDraftEntry(), definitions: definitionViews.snapshot(), offset: documentModel.page.start, formatting: getDocumentFormatting() } : null;
 }
 function persistDraft() {
   clearTimeout(draftTimer);
@@ -108,7 +115,7 @@ async function restoreWorkspace() {
   persistDraft();
   switchingWorkspace = true;
   workspaceAccount = account;
-  importDraft = ""; editor.value = "";
+  importDraft = ""; importFormatting = null; importHasUnsupportedObjects = false; editor.value = "";
   render(""); deselectEntry();
   let draft = workspaces.read(account);
   try {
@@ -129,7 +136,7 @@ async function restoreWorkspace() {
     }
     const guestDraft = previousAccount === null && account ? previousDraft ?? (initial && draft ? null : workspaces.read(null)) : null;
     if (guestDraft?.text) {
-      const same = draft?.text === guestDraft.text && JSON.stringify(draft.definitions) === JSON.stringify(guestDraft.definitions);
+      const same = draft?.text === guestDraft.text && JSON.stringify(draft.definitions) === JSON.stringify(guestDraft.definitions) && JSON.stringify(draft.formatting ?? null) === JSON.stringify(guestDraft.formatting ?? null);
       const useGuest = !draft || same || await confirmInPanel(msg("confirm.replaceWorkspace"), msg("confirm.keepLocalDraft"), msg("confirm.useAccountDraft"));
       if (request !== workspaceRequest || getEmail() !== account) return;
       if (useGuest) draft = { ...guestDraft, entry: null };
@@ -138,7 +145,7 @@ async function restoreWorkspace() {
     if (request !== workspaceRequest || getEmail() !== account) return;
     if (draft) {
       const offset = draft.offset ?? paginate(draft.text, 3000)[Math.max(0, Math.min(draft.index, paginate(draft.text, 3000).length - 1))]!.start;
-      render(draft.text, 0, draft.definitions);
+      render(draft.text, 0, draft.definitions, draft.formatting);
       goToPage(documentModel.locate(offset)); restoreEntrySelection(draft.entry);
       setStatus(msg(draft.entry ? "editor.draftRestoredSaved" : "editor.draftRestoredUnsaved"), "ok");
     }
@@ -172,7 +179,7 @@ export function initEditor() {
     syncEditor(); clearTimeout(draftTimer); if (!switchingWorkspace) draftTimer = setTimeout(persistDraft, 200);
   });
   window.addEventListener("document-changed", () => {
-    if (!hasContent()) { importDraft = ""; if (mode === "paste") { editor.value = ""; updatePreview(); } }
+    if (!hasContent()) { importDraft = ""; importFormatting = null; importHasUnsupportedObjects = false; if (mode === "paste") { editor.value = ""; updatePreview(); } }
   });
   window.addEventListener("entry-selection-changed", persistDraft);
   window.addEventListener("definition-view-changed", persistDraft);
@@ -204,10 +211,11 @@ export function initEditor() {
     let text: string;
     try {
       const { importWord } = await import("./word");
-      text = await importWord(file);
+      const imported = await importWord(file);
+      text = imported.text;
       if (request !== wordRequest || revision !== getRevision() || activePanel() !== "editorPanel") return;
-      importDraft = editor.value = reflowText(text);
-      updatePreview(); message(msg("editor.wordReady"));
+      importDraft = editor.value = text; importFormatting = imported.formatting; importHasUnsupportedObjects = imported.hasUnsupportedObjects;
+      updatePreview(); message(msg(imported.hasUnsupportedObjects ? "editor.wordObjects" : "editor.wordReady"));
     } catch (error) { message(() => errorMessage(error), true); return; }
     finally { if (revision === getRevision()) setBusy(false); wordFile.value = ""; }
     await applyImport(text);

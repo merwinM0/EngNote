@@ -1,6 +1,7 @@
 import type { DefinitionView } from "./definitionViews";
-export type ReadingSnapshot = { text: string; definitions: DefinitionView[]; offset: number };
-const same = (a: ReadingSnapshot, b: ReadingSnapshot) => a.text === b.text && JSON.stringify(a.definitions) === JSON.stringify(b.definitions);
+import type { DocumentFormatting } from "./documentFormatting";
+export type ReadingSnapshot = { text: string; definitions: DefinitionView[]; offset: number; formatting?: DocumentFormatting | null };
+const same = (a: ReadingSnapshot, b: ReadingSnapshot) => a.text === b.text && JSON.stringify(a.definitions) === JSON.stringify(b.definitions) && JSON.stringify(a.formatting ?? null) === JSON.stringify(b.formatting ?? null);
 /** Tab-memory only: never captures keys, credentials or saved-entry identity. */
 export class ReadingHistory {
   private past: ReadingSnapshot[] = [];
@@ -29,7 +30,7 @@ export class ReadingHistory {
     this.past.push(structuredClone(current)); this.breakGroup(); this.trim(); return next;
   }
   private trim() {
-    const size = (entry: ReadingSnapshot) => entry.text.length * 2 + JSON.stringify(entry.definitions).length * 2;
+    const size = (entry: ReadingSnapshot) => entry.text.length * 2 + JSON.stringify(entry.definitions).length * 2 + JSON.stringify(entry.formatting ?? null).length * 2;
     while (this.past.length + this.future.length > this.limit || [...this.past, ...this.future].reduce((sum, entry) => sum + size(entry), 0) > this.budget) {
       if (this.past.length) this.past.shift(); else if (this.future.length) this.future.shift(); else break;
     }
