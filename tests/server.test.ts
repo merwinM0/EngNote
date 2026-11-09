@@ -182,7 +182,9 @@ describe("source server", () => {
     const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
     const settings = html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
     expect(tools).toContain('id="definitionModeBtn" class="btn tape-mist"');
-    expect(tools).toContain('aria-label="Definition method: Simple definitions"');
+    expect(tools).toContain('aria-label="Definition method: Local context"');
+    expect(tools).toContain('<span class="tool-caption" data-tool-label>Local context</span>');
+    expect(html).toContain('id="definitionModeHint" class="sr-only">Sends the terms and up to 600 Unicode characters');
     expect(tools).toContain('aria-describedby="definitionModeHint"');
     expect(html).toContain('id="definitionModeHint" class="sr-only"');
     expect(html.match(/id="definitionModeBtn"/g)).toHaveLength(1);

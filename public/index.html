@@ -42,8 +42,8 @@
       <button id="formatBtn" class="btn tape-lilac tool-icon" type="button" aria-label="Tidy this page">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h8M4 13h16M4 18h12M18 2l1.2 3.8L23 7l-3.8 1.2L18 12l-1.2-3.8L13 7l3.8-1.2z"/></svg><span class="sr-only" data-tool-label>Tidy this page</span>
       </button>
-      <button id="definitionModeBtn" class="btn tape-mist" type="button" aria-label="Definition method: Simple definitions" aria-describedby="definitionModeHint">
-        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span class="tool-caption" data-tool-label>Simple definitions</span>
+      <button id="definitionModeBtn" class="btn tape-mist" type="button" aria-label="Definition method: Local context" aria-describedby="definitionModeHint">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span class="tool-caption" data-tool-label>Local context</span>
       </button>
       <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false" aria-label="Add definitions">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 1-5L17 3l4 4L9 19zM14 6l4 4M3 21h8M17 14v7m-3-3h6"/></svg><span class="tool-caption" data-tool-label>Add definitions</span>
@@ -68,7 +68,7 @@
       </button>
     </div></div></div>
     <p id="modeHint" class="sr-only"></p>
-    <p id="definitionModeHint" class="sr-only">Sends only the selected terms, without context. The lowest-input option.</p>
+    <p id="definitionModeHint" class="sr-only">Sends the terms and up to 600 Unicode characters on each side, excluding notes. More input than simple definitions, without sending the whole article.</p>
     <div class="layout">
       <div class="workspace main-col">
         <nav class="page-navigation" aria-label="Article pagination" data-i18n-aria-label="reader.pagination">

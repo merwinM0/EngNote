@@ -193,7 +193,7 @@ type DefinitionView = {
 | 工作草稿、正文阅读偏移、页码、文章关联、每条释义显示语言 | 当前标签页 `sessionStorage`，分别保存在 `er_article_draft_v1:guest` 与 `er_article_draft_v1:account:<编码邮箱>`；这些作用域不是授权凭据，恢复文章关联仍需服务端确认 |
 | AI 用量 | `er_ai_usage_v1`，当前标签页 `sessionStorage`，不含密钥、提示词或正文 |
 | 界面语言 | `er_ui_language_v1`，`localStorage` |
-| 释义方式 | `er_definition_mode_v1`，`localStorage`，默认 general；只影响后续请求 |
+| 释义方式 | `er_definition_mode_v1`，`localStorage`，默认 context（上下文参考）；无有效记录时使用默认，已有有效选择不覆盖；只影响后续请求 |
 | 撤回 / 恢复历史 | 当前页面内存，最多 50 个快照 / 约 8MB；800ms 连续输入合并，不随草稿保存 |
 | 新释义默认语言 | `er_default_definition_language`，`localStorage`，不覆盖已保存批注 |
 | 各篇文章的阅读显示语言 | `er_article_definition_languages_v1`，`sessionStorage`；最近 100 篇、最多 256 KiB，仅存版本 SHA-256 指纹与排序后的语言列表，不存正文、释义或凭证；存储受限时保留有界内存 |

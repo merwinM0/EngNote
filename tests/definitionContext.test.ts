@@ -20,23 +20,40 @@ describe("definition modes and private context fingerprints", () => {
       expect(sha256Hex(text)).toBe(expected); expect(await contextDigest(text)).toBe(expected);
     }
   });
-  test("defaults to simple, restores only known choices, touches no key storage", () => {
-    const { storage, values } = fixture(), preference = new DefinitionModePreference(() => storage);
-    preference.restore(); expect(preference.mode).toBe("general");
-    preference.set("context"); const next = new DefinitionModePreference(() => storage); next.restore(); expect(next.mode).toBe("context");
-    expect([...values.keys()]).toEqual([DEFINITION_MODE_KEY]);
-    storage.setItem(DEFINITION_MODE_KEY, "unknown"); next.restore(); expect(next.mode).toBe("general");
+  test("defaults to local context before restore and for absent or invalid saved choices", () => {
+    for (const value of [null, "", "unknown", "CONTEXT"]) {
+      const { storage, values } = fixture();
+      if (value !== null) values.set(DEFINITION_MODE_KEY, value);
+      const before = [...values.entries()], preference = new DefinitionModePreference(() => storage);
+      expect(preference.mode).toBe("context");
+      expect(preference.restore()).toBe(true);
+      expect(preference.mode).toBe("context");
+      expect([...values.entries()]).toEqual(before); // Restoration never writes a preference or key.
+    }
+  });
+  test("preserves every explicit saved mode, including the former simple default", () => {
+    for (const mode of ["general", "context", "article"] as const) {
+      const { storage, values } = fixture(), preference = new DefinitionModePreference(() => storage);
+      preference.set(mode);
+      const restored = new DefinitionModePreference(() => storage);
+      expect(restored.restore()).toBe(true); expect(restored.mode).toBe(mode);
+      expect([...values.keys()]).toEqual([DEFINITION_MODE_KEY]);
+    }
+  });
+  test("blocked storage starts with local context and retains later in-memory choices", () => {
     const blocked = new DefinitionModePreference(() => { throw new Error("blocked"); });
-    expect(blocked.restore()).toBe(false); expect(blocked.set("article")).toBe(false); expect(blocked.mode).toBe("article");
+    expect(blocked.restore()).toBe(false); expect(blocked.mode).toBe("context");
+    expect(blocked.set("general")).toBe(false); expect(blocked.mode).toBe("general");
+    expect(blocked.restore()).toBe(false); expect(blocked.mode).toBe("general");
   });
   test("cycles all three modes on one control and persists each selection", () => {
     const { storage } = fixture(), preference = new DefinitionModePreference(() => storage);
-    for (const mode of ["context", "article", "general", "context"] as const) {
+    for (const mode of ["article", "general", "context", "article"] as const) {
       expect(preference.cycle()).toBe(true); expect(preference.mode).toBe(mode);
       const restored = new DefinitionModePreference(() => storage); restored.restore(); expect(restored.mode).toBe(mode);
     }
     const blocked = new DefinitionModePreference(() => { throw new Error("blocked"); });
-    expect(blocked.cycle()).toBe(false); expect(blocked.mode).toBe("context");
+    expect(blocked.cycle()).toBe(false); expect(blocked.mode).toBe("article");
   });
   test("uses plain body and precise UTF-16 positions, never existing notes", async () => {
     const text = "A fox『animal』 saw a bank『land』 by water.";

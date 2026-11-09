@@ -12,7 +12,7 @@ EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Past
 
 - Notebook-style reading, tape notes and selectable paper textures on desktop and mobile.
 - Paste, live editing, local `.docx` import, lossless pagination (up to 5000 Unicode characters per page), and tab-local draft recovery.
-- DeepSeek paragraph formatting and paired English/Chinese definitions sharing British IPA, with simple, local-context or full-article modes in the toolbar and hover descriptions; switch a note's language without another request. Saving and reopening retain each note's choice, including mixed-language articles.
+- DeepSeek paragraph formatting and paired English/Chinese definitions sharing British IPA, with simple, local-context or full-article modes in the toolbar (local context by default) and hover descriptions; switch a note's language without another request. Saving and reopening retain each note's choice, including mixed-language articles.
 - Bounded undo/redo and shortcuts for text, AI formatting and notes; note deletion uses two-step confirmation for one target at a time and stays active after removal. Importing, clearing and switching articles isolate history.
 - Bounded dictionary cache, explicit refresh and reported AI usage.
 - Email accounts, saved articles on a draggable/zoomable board, and local white Word export using each note's displayed language.
