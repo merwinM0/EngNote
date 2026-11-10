@@ -74,6 +74,7 @@ EngNote/
 | `documentFormatting.ts` / `formattedReading.ts` | 可共享的格式校验与偏移映射；受限样式和原生 DOM 渲染 |
 | `wordExport.ts` / `wordFormattingExport.ts` / `exportWord.ts` | 保留支持的格式与各批注当前语言的 OOXML / ZIP 生成及浏览器下载 |
 | `definitionViews.ts` / `definitionLanguage.ts` | 每条批注的双语内容、独立显示状态与本地切换 |
+| `wordSearch.ts` / `readingSearch.ts` | 纯正文单词索引、有限拼写容错、UTF-16 定位 / Unicode 距离排序；本地搜索组合框、虚拟结果行、逐处释义预览和只读定位 |
 | `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
 | `definitionMode.ts` / `definitionModeControl.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好与功能栏选择 / 介绍、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
 | `definitionPreference.ts` | 后续新释义的默认显示语言，与界面语言独立 |
@@ -98,6 +99,7 @@ EngNote/
 - `public/css/reader.css` 按固定顺序导入设计变量、胶带、进度、布局、正文、收藏、面板、弹窗、阅读背景与响应式样式，保持 HMR 与生产级联顺序一致。
 - 阅读纸张的本地 SVG 只输出中性浮雕明暗；`readingBackground.css` 将其以 `soft-light` 混合到独立纸色，避免用不透明色层遮盖纹理。预览、空白页和正文使用相同材质尺度；原版与强制颜色模式不受混色影响。
 - 释义方式独立于 AI 设置，在阅读功能栏使用单个胶带按钮按三种模式循环；`definitionModeControl.ts` 同步当前名称、隐藏无障碍描述与 `data-tool-description`，由工具栏共用悬停 / 聚焦浮层展示当前模式范围与费用介绍，不常驻显示操作 / 偏好说明。切换不请求 AI、不确认密钥草稿，进行中的任务仍固定发起时的方式。
+- `readingSearch.css` 复用现有纸面、青色墨迹、控制边框与选中配色；搜索展开栏独立固定定位并限制在视口内，释义预览不放在结果滚动容器中。每行 76px，与 `readingSearch.ts` 的虚拟滚动行高保持一致；强制颜色下保留选中边框和定位高亮，不添加动画。
 - 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。
@@ -171,6 +173,16 @@ type DefinitionView = {
 4. 不相邻片段分别成组，记录每组末尾的全局正文偏移。
 5. 先复用兼容当前模式 / 语境的有效注释及缓存，再对缺失查询分批请求；单纯模式按词条精确去重，参考模式使用词条、纯正文 UTF-16 位置和语境指纹，禁止将不同位置合并。
 6. 按偏移从后向前更新正文，避免前一次插入改变后续位置；中文元数据与正文一起同步。
+
+### 只读单词搜索
+
+`wordSearch.ts` 对完整正文索引原词和全局 UTF-16 范围，跳过 `『批注』`。`Uint32Array` 将正文偏移映射到去除批注后的 Unicode 码点位置，供距离计算；页码仍沿用原有分页。批注按紧邻的正文位置关联，带 `term` 的短语核对前面的词与空白，旧单语注释退回紧邻词，不按词面跨位置复用。
+
+查询只做大小写折叠、子串及最多两次拼写编辑（含相邻交换），按词面缓存本次匹配结果；本页优先，页内以最近点击 / 定位的词（默认页首）为锚点，其它页以当前页边界为锚点，按正文字符距离排序，同距后方优先。完整索引与结果仅在页面内存中，输入防抖 100ms，查询上限 64 字符，不发网络请求。
+
+`readingSearch.ts` 使用带 `aria-activedescendant` 的组合框与虚拟列表，每条提供 `aria-posinset` / `aria-setsize`；只渲染可见行及当前活动行，滚动和键盘可到达全部重复项。定位复用 `goToPage()` 和 `wordsById`，仅为对应 DOM 词添加临时高亮与焦点，不重写格式或记录历史。预览直接读取该偏移的 `definitionViews`，保留音标与实际显示语言，不查询缓存或 AI。
+
+`document-view-changed` 使搜索索引与高亮失效；`render()` 在整篇替换时发出 `document-replaced`，与 `session-changed` 一同清除查询、结果和预览，避免旧文章内容残留。忙碌状态同步禁用搜索输入与范围按钮，搜索 Esc 使用捕获阶段关闭展开栏，不顺带退出选词模式。
 
 ## 4. 持久化与浏览器存储
 

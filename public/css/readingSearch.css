@@ -1,0 +1,38 @@
+/* Existing notebook paper, pencil borders and qing ink; no new palette. */
+.page-next-tools { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.word-search { position: relative; flex: 1 1 256px; width: 280px; max-width: 100%; min-width: 0; }
+.word-search-field { display: flex; align-items: center; gap: 4px; min-height: 44px; border-bottom: 1px solid var(--control-border); background: var(--panel); }
+.word-search-field > .tool-glyph { flex: 0 0 18px; width: 18px; height: 18px; margin-left: 8px; color: var(--accent); }
+.word-search-field input { flex: 1; width: 100%; min-width: 0; min-height: 44px; padding: 8px 4px; border: 0; border-radius: 0; background: transparent; font: 14px/1.5 var(--serif); }
+.word-search-field input::placeholder { color: var(--muted); opacity: 1; }
+.word-search-field .btn { flex: 0 0 auto; padding-inline: 8px; white-space: nowrap; }
+.word-search-popup { position: fixed; z-index: 52; display: flex; flex-direction: column; overflow: auto; padding: 4px; border: 1px solid var(--control-border); background: var(--panel); color: var(--text); box-shadow: var(--paper-shadow); border-radius: 2px; }
+.word-search-heading { display: flex; flex: 0 0 auto; justify-content: space-between; gap: 12px; padding: 8px; border-bottom: 1px dashed var(--border); font: 12px/1.5 var(--sans); color: var(--muted); }
+.word-search-heading [role="status"] { color: var(--text); font-weight: 600; }
+.word-search-results { overflow-y: auto; overscroll-behavior: contain; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--pencil) transparent; }
+.word-search-rows { position: relative; }
+.search-result { position: absolute; left: 0; right: 0; height: 76px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.search-result[aria-selected="true"] { background: var(--selected); box-shadow: 3px 0 0 var(--accent) inset; }
+.search-result-copy { min-width: 0; }
+.search-result-word { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 17px/1.5 var(--serif); }
+.search-result-context { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 12px/1.5 var(--sans); }
+.search-note-mark { color: var(--accent-2); font: 11px/1.5 var(--sans); }
+.search-result-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; color: var(--muted); font: 11px/1.5 var(--sans); white-space: nowrap; }
+.search-result-meta > :first-child { color: var(--accent-2); font-weight: 600; }
+.word-search-empty { margin: 0; padding: 20px 12px; color: var(--muted); font: 13px/1.7 var(--sans); }
+.word-search-footer { flex: 0 0 auto; margin: 0; padding: 8px; border-top: 1px dashed var(--border); color: var(--muted); font: 11px/1.5 var(--sans); }
+.word-search-preview { z-index: 60; max-height: min(320px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; }
+.word-search-preview .search-preview-secondary { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); }
+.content .term.search-hit { background: var(--selected); color: var(--accent-2); outline: 2px dashed var(--accent); outline-offset: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; scroll-margin-block: 96px; }
+.content .term.search-hit .word-run { color: inherit !important; background: transparent !important; }
+@media (max-width: 700px) {
+  .page-next-tools { display: contents; }
+  .word-search { flex: 1 1 176px; width: auto; }
+  .search-result { gap: 8px; }
+  .search-result-meta { font-size: 10px; }
+}
+@media (forced-colors: active) {
+  .word-search-field, .word-search-popup { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .search-result[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; box-shadow: none; }
+  .content .term.search-hit, .content .term.search-hit .word-run { background: Highlight !important; color: HighlightText !important; outline-color: Highlight; }
+}

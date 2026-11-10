@@ -16,6 +16,7 @@ import { toggleDefinitionLanguage } from "./definitionLanguage";
 import { initReadingBackground } from "./readingBackground";
 import { initWordExport } from "./exportWord";
 import { initReadingToolbar } from "./readingToolbar";
+import { initReadingSearch } from "./readingSearch";
 
 document.getElementById("undoBtn")!.addEventListener("click", () => restoreHistory());
 document.getElementById("redoBtn")!.addEventListener("click", () => restoreHistory(true));
@@ -83,4 +84,4 @@ translateBtn.addEventListener("click", () => {
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("refreshSelectedBtn")!.addEventListener("click", () => { void translateSelected(true); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
-initUILanguage(); initPanels(); initReadingToolbar(); initDefinitionModeControl(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();
+initUILanguage(); initPanels(); initReadingToolbar(); initReadingSearch(); initDefinitionModeControl(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();

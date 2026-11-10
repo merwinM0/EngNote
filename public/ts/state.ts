@@ -84,7 +84,7 @@ function refreshReadingCounts() {
 }
 export function setBusy(on: boolean) {
   busy = on;
-  for (const id of ["editorBtn", "wordBtn", "formatBtn", "deleteBtn", "saveBtn", "clearBtn", "editorText", "wordFile", "editorApplyBtn"]) {
+  for (const id of ["editorBtn", "wordBtn", "formatBtn", "deleteBtn", "saveBtn", "clearBtn", "editorText", "wordFile", "editorApplyBtn", "wordSearchInput", "wordSearchScope"]) {
     const control = document.getElementById(id);
     if (control instanceof HTMLButtonElement || control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) control.disabled = on;
   }
@@ -178,7 +178,9 @@ function paint(changed = false, keepDeleteMode = false) {
 export function render(text: string, page: number | "last" = 0, definitions: DefinitionView[] = [], formatting: DocumentFormatting | null = null) {
   const checked = validateFormatting(formatting, text);
   documentModel.setText(text, page); documentFormatting = checked;
-  definitionViews.reset(text, definitions); readingHistory.reset(); paint(true);
+  definitionViews.reset(text, definitions); readingHistory.reset();
+  window.dispatchEvent(new Event("document-replaced"));
+  paint(true);
 }
 export function goToPage(index: number) {
   if (busy) return;

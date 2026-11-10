@@ -284,6 +284,18 @@ describe("source server", () => {
     expect(panel).toContain('id="paperColorOptions"');
     expect(html.match(/<main\b[\s\S]*?<\/main>/)?.[0]).not.toContain('id="backgroundPanel"');
   });
+  test("reader places a local, accessible word-search combobox beside Background", async () => {
+    const html = await (await request("/index.html")).text();
+    const navigation = html.match(/<nav class="page-navigation"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(navigation).toMatch(/id="backgroundBtn"[^>]*>[\s\S]*?<\/button>\s*<div id="wordSearch"/);
+    for (const attribute of ['role="combobox"', 'aria-autocomplete="list"', 'aria-controls="wordSearchResults"', 'aria-describedby="wordSearchHelp"', 'maxlength="64"']) expect(navigation).toContain(attribute);
+    expect(navigation).toContain('id="wordSearchScope"');
+    expect(navigation).toContain('role="listbox"');
+    expect(navigation).toContain('id="wordSearchPopup" class="word-search-popup" hidden');
+    expect(navigation).toContain('data-i18n="search.help"');
+    expect(navigation).toContain('role="status" aria-live="polite"');
+    expect(html.match(/id="wordSearchInput"/g)).toHaveLength(1);
+  });
   test("reader keeps saved articles and saving in modal notes, outside the reading layout", async () => {
     const html = await (await request("/index.html")).text();
     const main = html.match(/<main\b[\s\S]*?<\/main>/)?.[0] ?? "";
