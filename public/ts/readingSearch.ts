@@ -23,7 +23,7 @@ export function initReadingSearch(): () => void {
   let active = -1, page = documentModel.index, anchor = documentModel.page.start, composing = false;
   let pointerInResults = false, keyboardScroll = false;
   let timer: ReturnType<typeof setTimeout> | undefined, previewTimer: ReturnType<typeof setTimeout> | undefined, pointerTimer: ReturnType<typeof setTimeout> | undefined;
-  let highlighted: HTMLElement[] = [];
+  let highlighted: HTMLElement[] = [], highlightTimer: ReturnType<typeof setTimeout> | undefined;
   function hidePreview() {
     clearTimeout(previewTimer); preview.hidden = true;
     rows.querySelectorAll("[aria-describedby]").forEach(row => row.removeAttribute("aria-describedby"));
@@ -33,6 +33,7 @@ export function initReadingSearch(): () => void {
     input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant");
   }
   function clearHighlight() {
+    clearTimeout(highlightTimer); highlightTimer = undefined;
     for (const word of highlighted) { word.classList.remove("search-hit"); if (word.tabIndex === -1) word.removeAttribute("tabindex"); }
     highlighted = [];
   }
@@ -148,6 +149,7 @@ export function initReadingSearch(): () => void {
     }
     const target = highlighted[0];
     target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "center", behavior: "instant" });
+    if (target) highlightTimer = setTimeout(clearHighlight, 1300);
   }
   const optionAt = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>(".search-result") : null;
   input.addEventListener("input", event => {

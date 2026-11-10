@@ -71,6 +71,14 @@ describe("compact reading tools", () => {
     expect(collapsed).not.toMatch(/(?:^|;)\s*(?:left|right|inset|transform):/);
     expect(css).toContain("left: var(--toolbar-left)");
   });
+  test("search location feedback outlines words without overriding source text or background colors", () => {
+    const css = readFileSync("public/css/readingSearch.css", "utf8");
+    const rules = [...css.matchAll(/\.content \.term\.search-hit[^{}]*\{([^}]+)\}/g)].map(match => match[1]!);
+    expect(rules.length).toBeGreaterThanOrEqual(2);
+    expect(rules.some(rule => rule.includes("outline: 2px dashed var(--accent)"))).toBe(true);
+    expect(rules.some(rule => rule.includes("outline-color: Highlight"))).toBe(true);
+    for (const rule of rules) expect(rule).not.toMatch(/(?:^|;)\s*(?:background(?:-[\w-]+)?|color)\s*:/);
+  });
   test("keeps tools in one accessible scrollable row instead of wrapping or shrinking targets", () => {
     const css = readFileSync("public/css/layout.css", "utf8");
     expect(css).toContain("flex-wrap: nowrap");

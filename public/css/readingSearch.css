@@ -10,7 +10,7 @@
 .word-search-field input::placeholder { color: var(--muted); opacity: 1; }
 .word-search-field .btn { flex: 0 0 auto; padding-inline: 8px; white-space: nowrap; }
 .word-search-popup { position: fixed; z-index: 52; display: flex; flex-direction: column; overflow: auto; padding: 4px; border: 1px solid var(--control-border); background: var(--panel); color: var(--text); box-shadow: var(--paper-shadow); border-radius: 2px; }
-.word-search-heading { display: flex; flex: 0 0 auto; justify-content: space-between; gap: 12px; padding: 8px; border-bottom: 1px dashed var(--border); font: 12px/1.5 var(--sans); color: var(--muted); }
+.word-search-heading { flex: 0 0 auto; padding: 8px; border-bottom: 1px dashed var(--border); font: 12px/1.5 var(--sans); color: var(--muted); }
 .word-search-heading [role="status"] { color: var(--text); font-weight: 600; }
 .word-search-results { overflow-y: auto; overscroll-behavior: contain; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--pencil) transparent; }
 .word-search-rows { position: relative; }
@@ -25,8 +25,7 @@
 .word-search-empty { margin: 0; padding: 20px 12px; color: var(--muted); font: 13px/1.7 var(--sans); }
 .word-search-preview { z-index: 60; max-height: min(320px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; }
 .word-search-preview .search-preview-secondary { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); }
-.content .term.search-hit { background: var(--selected); color: var(--accent-2); outline: 2px dashed var(--accent); outline-offset: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; scroll-margin-block: 96px; }
-.content .term.search-hit .word-run { color: inherit !important; background: transparent !important; }
+.content .term.search-hit { outline: 2px dashed var(--accent); outline-offset: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; scroll-margin-block: 96px; }
 @media (max-width: 700px) {
   .page-next-tools { display: contents; }
   .word-search { flex: 1 1 176px; width: auto; }
@@ -37,5 +36,5 @@
   .word-search-field, .word-search-popup { background: Canvas; color: CanvasText; border-color: CanvasText; }
   .word-search-field:focus-within { outline: 2px solid Highlight; outline-offset: 3px; box-shadow: none; }
   .search-result[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; box-shadow: none; }
-  .content .term.search-hit, .content .term.search-hit .word-run { background: Highlight !important; color: HighlightText !important; outline-color: Highlight; }
+  .content .term.search-hit { outline-color: Highlight; }
 }
