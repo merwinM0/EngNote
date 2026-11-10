@@ -22,7 +22,8 @@ bun dev
 - 首页：<http://localhost:3000>；阅读页：<http://localhost:3000/index.html>。
 - 现有 `.env` 与数据库应保留，不要用配置模板覆盖。
 - 前端 TS / CSS 由 HTML 入口打包并热更新，后端代码修改由 `--watch` 重启。
-- 默认 `HOST=0.0.0.0`，启动日志显示本机及局域网地址。同网段手机可通过 `http://本机局域网IP:3000` 访问，需放行防火墙；只供本机使用则设 `HOST=127.0.0.1`。
+- 启动使用无图标边框面板，仅展示 localhost 链接、实际 PID、Bun 版本及开发 / 生产和 HMR 状态，不枚举局域网地址；`bun dev --json` / `bun start --json` 将启动结果或错误作为 JSON 写入标准输出，失败退出码为 1。
+- 默认仍为 `HOST=0.0.0.0`，隐藏局域网地址不等于限制监听。同网段手机可通过 `http://本机局域网IP:3000` 访问，需放行防火墙；只供本机使用则设 `HOST=127.0.0.1`。显式绑定特定网卡时，应使用该网卡地址访问，面板中的 localhost 链接不保证可用。
 - 未设置 `PORT` 时，`bun dev` 默认 3000，`bun start` 默认 80；显式设置 `PORT` 会覆盖默认值。
 
 ## 3. 环境变量
@@ -170,13 +171,28 @@ bun run users article 123
 bun run users delete 12
 ```
 
-- 无命令进入交互模式，支持 `list`、`show`、`article`、`delete`、`help`、`quit`。用户列表每页 50 人；`show` 显示用户及其全部文章列表，`article` 显示整篇正文及批注已保存的显示语言。终端输出过滤 ANSI / OSC、双向及其他控制字符。
+- 无命令进入交互模式，只显示数据库位置和简短命令概览，完整用法通过 `help` / `--help` 查看；`bun users` 与 `bun run users` 等价。支持 `list`、`show`、`article`、`delete`、`help`、`quit`，用户列表每页 50 人。
+- 标题、用户 / 文章元信息和正文分层展示，列表、详情、正文、删除警告及错误使用边框；按终端显示宽度换行，不截断长正文或拆开字素。错误同时说明问题与修复方法；删除成功仅显示简短结果和备份路径，不用大面板。
+- 界面不添加图标。普通面板不着色，只有 TTY 下的错误、删除警告和成功标签分别使用红、黄、绿；重定向、`NO_COLOR` 或 `TERM=dumb` 禁用颜色。人类可读输出转义 ANSI / OSC、双向及其他控制字符，正文的制表符按四个空格显示；`article` 使用批注已保存的显示语言。
 - 数据库优先使用 `--db`，否则使用 `DB_PATH` 或项目根目录 `data.db`；查看只读打开**已存在**的数据库。路径错误不创建空库，结构不兼容时提示先由应用迁移。`--help` 不打开数据库。
 
 ```bash
 bun run users --db /srv/engnote/data.db list
 bun run users --db /srv/engnote/data.db --backup-dir /srv/engnote/private-backups delete 12
 ```
+
+### 机器可读输出
+
+```bash
+bun users list --json
+bun users show user@example.com --json
+bun users article 123 --json
+```
+
+- `--json` 只支持查询及帮助，需要显式命令，不进入交互，也不能用来删除或跳过确认。成功和错误均向标准输出写入一个 JSON 文档，不夹带数据库横幅、边框、颜色或输入提示；成功退出 0，失败退出 1。普通模式的致命错误写入标准错误。Bun 命令运行器自身的日志可能写入标准错误，与应用 JSON 分开。
+- 查询返回 `ok`、`command` 及对应的 `users`、`user` / `articles` 或 `article`；列表另含 `page` / `pageSize`。文章 `content` 是完整的当前显示语言文本，不是终端换行或转义后的副本；不输出密码哈希。
+- 错误结构为 `{ "ok": false, "error": { "code": "…", "message": "…", "hint": "…" } }`。JSON 保留原数据语义，控制字符与不可见格式字符用合法 JSON 转义，不触发终端控制。
+- 启动 JSON 记录包含 `ok`、`event: "ready"`、`url`、`mode`、`pid`、`bunVersion` 和 `hmr`；这只描述服务监听及开发状态，不证明 SMTP / Redis 已通过认证验收，后续运行日志不是管理命令的单文档结果。
 
 ### 删除确认与备份
 

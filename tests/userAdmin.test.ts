@@ -14,9 +14,9 @@ beforeEach(() => {
   db.exec("INSERT INTO entries (title, content, owner_email, definitions) VALUES ('One', 'fox『animal』', 'alice@example.com', '[{\"start\":3,\"english\":\"animal\",\"chinese\":\"动物\",\"language\":\"zh\"}]'), ('Two', 'Keep all text.', 'alice@example.com', '[]'), ('Bob', 'Other account.', 'bob@example.com', '[]'), ('Legacy', 'No owner.', NULL, '[]')");
 });
 afterEach(() => { db.close(); rmSync(directory, { recursive: true, force: true }); });
-function io(answers: Array<string | undefined> = []) {
+function io(answers: Array<string | undefined> = [], options: Pick<AdminIO, "columns" | "color"> = {}) {
   let output = "";
-  const terminal: AdminIO = { write: text => { output += text; }, readLine: async prompt => { output += prompt; return answers.shift(); } };
+  const terminal: AdminIO = { ...options, write: text => { output += text; }, readLine: async prompt => { output += prompt + "\n"; return answers.shift(); } };
   return { terminal, output: () => output };
 }
 const count = (table: "users" | "entries") => (db.query(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count;
@@ -49,6 +49,55 @@ describe("local read-only user/article inspection", () => {
       if (args[0] === "show") { expect(terminal.output()).toContain("One"); expect(terminal.output()).toContain("Two"); expect(terminal.output()).not.toContain("Other account"); }
     }
     expect(count("users")).toBe(2); expect(count("entries")).toBe(4);
+  });
+  test("starts with a compact neutral panel and opens help without touching a missing database", async () => {
+    const missing = join(directory, "absent.db"), welcome = io(["quit"]);
+    await runUserAdmin(["--db", missing], welcome.terminal);
+    expect(welcome.output()).toContain("╭─ EngNote 用户管理");
+    expect(welcome.output()).toContain("help 帮助");
+    expect(welcome.output()).not.toContain("--backup-dir");
+    expect(welcome.output()).not.toContain("\x1b");
+    const help = io(); await runUserAdmin(["--db", missing, "--help"], help.terminal);
+    expect(help.output()).toContain("--json"); expect(help.output()).toContain("DELETE 邮箱");
+    expect(existsSync(missing)).toBe(false);
+  });
+  test("read-only JSON commands emit one document with raw data and no interaction", async () => {
+    for (const args of [["list"], ["show", "1"], ["article", "1"]]) {
+      const terminal = io([], { color: true });
+      terminal.terminal.readLine = async () => { throw new Error("JSON must not prompt"); };
+      await runUserAdmin(["--db", path, ...args, "--json"], terminal.terminal);
+      const result = JSON.parse(terminal.output());
+      expect(result.ok).toBe(true); expect(result.command).toBe(args[0]);
+      expect(terminal.output().trim().split("\n")).toHaveLength(1);
+      expect(terminal.output()).not.toContain("\x1b"); expect(terminal.output()).not.toContain("数据库：");
+      expect(terminal.output()).not.toContain("private-test-hash");
+      if (args[0] === "list") { expect(result.users).toHaveLength(2); expect(result.pageSize).toBe(50); }
+      if (args[0] === "show") { expect(result.user.email).toBe("alice@example.com"); expect(result.articles).toHaveLength(2); }
+      if (args[0] === "article") expect(result.article.content).toBe("fox『动物』");
+    }
+    const value = "Original\n\u202e\x1b[31m";
+    db.query("UPDATE entries SET title = ? WHERE id = 1").run(value);
+    const terminal = io(); await runUserAdmin(["--db", path, "article", "1", "--json"], terminal.terminal);
+    expect(JSON.parse(terminal.output()).article.title).toBe(value);
+    expect(terminal.output()).not.toContain("\u202e"); expect(terminal.output()).not.toContain("\x1b");
+    expect(count("users")).toBe(2); expect(count("entries")).toBe(4);
+  });
+  test("JSON cannot silently enter a prompt or bypass deletion confirmation", async () => {
+    const terminal = io(["DELETE alice@example.com"]);
+    for (const args of [[], ["delete", "1"]]) {
+      await expect(runUserAdmin(["--db", path, ...args, "--json"], terminal.terminal)).rejects.toThrow("JSON 模式");
+    }
+    expect(terminal.output()).toBe(""); expect(count("users")).toBe(2); expect(count("entries")).toBe(4);
+    expect(existsSync(backups)).toBe(false);
+  });
+  test("human errors provide a repair and terminal data cannot supply its own colors", async () => {
+    const terminal = io(["show 999", "quit"], { color: true });
+    await runUserAdmin(["--db", path], terminal.terminal);
+    expect(terminal.output()).toContain("\x1b[31m错误\x1b[0m");
+    expect(terminal.output()).toContain("处理"); expect(terminal.output()).toContain("bun users list");
+    db.query("UPDATE entries SET title = ? WHERE id = 1").run("Injected\x1b[32m\u202e");
+    const plain = io(); await runUserAdmin(["--db", path, "article", "1"], plain.terminal);
+    expect(plain.output()).toContain("Injected\\u{1b}[32m\\u{202e}"); expect(plain.output()).not.toContain("\x1b");
   });
   test("escapes ANSI/OSC, bidi, C0 and carriage-return terminal injection", () => {
     expect(terminalText("Safe\x1b[2J\x1b]52;c;bad\x07\r\u202Eend\n\t")).toBe("Safe\\u{1b}[2J\\u{1b}]52;c;bad\\u{7}\\u{d}\\u{202e}end\n\t");
@@ -110,10 +159,19 @@ describe("confirmed, backed-up account cascade deletion", () => {
       const process = Bun.spawn([Bun.which("bun")!, "run", "users", "--db", path, "--backup-dir", backups, ...args], { cwd: resolve(import.meta.dir, ".."), stdin: "pipe", stdout: "pipe", stderr: "pipe" });
       process.stdin.write(input); process.stdin.end();
       const [stdout, stderr, code] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
-      expect(stdout + stderr).not.toContain("private-test-hash"); return { stdout, code };
+      expect(stdout + stderr).not.toContain("private-test-hash"); return { stdout, stderr, code };
     };
     expect((await invoke(["article", "1"])).stdout).toContain("fox『动物』");
-    expect((await invoke(["show", "999"])).code).toBe(1);
+    const missing = await invoke(["show", "999"]); expect(missing.code).toBe(1); expect(missing.stderr).toContain("处理");
+    for (const args of [["list"], ["show", "1"], ["article", "1"]]) {
+      const result = await invoke([...args, "--json"]);
+      expect(result.code).toBe(0); expect(JSON.parse(result.stdout).ok).toBe(true);
+    }
+    const rejected = await invoke(["delete", "1", "--json"], "DELETE alice@example.com\n");
+    expect(rejected.code).toBe(1); expect(JSON.parse(rejected.stdout).error.code).toBe("INTERACTIVE_REQUIRED");
+    expect(count("users")).toBe(2); expect(existsSync(backups)).toBe(false);
+    const notFound = await invoke(["show", "999", "--json"]);
+    expect(notFound.code).toBe(1); expect(JSON.parse(notFound.stdout).error.code).toBe("NOT_FOUND");
     const cancelled = await invoke(["delete", "1"]); expect(cancelled.stdout).toContain("已取消");
     const removed = await invoke(["delete", "1"], "DELETE alice@example.com\n"); expect(removed.code).toBe(0); expect(removed.stdout).toContain("及 2 篇文章");
     expect(count("users")).toBe(1); expect(count("entries")).toBe(2);

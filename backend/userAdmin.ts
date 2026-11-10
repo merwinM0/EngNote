@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
 import { closeSync, fsyncSync, lstatSync, mkdirSync, openSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+export { terminalText } from "./terminal";
 
 export type AdminUser = { id: number; email: string; created_at: string; article_count: number };
 export type AdminArticle = { id: number; title: string; created_at: string; characters: number };
@@ -46,10 +47,6 @@ export function previewUser(db: Database, target: string): UserPreview | null {
   // Include saved contents and metadata, not just counts: any concurrent article change requires a new preview.
   for (const row of db.query("SELECT * FROM entries WHERE owner_email = ? ORDER BY id").iterate(user.email)) hash.update(JSON.stringify(row));
   return { user, articles: userArticles(db, user), stamp: hash.digest("hex") };
-}
-/** Escape terminal commands and bidi/invisible controls while retaining readable multiline content. */
-export function terminalText(text: string): string {
-  return text.replace(/[\p{Cc}\p{Cf}\p{Cs}]/gu, character => character === "\n" || character === "\t" ? character : `\\u{${character.codePointAt(0)!.toString(16)}}`);
 }
 function backupSnapshot(db: Database, directory: string, userId: number): string {
   const root = resolve(directory);

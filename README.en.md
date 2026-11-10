@@ -18,7 +18,7 @@ EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Past
 - Bounded dictionary cache, explicit refresh and reported AI usage.
 - Email accounts, automatic updates after adding or refreshing definitions in an already-saved article without another confirmation, a draggable/zoomable collection ordered by latest save or edit, and local white-paper Word export using each note's displayed language while retaining supported source fonts and layout.
 - English UI by default with a Chinese switch; UI and definition languages are independent.
-- Local terminal administration: inspect users, article lists and full contents; delete a user and all their articles only after explicit confirmation and a database backup. No public admin API.
+- Local terminal administration with concise bordered views and read-only `--json` output; delete a user and all their articles only after explicit confirmation and a database backup. No public admin API.
 
 > Saved articles are account-private: only their owner can view, update or delete them. Sharing is not supported. Reading, editing, importing, using your own AI key and Word export require no account; working drafts stay in this browser tab. Saving a new article still requires login and confirmation; new drafts are never uploaded automatically. When logged in with a verified saved article selected, completing definitions automatically updates that article. Your confirmed DeepSeek key stays in this tab; AI requests go directly to DeepSeek, never through this app's backend.
 
@@ -32,7 +32,7 @@ test -f .env || cp .env.example .env
 bun dev
 ```
 
-Open <http://localhost:3000>, then “Start a new page” to read at `/index.html`. The server listens on `0.0.0.0` by default for LAN access; use `HOST=127.0.0.1` for local-only access. Default ports: development 3000, production 80; `PORT` overrides them.
+Open <http://localhost:3000>, then “Start a new page” to read at `/index.html`. The startup panel shows only localhost, PID, Bun version and runtime mode, without listing LAN addresses; `bun dev --json` emits a structured startup record. The server still listens on `0.0.0.0` by default: LAN devices can use your machine's LAN IP. Use `HOST=127.0.0.1` for local-only access. Default ports: development 3000, production 80; `PORT` overrides them.
 
 The home page's “amnual” opens a five-step simulated guide without real AI requests, keys or article writes.
 

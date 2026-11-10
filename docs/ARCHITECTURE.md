@@ -15,7 +15,7 @@ EngNote 是框架无关的 Bun 全栈应用。服务端直接导入两个 HTML �
                   （使用当前标签页已确认的用户密钥）
 ```
 
-- [`index.ts`](../index.ts) 解析端口、打开数据库、启动服务并输出本机 / 局域网地址；退出时停止接收请求、关闭 Redis 和 SQLite。
+- [`index.ts`](../index.ts) 解析启动选项与端口、打开数据库、启动服务；仅展示 localhost 链接及实际 PID、Bun 版本和模式，支持 JSON 启动记录与可操作错误；退出时停止接收请求、关闭 Redis 和 SQLite。
 - [`backend/server.ts`](../backend/server.ts) 挂载页面，处理 API、会话 Cookie、请求来源与作者权限；[`backend/database.ts`](../backend/database.ts) 统一数据库路径、建表与无损迁移。
 - [`scripts/users.ts`](../scripts/users.ts) 与 [`backend/userAdmin.ts`](../backend/userAdmin.ts) 提供本机终端查看与经确认、备份后的级联删除，不加载网页服务器或新增管理接口。
 - 浏览器模块只使用原生 DOM 和 Web API。后端可复用无 DOM 副作用的正文 / 释义校验模块，不将 SMTP、Redis 或数据库代码引入前端。
@@ -34,6 +34,7 @@ EngNote/
 ├── scripts/users.ts          # 终端用户 / 文章查看与确认级联删除
 ├── backend/
 │   ├── config.ts             # 端口默认值与地址显示
+│   ├── terminal.ts           # 终端边框、字素换行、安全转义、语义状态与 JSON / 错误展示
 │   ├── server.ts             # HTML 路由、REST API 与校验
 │   ├── database.ts           # 数据库路径、模式与无损迁移
 │   ├── userAdmin.ts          # 只读检查、预览核对、受限备份及事务删除
@@ -103,6 +104,14 @@ EngNote/
 - 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。
+
+### 终端展示与机器边界
+
+`backend/terminal.ts` 由启动入口和本机管理脚本复用，不进入浏览器依赖图。使用 Bun 显示宽度与 `Intl.Segmenter` 按字素排版，面板自动适配终端列数，长正文只换行不截断；普通面板无装饰颜色或图标，红 / 黄 / 绿只标记 TTY 中的错误、删除警告和成功，遵循 `NO_COLOR` / `TERM=dumb`。
+
+人类可读输出先转义终端控制和不可见格式字符，再添加受控的状态颜色；错误包含问题及修复建议，成功结果保持紧凑。`--json` 是显式机器模式，结果 / 错误写入 stdout，失败保留非零退出码，不混入面板、颜色或交互提示；不可见格式字符采用可逆 JSON 转义。用户管理 JSON 仅支持只读查询与帮助，不允许自动删除，既有权限、预览、备份和事务逻辑不变。
+
+启动面板不枚举网卡，仅改变展示而不收紧 `HOST` 监听；JSON 启动记录只包含运行元信息，不输出凭证或完整环境变量。
 
 ## 3. 正文模型与渲染数据流
 
