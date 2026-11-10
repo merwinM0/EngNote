@@ -202,6 +202,8 @@ const en = {
   "save.titleError": "AI could not create a title. Please enter an English title yourself (1–20 characters). {error}",
   "save.invalidTitle": "Please enter an English title of 1–20 characters.",
   "save.saved": "All pages saved together, including your definitions.",
+  "save.autoSaved": " Changes saved automatically.",
+  "save.autoFailed": " Automatic save failed. Changes remain in this tab; use the save button to retry. {error}",
 
   "collection.close": "Close saved articles",
   "collection.refresh": "Refresh saved articles",
@@ -567,6 +569,8 @@ const zh: Record<keyof typeof en, string> = {
   "save.titleError": "AI 无法生成标题。请手动输入 1–20 个字符的英文标题。{error}",
   "save.invalidTitle": "请输入 1–20 个字符的英文标题。",
   "save.saved": "所有页面和释义已一起保存。",
+  "save.autoSaved": " 修改已自动保存。",
+  "save.autoFailed": " 自动保存失败，修改仍保留在当前标签页，请使用保存按钮重试。{error}",
 
   "collection.close": "关闭已保存文章",
   "collection.refresh": "刷新已保存文章",

@@ -359,6 +359,41 @@ describe("source server", () => {
     expect((await request(`/api/entries/${id}`, "DELETE", undefined, alice)).status).toBe(200);
     expect((await request(`/api/entries/${id}`)).status).toBe(404);
   });
+  test("orders new and modified articles by last save, even in the same millisecond", async () => {
+    const clock = spyOn(Date, "now").mockReturnValue(Date.now());
+    try {
+      const first = await create(), second = await create();
+      const list = async () => (await (await request("/api/entries")).json()).entries as { id: number; created_at: string; updated_at: number }[];
+      const initial = await list();
+      expect(initial.slice(0, 2).map(entry => entry.id)).toEqual([second, first]);
+      const before = initial.find(entry => entry.id === first)!;
+      expect(Number.isSafeInteger(before.updated_at)).toBe(true);
+      expect(initial[0]!.updated_at).toBeGreaterThan(before.updated_at);
+      expect((await request(`/api/entries/${first}`, "PUT", { content: "Latest changes.", updated_at: 1 })).status).toBe(200);
+      const updated = await list();
+      expect(updated[0]!.id).toBe(first);
+      expect(updated[0]!.created_at).toBe(before.created_at);
+      expect(updated[0]!.updated_at).toBeGreaterThan(initial[0]!.updated_at);
+      const loaded = (await (await request(`/api/entries/${first}`)).json()).entry;
+      expect(loaded.updated_at).toBe(updated[0]!.updated_at);
+      expect((await list())[0]!.updated_at).toBe(loaded.updated_at); // Reads do not promote an article.
+      const third = await create();
+      expect((await list()).slice(0, 3).map(entry => entry.id)).toEqual([third, first, second]);
+    } finally { clock.mockRestore(); }
+  });
+  test("rejected saves leave content, timestamps and collection order unchanged", async () => {
+    const first = await create(), second = await create();
+    const before = (await (await request(`/api/entries/${first}`)).json()).entry;
+    for (const [cookie, payload, status] of [
+      [bob, { content: "Other account." }, 404],
+      [alice, { content: "   " }, 400],
+      [alice, { content: "Invalid note.", definitions: [{ start: 0, english: "wrong", chinese: "错误" }] }, 400],
+    ] as const) {
+      expect((await request(`/api/entries/${first}`, "PUT", payload, cookie)).status).toBe(status);
+      expect((await (await request(`/api/entries/${first}`)).json()).entry).toEqual(before);
+      expect((await (await request("/api/entries")).json()).entries[0].id).toBe(second);
+    }
+  });
   test("saves and loads every page as one lossless article", async () => {
     const content = "  " + "A fox『an animal』 in 2026!\n\n".repeat(300) + "\t ";
     const saved = await request("/api/entries", "POST", { title: "Many pages", content }, alice);
@@ -558,11 +593,18 @@ test("migrates the old schema without losing articles", () => {
   const dir = mkdtempSync(join(tmpdir(), "engnote-test-"));
   const path = join(dir, "legacy.db");
   const old = new Database(path);
-  old.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now'))); INSERT INTO entries (title, content) VALUES ('Old story', 'Original text.');");
+  old.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now'))); INSERT INTO entries (title, content, created_at) VALUES ('Old story', 'Original text.', '2020-01-02 03:04:05');");
   old.close();
   const migrated = openDatabase(path);
-  try { expect(migrated.query("SELECT title, content, owner_email, definitions FROM entries").get()).toEqual({ title: "Old story", content: "Original text.", owner_email: null, definitions: "[]" }); }
-  finally { migrated.close(); rmSync(dir, { recursive: true, force: true }); }
+  try {
+    expect(migrated.query("SELECT title, content, owner_email, definitions, updated_at FROM entries").get()).toEqual({
+      title: "Old story", content: "Original text.", owner_email: null, definitions: "[]", updated_at: Date.parse("2020-01-02T03:04:05Z"),
+    });
+    migrated.query("UPDATE entries SET updated_at = ?").run(1800000000123);
+    const reopened = openDatabase(path);
+    try { expect(reopened.query("SELECT updated_at FROM entries").get()).toEqual({ updated_at: 1800000000123 }); }
+    finally { reopened.close(); }
+  } finally { migrated.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("adds bilingual storage without changing existing ownership or annotations", () => {

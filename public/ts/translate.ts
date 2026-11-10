@@ -2,6 +2,7 @@ import { definitionModePreference } from "./definitionMode";
 import { contextQuery, contextPayload, CONTEXT_PROMPT } from "./definitionContext";
 import { setStatus, errorMessage } from "./util";
 import { localizeError, msg, t } from "./i18n";
+import { saveDefinitionChanges } from "./db";
 import { content, wordsById, collectPickedIds, restorePickedRanges, retainedPicksOutsidePage, groupIds, groupText, setTranslateMode, isTranslateMode, togglePick, isBusy, setBusy, getRevision, addDefinitions, definitionViews, getCurrentText } from "./state";
 import { callDeepSeek } from "./deepseek";
 import { DICTIONARY_PROMPT, dictionaryKey, dictionaryTokenBudget } from "./dictionary";
@@ -52,6 +53,7 @@ export async function translateSelected(refresh = false) {
   }
   const requestsBefore = aiUsage.snapshot().requests;
   const otherPages = retainedPicksOutsidePage();
+  let completion: { message: () => string; changed: boolean; missing: boolean } | null = null;
   let retryRanges = [...targets.map(target => ({ start: target.start, end: target.offset })), ...otherPages];
   for (const target of targets) target.word.el.classList.add("defining");
   setBusy(true);
@@ -82,9 +84,10 @@ export async function translateSelected(refresh = false) {
     retryRanges = remapSelection(retryRanges, edits);
     const missing = targets.length - result.kept - result.definitions.length;
     const requests = aiUsage.snapshot().requests - requestsBefore;
-    setStatus(() => t("status.summary", {
+    completion = { changed: edits.length > 0, missing: missing > 0, message: () => t("status.summary", {
       ready: targets.length - missing, total: targets.length, kept: result.kept, cached: result.cached, requests,
-    }) + (missing ? t("status.missing") : "") + (result.error ? " " + localizeError(result.error) : ""), missing ? "error" : "ok");
+    }) + (missing ? t("status.missing") : "") + (result.error ? " " + localizeError(result.error) : "") };
+    setStatus(completion.message, missing ? "error" : "ok");
   } catch (error) {
     if (activeRequest === request && !request.signal.aborted && getRevision() === revision) setStatus(() => errorMessage(error), "error");
   } finally {
@@ -96,5 +99,13 @@ export async function translateSelected(refresh = false) {
       restorePickedRanges(retryRanges);
       if (restoreFocus && document.activeElement === document.body) content.focus({ preventScroll: true });
     }
+  }
+  // Finish the cancellable AI phase first. Esc/Read must not release the database-write lock.
+  if (completion?.changed) {
+    const result = await saveDefinitionChanges();
+    if (!result) return;
+    const summary = completion.message;
+    setStatus(() => summary() + (result.saved ? t("save.autoSaved") : t("save.autoFailed", { error: errorMessage(result.error) })),
+      !result.saved || completion.missing ? "error" : "ok");
   }
 }

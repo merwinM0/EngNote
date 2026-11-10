@@ -39,7 +39,9 @@ function sessionCookie(req: Request, value: string, age: number) {
 function allow(req: Request, methods: string[]) {
   if (!methods.includes(req.method)) return json({ ok: false, error: "Method not allowed." }, 405, { allow: methods.join(", ") });
 }
-type StoredEntry = { id: number; title: string; content: string; created_at: string; owner_email: string | null; definitions: string; formatting: string | null };
+type StoredEntry = { id: number; title: string; content: string; created_at: string; updated_at: number; owner_email: string | null; definitions: string; formatting: string | null };
+// Atomic, account-local millisecond ordering, including several writes in the same clock tick.
+const savedAtSQL = "MAX(?, COALESCE((SELECT MAX(updated_at) FROM entries WHERE owner_email = ?), 0) + 1)";
 function storedDefinitions(raw: string, content: string): DefinitionView[] {
   try { return readDefinitionViews(JSON.parse(raw), content); } catch { return []; }
 }
@@ -104,7 +106,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       const session = await resolveSession(token(req)), email = session?.email;
       if (!session || !email) throw new HttpError("Please log in.", 401);
       if (req.method === "GET") {
-        const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at">, [string, number, string]>("SELECT id, title, created_at FROM entries WHERE owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?) ORDER BY id DESC").all(email, session.userId, email);
+        const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at" | "updated_at">, [string, number, string]>("SELECT id, title, created_at, updated_at FROM entries WHERE owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?) ORDER BY updated_at DESC, id DESC").all(email, session.userId, email);
         return json({ ok: true, entries: rows.map(entry => ({ ...entry, can_edit: true })) });
       }
       const data = await body(req);
@@ -114,7 +116,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
       const definitions = requestDefinitions(data.definitions, content);
       const formatting = requestFormatting(data.formatting, content);
-      const result = db.query("INSERT INTO entries (title, content, owner_email, definitions, formatting) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(title, content, email, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, session.userId, email);
+      const result = db.query(`INSERT INTO entries (title, content, owner_email, definitions, formatting, updated_at) SELECT ?, ?, ?, ?, ?, ${savedAtSQL} WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(title, content, email, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, session.userId, email);
       if (result.changes !== 1) throw new HttpError("Please log in.", 401);
       return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
     }
@@ -142,7 +144,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         let formatting;
         try { formatting = "formatting" in data ? requestFormatting(data.formatting, content) : rebaseFormatting(storedFormatting(entry.formatting, entry.content), entry.content, content); }
         catch (error) { throw new HttpError(error instanceof Error ? error.message : "Invalid Word formatting.", 400); }
-        const updated = db.query("UPDATE entries SET content = ?, definitions = ?, formatting = ? WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(content, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, id, email, session.userId, email);
+        const updated = db.query(`UPDATE entries SET content = ?, definitions = ?, formatting = ?, updated_at = ${savedAtSQL} WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(content, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, id, email, session.userId, email);
         if (updated.changes !== 1) throw new HttpError("Please log in.", 401);
       }
       return json({ ok: true, id });

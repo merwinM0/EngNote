@@ -12,7 +12,7 @@ import { definitionContent } from "./definitionViews";
 import { ArticleDefinitionLanguages } from "./articleDefinitionLanguages";
 import type { DefinitionView } from "./definitionViews";
 
-type Entry = { id: number; title: string; created_at: string; can_edit: boolean; content?: string; definitions?: DefinitionView[]; formatting?: DocumentFormatting | null };
+type Entry = { id: number; title: string; created_at: string; updated_at?: number; can_edit: boolean; content?: string; definitions?: DefinitionView[]; formatting?: DocumentFormatting | null };
 const savePanel = document.getElementById("savePanel") as HTMLDialogElement;
 const collectionPanel = document.getElementById("collectionPanel") as HTMLDialogElement;
 const confirmSaveBtn = document.getElementById("confirmSaveBtn") as HTMLButtonElement;
@@ -108,8 +108,9 @@ function showError(id: string, message: UIMessage) {
   const element = document.getElementById(id)!;
   element.hidden = !setUIText(element, message);
 }
-function collectionDate(createdAt: string): string {
-  const date = new Date(createdAt.replace(" ", "T") + "Z");
+function collectionDate(savedAt: string | number): string {
+  if (savedAt === 0 || savedAt === "0") return t("collection.savedPage");
+  const date = new Date(typeof savedAt === "number" || /^\d+$/.test(savedAt) ? Number(savedAt) : savedAt.replace(" ", "T") + "Z");
   return Number.isNaN(date.getTime()) ? t("collection.savedPage")
     : date.toLocaleDateString(uiLanguage() === "zh" ? "zh-CN" : "en", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -120,7 +121,7 @@ function emptyCollection(key: MessageKey): HTMLElement {
 }
 function refreshCollectionCopy() {
   // Translate the mounted list in place: switching language must not fetch, move focus or reset the canvas.
-  for (const date of entryList.querySelectorAll<HTMLElement>("[data-created-at]")) date.textContent = collectionDate(date.dataset.createdAt!);
+  for (const date of entryList.querySelectorAll<HTMLElement>("[data-saved-at]")) date.textContent = collectionDate(date.dataset.savedAt!);
   for (const item of entryList.querySelectorAll<HTMLElement>("li[data-id]")) {
     item.querySelector(".entry-del")?.setAttribute("aria-label", t("collection.deleteAria", { title: item.querySelector(".entry-title")!.textContent ?? "" }));
   }
@@ -165,8 +166,9 @@ export async function refreshList() {
       const li = el("li"); li.dataset.id = String(entry.id);
       const open = el("button", "entry-open tape-button tape-clear"); open.type = "button";
       open.append(el("span", "entry-title", entry.title));
-      const date = el("span", "entry-date", collectionDate(entry.created_at));
-      date.dataset.createdAt = entry.created_at;
+      const savedAt = entry.updated_at ?? entry.created_at;
+      const date = el("span", "entry-date", collectionDate(savedAt));
+      date.dataset.savedAt = String(savedAt);
       open.append(date);
       open.addEventListener("click", () => { void openEntry(entry); });
       li.append(open);
@@ -267,6 +269,37 @@ async function save(title?: string) {
       setBusy(false);
       updateSaveProgress();
       if (manualTitleRequired && savePanel.open) saveTitle.focus({ preventScroll: true });
+    }
+  }
+}
+/** Update only an already verified saved article; never create one or open a login/save dialog. */
+export async function saveDefinitionChanges(): Promise<{ saved: true } | { saved: false; error: unknown } | null> {
+  const account = getEmail(), entry = selected, selection = selectionRequest;
+  if (!workspaceReady || !account || !entry || !canEdit(entry) || selectionStatus !== "ready" || isBusy() || !isDirty()) return null;
+  const text = getCurrentText(), definitions = definitionViews.snapshot(), formatting = getDocumentFormatting();
+  const task = { request: new AbortController(), phase: "saving" as const };
+  saveTask = task;
+  setBusy(true);
+  updateSaveProgress();
+  const current = () => saveTask === task && getEmail() === account && selectionRequest === selection && selected?.id === entry.id;
+  try {
+    await api(`/api/entries/${entry.id}`, { method: "PUT", ...jsonBody({ content: text, definitions, formatting }) });
+    if (!current()) return null;
+    selectEntry({ ...entry, definitions, formatting }, text);
+    rememberDefinitionLanguages();
+    void refreshList();
+    return { saved: true };
+  } catch (error) {
+    if (!current()) return null;
+    if (error instanceof ApiError && error.status === 404) selectEntry(null);
+    return { saved: false, error };
+  } finally {
+    // Session changes own their cleanup; an old response must not unlock a newer operation.
+    if (saveTask === task) {
+      saveTask = null;
+      setBusy(false);
+      updateSaveProgress();
+      updateSelection();
     }
   }
 }

@@ -38,9 +38,11 @@ HTTPS 请求或 `COOKIE_SECURE=true` 时追加 `Secure`。浏览器自动携带�
 
 ### 列表与读取
 
-列表按当前会话的作者邮箱在 SQL 查询中隔离，再按 ID 倒序；每项为 `{ id, title, created_at, can_edit }`，不返回完整正文或双语数据。
+列表按当前会话的作者邮箱在 SQL 查询中隔离，再按 `updated_at DESC, id DESC` 排序；每项为 `{ id, title, created_at, updated_at, can_edit }`，不返回完整正文或双语数据。
 
-单篇 `entry` 包含 `id`、`title`、`content`、`created_at`、`definitions`、`formatting`、`can_edit`。查询已限定当前作者，因此有效响应的 `can_edit` 为 `true`；接口不公开 `owner_email`。
+`updated_at` 是服务端生成的 Unix 毫秒整数；创建与每次成功更新均推进，同账号同毫秒内连续写入也严格递增。旧文章从原 UTC 创建时间回填（无法解析时为 0），不推测历史修改时间。`created_at` 保持原始创建时间，读取和失败写入不改变时间或顺序，客户端提交的时间字段不生效。
+
+单篇 `entry` 包含 `id`、`title`、`content`、`created_at`、`updated_at`、`definitions`、`formatting`、`can_edit`。查询已限定当前作者，因此有效响应的 `can_edit` 为 `true`；接口不公开 `owner_email`。
 
 - 文章 ID 必须为正安全整数。未登录返回 401；不存在、属于其他账号或无作者的历史记录均返回相同 JSON 404，不泄露记录是否存在。
 - 读取文章时保留每条双语批注已保存的 `language`，包括中英混合或全部中文；失效的历史元数据不会阻止正文读取。
@@ -80,6 +82,7 @@ PUT 请求使用 `{ "content": "完整正文", "definitions": [] }`，正文规�
 - 显式提供 `definitions` 时完整校验；传 `[]` 会清空双语元数据，但不会主动删除正文里的英文批注。
 - 省略 `definitions` 时保留仍匹配新正文的旧元数据，兼容旧客户端；已删除或改写批注的旧中文会被丢弃。
 - 省略 `formatting` 时按正文差异映射旧格式；显式传 `null` 清空格式，传格式对象则完整校验。正文、批注与格式在同一次 SQL 写入中保存，非法格式返回 400 且不更新任何字段。
+- 已保存文章在新增 / 刷新释义任务实际应用修改后，浏览器调用同一个 PUT 更新原记录一次，不弹保存确认；提交完整正文、逐条语言、双语 / 音标和 Word 格式。首次保存仍需用户确认 POST；自动保存不创建文章、不调用标题 AI，也不因阅读切换语言而写入。
 - DELETE 无需请求体，删除整篇记录而不是某个网页分页。
 - 未登录返回 401；读取、更新或删除他人文章、无作者历史文章统一返回 404。客户端不能通过提交 `owner_email` 认领文章；创建始终绑定当前会话作者。
 
