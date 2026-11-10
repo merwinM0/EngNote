@@ -34,16 +34,8 @@
       <button id="editorBtn" class="btn tape-wheat tool-icon" type="button" aria-controls="editorPanel" aria-expanded="false" aria-label="Paste text">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14v-7M9 3h6v4H9zM13 15l7-7-3-3-7 7-1 4zM16 6l3 3"/></svg><span class="sr-only" data-tool-label>Paste text</span>
       </button>
-      <button id="undoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Undo" data-i18n-aria-label="reader.undo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a7 7 0 0 1 7 7v3"/></svg><span class="sr-only" data-i18n="reader.undo">Undo</span></button>
-      <button id="redoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Redo" data-i18n-aria-label="reader.redo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 6 6-6 6m6-6H10a7 7 0 0 0-7 7v3"/></svg><span class="sr-only" data-i18n="reader.redo">Redo</span></button>
-      <button id="wordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Import Word" data-i18n-aria-label="reader.importWord">
-        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 2v8m-3-3 3 3 3-3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.importWord">Import Word</span>
-      </button>
       <button id="formatBtn" class="btn tape-lilac tool-icon" type="button" aria-label="Tidy this page">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h8M4 13h16M4 18h12M18 2l1.2 3.8L23 7l-3.8 1.2L18 12l-1.2-3.8L13 7l3.8-1.2z"/></svg><span class="sr-only" data-tool-label>Tidy this page</span>
-      </button>
-      <button id="definitionModeBtn" class="btn tape-mist" type="button" aria-label="Definition method: Local context" aria-describedby="definitionModeHint">
-        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span class="tool-caption" data-tool-label>Local context</span>
       </button>
       <button id="translateBtn" class="btn btn-accent" type="button" aria-pressed="false" aria-label="Add definitions">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 1-5L17 3l4 4L9 19zM14 6l4 4M3 21h8M17 14v7m-3-3h6"/></svg><span class="tool-caption" data-tool-label>Add definitions</span>
@@ -54,15 +46,23 @@
       <button id="refreshSelectedBtn" class="btn tape-clear tool-icon" type="button" aria-label="Refresh selected" disabled hidden>
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9a8 8 0 0 0-14-4L3 8m0-5v5h5M4 15a8 8 0 0 0 14 4l3-3m-5 0h5v5"/></svg><span class="sr-only" data-tool-label>Refresh selected</span>
       </button>
+      <button id="definitionModeBtn" class="btn tape-mist" type="button" aria-label="Definition method: Local context" aria-describedby="definitionModeHint">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span class="tool-caption" data-tool-label>Local context</span>
+      </button>
       <button id="deleteBtn" class="btn tape-rose tool-icon" type="button" aria-pressed="false" aria-label="Remove a note" data-i18n-aria-label="reader.removeNote">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 15 10-11 8 8-8 9H8zM9 9l8 8M13 21h8"/></svg><span class="sr-only" data-i18n="reader.removeNote">Remove a note</span>
       </button>
       <button id="saveBtn" class="btn btn-primary" type="button" aria-haspopup="dialog" aria-controls="savePanel" aria-expanded="false" aria-label="Save article">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l4 4v14H3V3zM7 3v6h9V3M7 21v-8h10v8M13 5v2"/></svg><span class="tool-caption" data-tool-label>Save article</span>
       </button>
+      <button id="wordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Import Word" data-i18n-aria-label="reader.importWord">
+        <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 2v8m-3-3 3 3 3-3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.importWord">Import Word</span>
+      </button>
       <button id="exportWordBtn" class="btn tape-mist tool-icon" type="button" aria-label="Export Word" data-i18n-aria-label="reader.exportWord" disabled>
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14v-8M13 3v6h6M17 10V2m-3 3 3-3 3 3M8 13l1.5 5 2-4 2 4 1.5-5"/></svg><span class="sr-only" data-i18n="reader.exportWord">Export Word</span>
       </button>
+      <button id="undoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Undo" data-i18n-aria-label="reader.undo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a7 7 0 0 1 7 7v3"/></svg><span class="sr-only" data-i18n="reader.undo">Undo</span></button>
+      <button id="redoBtn" class="btn tape-clear tool-icon" type="button" aria-label="Redo" data-i18n-aria-label="reader.redo" disabled><svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 6 6-6 6m6-6H10a7 7 0 0 0-7 7v3"/></svg><span class="sr-only" data-i18n="reader.redo">Redo</span></button>
       <button id="clearBtn" class="btn btn-ghost tool-icon" type="button" aria-label="Clear" data-i18n-aria-label="reader.clear">
         <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 10 6-7a1.5 1.5 0 0 0-2-2l-6 8M8 9l7 6M8 9c-3 2-5 5-6 10 4 2 8 3 12 2l1-6M5 14l5 6M8 12l5 8"/></svg><span class="sr-only" data-i18n="reader.clear">Clear</span>
       </button>

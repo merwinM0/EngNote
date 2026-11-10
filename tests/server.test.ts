@@ -204,10 +204,10 @@ describe("source server", () => {
     expect(html).toContain('id="uiLangBtn"');
     expect(html).toContain('aria-label="Reading tools"');
   });
-  test("reader offers a bilingual Word export action beside saving, disabled until there is text", async () => {
+  test("reader offers a bilingual Word export action after importing, disabled until there is text", async () => {
     const html = await (await request("/index.html")).text();
     const tools = html.match(/<div class="toolbar"[\s\S]*?<p id="modeHint"/)?.[0] ?? "";
-    expect(tools).toMatch(/id="saveBtn"[^>]*>[\s\S]*?<\/button>\s*<button id="exportWordBtn"/);
+    expect(tools).toMatch(/id="wordBtn"[^>]*>[\s\S]*?<\/button>\s*<button id="exportWordBtn"/);
     expect(tools).toContain('data-i18n="reader.exportWord"');
     expect(tools).not.toContain('data-i18n-title="reader.exportWordTitle"');
     expect(tools.match(/<button id="exportWordBtn"[^>]*>/)?.[0]).toContain('disabled');
@@ -226,7 +226,10 @@ describe("source server", () => {
     expect(toggle).toContain('aria-label="Collapse tools to the left"');
     expect(toggle).not.toMatch(/\b(?:title|data-i18n-title)=/);
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
-    expect(buttons).toHaveLength(14);
+    expect(buttons.map(button => button.match(/\bid="([^"]+)"/)?.[1])).toEqual([
+      "readBtn", "editorBtn", "formatBtn", "translateBtn", "defineSelectedBtn", "refreshSelectedBtn",
+      "definitionModeBtn", "deleteBtn", "saveBtn", "wordBtn", "exportWordBtn", "undoBtn", "redoBtn", "clearBtn",
+    ]);
     for (const id of ["undoBtn", "redoBtn"]) expect(tools).toMatch(new RegExp(`id="${id}"[^>]*disabled`));
     for (const button of buttons) {
       expect(button).toMatch(/aria-label="[^"]+"/);
