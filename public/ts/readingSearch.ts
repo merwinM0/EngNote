@@ -47,7 +47,7 @@ export function initReadingSearch(): () => void {
   }
   function positionPopup() {
     if (popup.hidden) return;
-    const rect = root.getBoundingClientRect(), width = Math.min(440, window.innerWidth - 32);
+    const rect = root.getBoundingClientRect(), width = Math.min(rect.width, window.innerWidth - 32);
     const below = window.innerHeight - rect.bottom - 16, above = rect.top - 16;
     const flip = below < 180 && above > below;
     popup.style.width = `${width}px`;
@@ -99,7 +99,9 @@ export function initReadingSearch(): () => void {
       const copy = el("div", "search-result-copy"), word = el("strong", "search-result-word", result.text);
       copy.append(word, el("span", "search-result-context", searchExcerpt(index, result)));
       const meta = el("div", "search-result-meta");
-      meta.append(el("span", "", t("search.rank", { page: result.page + 1, rank: result.priority })), el("span", "", distanceCopy(result)));
+      const pageNumber = el("span", "search-result-page", String(result.page + 1));
+      pageNumber.setAttribute("aria-hidden", "true");
+      meta.append(pageNumber, el("span", "sr-only", t("search.pageNumber", { page: result.page + 1 })), el("span", "", distanceCopy(result)));
       row.append(copy, meta);
       if (result.noteStart !== undefined) {
         row.dataset.defined = "true";

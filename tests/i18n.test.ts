@@ -77,6 +77,13 @@ describe("interface translations", () => {
     expect(t("reader.savedArticles")).toBe("已保存文章");
     expect(t("status.batch", { index: 1, total: 2 })).toContain("第 1/2 批");
   });
+  test("keeps search page-number descriptions available to assistive technology in both languages", () => {
+    expect(t("search.pageNumber", { page: 12 })).toBe("Page 12");
+    uiLanguagePreference.set("zh");
+    expect(t("search.pageNumber", { page: 12 })).toBe("第 12 页");
+    expect(isMessageKey("search.rank")).toBe(false);
+    expect(isMessageKey("search.keys")).toBe(false);
+  });
   test("localizes known runtime errors only in Chinese mode", () => {
     const message = "DeepSeek request failed (503). Please try again.";
     expect(localizeError(message)).toBe(message);

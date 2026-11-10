@@ -293,6 +293,8 @@ describe("source server", () => {
     expect(navigation).toContain('role="listbox"');
     expect(navigation).toContain('id="wordSearchPopup" class="word-search-popup" hidden');
     expect(navigation).toContain('data-i18n="search.help"');
+    expect(navigation).not.toContain('word-search-footer');
+    expect(navigation).not.toContain('search.keys');
     expect(navigation).toContain('role="status" aria-live="polite"');
     expect(html.match(/id="wordSearchInput"/g)).toHaveLength(1);
   });
