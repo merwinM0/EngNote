@@ -1,23 +1,23 @@
 /* Extend the existing light paper / tape palette without introducing new colors. */
 .page-definition-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-inline-start: auto; }
 .page-navigation .page-definition-tools .hint { margin: 0; flex-basis: auto; }
-.vocabulary-window { width: min(800px, calc(100% - 32px)); }
+/* Use the shared note-window size, paper, fixing tape and modal focus behavior. */
 .vocabulary-window .panel-description { margin-bottom: 16px; }
 .vocabulary-window .hint { margin: 12px 0; }
-.vocabulary-list { list-style: none; margin: 0; padding: 0 8px 0 0; max-height: min(48dvh, 480px); overflow: auto; overscroll-behavior: contain; font-size: var(--reading-font-size, 20px); }
+.vocabulary-list { list-style: none; margin: 0; padding: 4px 8px 8px 4px; max-height: min(48dvh, 480px); overflow: auto; overscroll-behavior: contain; font-size: var(--reading-font-size, 20px); }
 .vocabulary-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .vocabulary-term { font: 600 1em/1.7 var(--serif); }
-.vocabulary-meaning { display: block; min-width: 0; font: 1em/1.7 var(--sans); color: var(--text); }
-button.vocabulary-meaning { width: 100%; min-height: 44px; padding: 4px 8px; border: 1px solid transparent; border-radius: 2px; text-align: start; background: var(--selected); }
-button.vocabulary-meaning:hover { border-color: var(--control-border); }
-button.vocabulary-meaning:focus-visible { outline-offset: -3px; }
+/* Only the shared decorative layer is torn; text and native button focus stay unclipped. */
+.vocabulary-meaning { display: block; justify-self: start; min-width: 0; max-width: 100%; padding: 4px 12px; font: 1em/1.7 var(--sans); text-align: start; white-space: normal; overflow-wrap: anywhere; transform: none; }
+.vocabulary-meaning:not(button) { cursor: default; }
+.vocabulary-meaning:not(button):hover { transform: none; }
+.vocabulary-meaning:not(button):hover::before { filter: none; }
 .vocabulary-pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 @media (max-width: 700px) {
   .page-definition-tools { width: 100%; justify-content: space-between; }
-  .vocabulary-window { width: calc(100% - 16px); }
   .vocabulary-list li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 @media (forced-colors: active) {
-  button.vocabulary-meaning { background: Canvas; color: CanvasText; border-color: ButtonText; }
+  .vocabulary-meaning { background: Canvas; color: CanvasText; border: 1px solid ButtonText; }
   .vocabulary-list li { border-color: CanvasText; }
 }

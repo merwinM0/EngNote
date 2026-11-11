@@ -54,7 +54,7 @@ export function initDefinitionList() {
       term.lang = "en";
       const key = vocabularyKey(item.term), language = scope === "all" ? languages.get(key) ?? item.language : item.language;
       const chinese = language === "zh" && !!item.chinese;
-      const meaning = el(item.chinese ? "button" : "span", "vocabulary-meaning", withIPA(chinese ? item.chinese! : item.english, item.britishIPA));
+      const meaning = el(item.chinese ? "button" : "span", "tape-button tape-clear vocabulary-meaning", withIPA(chinese ? item.chinese! : item.english, item.britishIPA));
       meaning.lang = chinese ? "zh-Hans" : "en";
       if (meaning instanceof HTMLButtonElement) {
         meaning.type = "button"; meaning.dataset.vocabularyKey = key;

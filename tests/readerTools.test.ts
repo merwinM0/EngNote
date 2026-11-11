@@ -101,6 +101,26 @@ describe("compact reading tools", () => {
     expect(panel).not.toContain("clearDictionaryCacheBtn");
     expect(html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0]).toContain('id="clearDictionaryCacheBtn"');
   });
+  test("definition lists reuse transparent tape without clipping text or focus and the shared sticky-note modal", () => {
+    const source = readFileSync("public/ts/definitionList.ts", "utf8");
+    expect(source).toContain('el(item.chinese ? "button" : "span", "tape-button tape-clear vocabulary-meaning"');
+    const css = readFileSync("public/css/vocabulary.css", "utf8");
+    expect(css).not.toContain("background: var(--selected)");
+    expect(css).not.toMatch(/\.vocabulary-window\s*\{/);
+    expect(css).not.toMatch(/(?:clip-path|opacity)\s*:/);
+    expect(css).toContain("justify-self: start");
+    expect(css).toContain("max-width: 100%");
+    expect(css).toContain("padding: 4px 8px 8px 4px");
+    expect(css).toContain(".vocabulary-meaning:not(button) { cursor: default; }");
+    expect(css).toContain("background: Canvas; color: CanvasText; border: 1px solid ButtonText");
+    const html = readFileSync("public/index.html", "utf8");
+    const modal = html.match(/<dialog id="definitionListPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    expect(modal).toContain('class="note-window vocabulary-window"');
+    expect(modal).toContain('class="panel-sheet note-panel"');
+    expect(modal).toContain('class="tape" aria-hidden="true"');
+    expect(modal).toContain('aria-describedby="definitionListDescription"');
+    expect(modal).toContain('data-close-note');
+  });
   test("keeps tools in one accessible scrollable row instead of wrapping or shrinking targets", () => {
     const css = readFileSync("public/css/layout.css", "utf8");
     expect(css).toContain("flex-wrap: nowrap");
