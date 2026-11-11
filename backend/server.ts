@@ -7,6 +7,8 @@ import reader from "../public/index.html";
 import { initAuth, register, login, requestCode, resolveToken, resolveSession, logout, SESSION_TTL } from "./auth";
 import { readDefinitionViews } from "../public/ts/definitionViews";
 import type { DefinitionView } from "../public/ts/definitionViews";
+import { readVocabularyItem, VOCABULARY_BATCH_LIMIT, VOCABULARY_PAGE_SIZE } from "../public/ts/vocabulary";
+import { collectArticleVocabulary, listVocabulary, storeVocabulary } from "./vocabulary";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const COOKIE_NAME = "er_session";
@@ -100,6 +102,24 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       // Do not expose the token to browser JavaScript.
       return json({ ok: true, email: result.email }, 200, { "set-cookie": sessionCookie(req, result.token, SESSION_TTL) });
     }
+    if (path === "/api/vocabulary") {
+      const invalidMethod = allow(req, ["GET", "POST"]);
+      if (invalidMethod) return invalidMethod;
+      const session = await resolveSession(token(req));
+      if (!session) throw new HttpError("Please log in.", 401);
+      if (req.method === "GET") {
+        const params = new URL(req.url).searchParams;
+        const query = params.get("q") ?? "", offset = Number(params.get("offset") ?? 0), limit = Number(params.get("limit") ?? VOCABULARY_PAGE_SIZE);
+        if (query.length > 64 || !Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > VOCABULARY_PAGE_SIZE) throw new HttpError("Invalid vocabulary query or page.", 400);
+        return json({ ok: true, ...listVocabulary(db, session.userId, query, offset, limit) });
+      }
+      const data = await body(req);
+      if (!Array.isArray(data.items) || data.items.length > VOCABULARY_BATCH_LIMIT) throw new HttpError("Vocabulary must contain at most 500 valid definitions.", 400);
+      const items = data.items.map(readVocabularyItem);
+      if (items.some(item => !item)) throw new HttpError("Vocabulary must contain at most 500 valid definitions.", 400);
+      if (!storeVocabulary(db, session.userId, items.filter(item => item !== null))) throw new HttpError("Please log in.", 401);
+      return json({ ok: true });
+    }
     if (path === "/api/entries") {
       const invalidMethod = allow(req, ["GET", "POST"]);
       if (invalidMethod) return invalidMethod;
@@ -116,8 +136,12 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
       const definitions = requestDefinitions(data.definitions, content);
       const formatting = requestFormatting(data.formatting, content);
-      const result = db.query(`INSERT INTO entries (title, content, owner_email, definitions, formatting, updated_at) SELECT ?, ?, ?, ?, ?, ${savedAtSQL} WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(title, content, email, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, session.userId, email);
-      if (result.changes !== 1) throw new HttpError("Please log in.", 401);
+      const result = db.transaction(() => {
+        const result = db.query(`INSERT INTO entries (title, content, owner_email, definitions, formatting, updated_at) SELECT ?, ?, ?, ?, ?, ${savedAtSQL} WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(title, content, email, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, session.userId, email);
+        if (result.changes !== 1) throw new HttpError("Please log in.", 401);
+        collectArticleVocabulary(db, session.userId, content, JSON.stringify(definitions));
+        return result;
+      })();
       return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
     }
     const single = path.match(/^\/api\/entries\/(\d+)$/);
@@ -144,8 +168,11 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         let formatting;
         try { formatting = "formatting" in data ? requestFormatting(data.formatting, content) : rebaseFormatting(storedFormatting(entry.formatting, entry.content), entry.content, content); }
         catch (error) { throw new HttpError(error instanceof Error ? error.message : "Invalid Word formatting.", 400); }
-        const updated = db.query(`UPDATE entries SET content = ?, definitions = ?, formatting = ?, updated_at = ${savedAtSQL} WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(content, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, id, email, session.userId, email);
-        if (updated.changes !== 1) throw new HttpError("Please log in.", 401);
+        db.transaction(() => {
+          const updated = db.query(`UPDATE entries SET content = ?, definitions = ?, formatting = ?, updated_at = ${savedAtSQL} WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)`).run(content, JSON.stringify(definitions), formatting ? JSON.stringify(formatting) : null, Date.now(), email, id, email, session.userId, email);
+          if (updated.changes !== 1) throw new HttpError("Please log in.", 401);
+          collectArticleVocabulary(db, session.userId, content, JSON.stringify(definitions));
+        })();
       }
       return json({ ok: true, id });
     }

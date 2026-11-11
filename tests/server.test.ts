@@ -534,7 +534,7 @@ describe("source server", () => {
     expect((await request("/api/auth/me", "GET", undefined, alice)).status).toBe(200);
   });
   test("in-flight saves cannot recreate deleted users' data or write into a re-registered account", async () => {
-    for (const method of ["POST", "PUT"]) {
+    for (const method of ["POST", "PUT", "VOCABULARY"]) {
       const email = `in-flight-${method.toLowerCase()}@example.com`, hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
       db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
       const logged = await request("/api/auth/login", "POST", { email, password: "password123" });
@@ -546,12 +546,15 @@ describe("source server", () => {
       });
       const directory = mkdtempSync(join(tmpdir(), "engnote-in-flight-"));
       try {
-        const pending = request(method === "POST" ? "/api/entries" : `/api/entries/${id}`, method, { title: "Late save", content: "Must not survive." }, cookie, { "x-test-hold": "save" });
+        const vocabulary = method === "VOCABULARY";
+        const pending = request(vocabulary ? "/api/vocabulary" : method === "POST" ? "/api/entries" : `/api/entries/${id}`, vocabulary ? "POST" : method,
+          vocabulary ? { items: [{ term: "late", english: "delayed", chinese: "迟到的", language: "en" }] } : { title: "Late save", content: "Must not survive." }, cookie, { "x-test-hold": "save" });
         await reached.promise;
         deleteUserWithArticles(db, previewUser(db, email)!, directory);
         db.query("INSERT INTO users (email, password_hash) VALUES (?, ?)").run(email, hash);
         release.resolve(); expect((await pending).status).toBe(401);
         expect((db.query("SELECT COUNT(*) AS count FROM entries WHERE owner_email = ?").get(email) as { count: number }).count).toBe(0);
+        expect(db.query("SELECT term FROM vocabulary WHERE term = 'late'").get()).toBeNull();
       } finally { release.resolve(); reader.mockRestore(); rmSync(directory, { recursive: true, force: true }); }
     }
     const token = "a".repeat(32);
@@ -571,6 +574,52 @@ describe("source server", () => {
     expect(invalid.status).toBe(405); expect(invalid.headers.get("allow")).toBe("GET, POST");
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" }, alice, { origin: "https://evil.example" })).status).toBe(403);
     expect((await request("/api/entries", "POST", { title: "Hi", content: "Hi" }, alice, { "sec-fetch-site": "cross-site" })).status).toBe(403);
+  });
+  test("vocabulary persists independently of articles, deduplicates terms, updates meanings and isolates accounts", async () => {
+    const item = { term: "vocabfox", english: "an animal", chinese: "狐狸", britishIPA: "/fɒks/", language: "en" };
+    expect((await request("/api/vocabulary", "GET", undefined, "")).status).toBe(401);
+    expect((await request("/api/vocabulary", "POST", { items: [item] }, "")).status).toBe(401);
+    expect((await request("/api/vocabulary", "POST", { items: [item, { ...item, term: "Vocabfox" }], user_id: 2 })).status).toBe(200);
+    const list = async (cookie = alice) => (await (await request("/api/vocabulary?q=vocabfox", "GET", undefined, cookie)).json());
+    expect((await list()).total).toBe(1);
+    expect((await list(bob)).items).toEqual([]);
+    const before = (await list()).items[0];
+    expect(before.user_id).toBeUndefined();
+    expect((await request("/api/vocabulary", "POST", { items: [{ ...item, chinese: "新的狐狸" }] })).status).toBe(200);
+    expect((await list()).items[0].chinese).toBe("新的狐狸");
+    expect((await list()).items[0].updated_at).toBeGreaterThan(before.updated_at);
+    const response = await request("/api/entries", "POST", { title: "Words", content: "vocabfox『a fox』", definitions: [{ start: 8, english: "a fox", chinese: "一只狐狸", language: "zh", term: "vocabfox" }] });
+    expect(response.status).toBe(201);
+    const id = (await response.json()).id;
+    expect((await list()).total).toBe(1); expect((await list()).items[0].english).toBe("a fox");
+    expect((await request(`/api/entries/${id}`, "DELETE")).status).toBe(200);
+    expect((await list()).items[0].english).toBe("a fox");
+  });
+  test("vocabulary pages/search are bounded and invalid batches, cross-site requests and unsupported methods never write", async () => {
+    const item = { term: "vocabcheck", english: "checked", chinese: "已检查", language: "en" };
+    for (const items of [null, {}, [item, { ...item, chinese: "invalid" }], Array(501).fill(item)]) {
+      expect((await request("/api/vocabulary", "POST", { items })).status).toBe(400);
+    }
+    expect((await (await request("/api/vocabulary?q=vocabcheck")).json()).total).toBe(0);
+    for (const suffix of ["offset=-1", "offset=1.5", "limit=101", "limit=0", "q=" + "a".repeat(65)]) expect((await request("/api/vocabulary?" + suffix)).status).toBe(400);
+    expect((await request("/api/vocabulary", "POST", { items: [item] }, alice, { origin: "https://evil.example" })).status).toBe(403);
+    expect((await request("/api/vocabulary", "POST", { items: [item] }, alice, { "sec-fetch-site": "cross-site" })).status).toBe(403);
+    expect((await request("/api/vocabulary", "POST")).status).toBe(415);
+    const invalid = await request("/api/vocabulary", "DELETE");
+    expect(invalid.status).toBe(405); expect(invalid.headers.get("allow")).toBe("GET, POST");
+    await request("/api/vocabulary", "POST", { items: [item, { ...item, term: "vocabchecks" }] });
+    const first = await (await request("/api/vocabulary?q=vocabcheck&limit=1")).json();
+    const next = await (await request("/api/vocabulary?q=vocabcheck&limit=1&offset=1")).json();
+    expect(first.total).toBe(2); expect(first.items).toHaveLength(1); expect(next.items).toHaveLength(1);
+    expect(first.items[0].term).not.toBe(next.items[0].term);
+  });
+  test("article and vocabulary writes roll back together on database failure", async () => {
+    db.exec("CREATE TRIGGER reject_vocab_insert BEFORE INSERT ON vocabulary WHEN NEW.term = 'rollbackword' BEGIN SELECT RAISE(ABORT, 'test vocabulary failure'); END");
+    try {
+      expect((await request("/api/entries", "POST", { title: "Rollback word", content: "rollbackword『a word』" })).status).toBe(500);
+      expect(db.query("SELECT id FROM entries WHERE title = 'Rollback word'").get()).toBeNull();
+      expect(db.query("SELECT term FROM vocabulary WHERE term = 'rollbackword'").get()).toBeNull();
+    } finally { db.exec("DROP TRIGGER reject_vocab_insert"); }
   });
   test("registration validates and consumes development codes with cooldown", async () => {
     const email = "new@example.com";

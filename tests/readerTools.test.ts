@@ -5,6 +5,7 @@ import { setToolLabel } from "../public/ts/util";
 import { definitionModePresentation } from "../public/ts/definitionModeControl";
 import { DEFINITION_MODES } from "../public/ts/definitionMode";
 import { t, uiLanguagePreference } from "../public/ts/i18n";
+import { READING_FONT_LEVELS } from "../public/ts/readingFont";
 
 afterEach(() => { uiLanguagePreference.set("en"); });
 
@@ -78,6 +79,27 @@ describe("compact reading tools", () => {
     expect(rules.some(rule => rule.includes("outline: 2px dashed var(--accent)"))).toBe(true);
     expect(rules.some(rule => rule.includes("outline-color: Highlight"))).toBe(true);
     for (const rule of rules) expect(rule).not.toMatch(/(?:^|;)\s*(?:background(?:-[\w-]+)?|color)\s*:/);
+  });
+  test("offers five reading sizes while matching note size to prose without changing Word metadata", () => {
+    expect(READING_FONT_LEVELS.map(level => level.label)).toEqual(["S", "M", "L", "XL", "XXL"]);
+    expect(READING_FONT_LEVELS.map(level => level.size)).toEqual([17, 20, 23, 26, 29]);
+    const css = readFileSync("public/css/content.css", "utf8");
+    expect(css).toContain("font: 1em/1.7 var(--sans)");
+    expect(css).not.toContain("font: .8em");
+    expect(css).toContain("var(--reading-font-scale, 1)");
+    const source = readFileSync("public/ts/readingFont.ts", "utf8");
+    expect(source).not.toMatch(/document-changed|setText|formatting|sessionStorage|localStorage/);
+  });
+  test("definition lists sit in the requested positions without changing AI cache settings", () => {
+    const html = readFileSync("public/index.html", "utf8");
+    const navigation = html.match(/<nav class="page-navigation"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(navigation).toMatch(/id="articleDefinitionsBtn"[\s\S]*?id="pageSummary"/);
+    expect(html.match(/<div class="topbar-actions"[\s\S]*?<\/div>/)?.[0]).toContain('id="allDefinitionsBtn"');
+    const panel = html.match(/<dialog id="definitionListPanel"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+    for (const control of ["definitionListSearch", "definitionListCollect", "definitionListPrevious", "definitionListNext", "definitionListRetry"]) expect(panel).toContain(`id="${control}"`);
+    expect(panel).toContain('class="tape tape-progress-strip"');
+    expect(panel).not.toContain("clearDictionaryCacheBtn");
+    expect(html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0]).toContain('id="clearDictionaryCacheBtn"');
   });
   test("keeps tools in one accessible scrollable row instead of wrapping or shrinking targets", () => {
     const css = readFileSync("public/css/layout.css", "utf8");

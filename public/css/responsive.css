@@ -6,7 +6,7 @@
   .brand-mark { width: 28px; height: 28px; }
   .brand { gap: 8px; }
   .topbar-row { flex-wrap: wrap; }
-  .topbar-actions { flex-wrap: wrap; gap: 4px; }
+  .topbar-actions { flex-wrap: wrap; justify-content: flex-start; gap: 4px; }
   .topbar-actions .btn { padding-inline: 12px; font-size: 13px; }
   .toolbar-slot { width: 100%; }
   .card-head { margin: 0 16px 0 28px; }

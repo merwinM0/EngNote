@@ -18,6 +18,7 @@
     <div class="topbar-actions" role="group" aria-label="Collection, settings and account" data-i18n-aria-label="reader.topActions">
       <button id="uiLangBtn" class="btn tape-clear" type="button" lang="zh-Hans" aria-label="Switch interface to Chinese">中文</button>
       <button id="collectionBtn" class="btn tape-sage" type="button" data-open-panel="collectionPanel" aria-haspopup="dialog" aria-controls="collectionPanel" aria-expanded="false" data-i18n="reader.savedArticles">Saved articles</button>
+      <button id="allDefinitionsBtn" class="btn tape-clear" type="button" aria-haspopup="dialog" aria-controls="definitionListPanel" aria-expanded="false" data-i18n="vocabulary.allButton">All definitions</button>
       <button id="aiSettingsBtn" class="btn tape-mist" type="button" data-open-panel="aiPanel" aria-haspopup="dialog" aria-controls="aiPanel" aria-expanded="false">AI setup</button>
       <button id="authBtn" class="btn tape-wheat" type="button" data-open-panel="authPanel" aria-haspopup="dialog" aria-controls="authPanel" aria-expanded="false">Login</button>
     </div>
@@ -91,7 +92,10 @@
               </div>
             </div>
           </div>
-          <span id="pageSummary" class="hint" aria-live="polite">0 / 5,000 characters</span>
+          <div class="page-definition-tools">
+            <button id="articleDefinitionsBtn" class="btn tape-sage tape-small" type="button" aria-haspopup="dialog" aria-controls="definitionListPanel" aria-expanded="false" aria-label="This article's definitions" data-i18n-aria-label="vocabulary.articleHeading" data-i18n="vocabulary.articleButton">Definitions</button>
+            <span id="pageSummary" class="hint" aria-live="polite">0 / 5,000 characters</span>
+          </div>
         </nav>
         <section id="readPanel" class="editor-card" role="region" aria-labelledby="readerTitle" data-panel-entry="readBtn">
           <div class="card-head"><h2 id="readerTitle">A fresh article</h2><button id="fontSizeBtn" class="btn btn-ghost tape-small" type="button" title="Change reading font size" data-i18n-title="reader.fontSize">Aa · M</button></div>
@@ -121,6 +125,29 @@
       <span id="statusText" class="status-copy"></span>
     </button><div id="statusProgress" class="tape-progress status-progress" data-progress="determinate" role="progressbar" aria-label="Message display time" data-i18n-aria-label="notice.progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tape-progress-track" aria-hidden="true"><div class="tape-progress-reveal"><span class="tape tape-progress-strip"></span></div></div></div></div>
   </aside>
+  <dialog id="definitionListPanel" class="note-window vocabulary-window" aria-labelledby="definitionListHeading" data-note-entry="articleDefinitionsBtn">
+    <div class="panel-sheet note-panel">
+      <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close definitions" data-i18n-aria-label="vocabulary.close" data-close-note>×</button>
+      <h2 id="definitionListHeading">Article definitions</h2>
+      <p id="definitionListDescription" class="panel-description"></p>
+      <label for="definitionListSearch" data-i18n="vocabulary.searchLabel">Filter words and definitions</label>
+      <input id="definitionListSearch" type="search" maxlength="64" autocomplete="off" placeholder="Find a word or meaning…" data-i18n-placeholder="vocabulary.searchPlaceholder" data-panel-focus />
+      <p id="definitionListStatus" class="hint" role="status" aria-live="polite"></p>
+      <div id="definitionListProgress" class="tape-progress" role="status" hidden><div class="tape-progress-track" aria-hidden="true"><div class="tape-progress-reveal"><span class="tape tape-progress-strip"></span></div></div><p data-i18n="vocabulary.loading">Loading definitions…</p></div>
+      <ul id="definitionListItems" class="vocabulary-list" aria-label="Words and definitions" data-i18n-aria-label="vocabulary.listLabel"></ul>
+      <div class="vocabulary-pagination" role="group" aria-label="Definition pages" data-i18n-aria-label="vocabulary.pagination">
+        <button id="definitionListPrevious" class="btn tape-clear tape-small" type="button" data-i18n="reader.previous">← Previous</button>
+        <span id="definitionListPage" class="hint"></span>
+        <button id="definitionListNext" class="btn tape-clear tape-small" type="button" data-i18n="reader.next">Next →</button>
+      </div>
+      <div class="panel-actions">
+        <button id="definitionListLogin" class="btn tape-sage" type="button" data-i18n="reader.login" hidden>Login</button>
+        <button id="definitionListCollect" class="btn tape-sage" type="button" data-i18n="vocabulary.collect" hidden>Collect this article</button>
+        <button id="definitionListRetry" class="btn tape-clear" type="button" data-i18n="vocabulary.retry" hidden>Retry</button>
+        <button class="btn tape-clear" type="button" data-close-note data-i18n="reader.backToReading">Back to reading</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="backgroundPanel" class="note-window background-window" aria-labelledby="backgroundHeading" data-note-entry="backgroundBtn">
     <div class="panel-sheet note-panel">
       <span class="tape" aria-hidden="true"></span><button class="btn tape-clear tape-icon note-close" type="button" aria-label="Close reading backgrounds" data-i18n-aria-label="reader.closeBackgrounds" data-close-note>×</button>

@@ -1,5 +1,5 @@
 import { setStatus } from "./util";
-import { initUILanguage, msg, t } from "./i18n";
+import { initUILanguage, msg } from "./i18n";
 import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory } from "./state";
 import { initAISettings } from "./aiSettings";
 import { initDefinitionModeControl } from "./definitionModeControl";
@@ -17,6 +17,8 @@ import { initReadingBackground } from "./readingBackground";
 import { initWordExport } from "./exportWord";
 import { initReadingToolbar } from "./readingToolbar";
 import { initReadingSearch } from "./readingSearch";
+import { initDefinitionList } from "./definitionList";
+import { initReadingFont } from "./readingFont";
 
 document.getElementById("undoBtn")!.addEventListener("click", () => restoreHistory());
 document.getElementById("redoBtn")!.addEventListener("click", () => restoreHistory(true));
@@ -30,20 +32,6 @@ document.addEventListener("keydown", event => {
   }
 });
 
-const fontSizeBtn = document.getElementById("fontSizeBtn") as HTMLButtonElement;
-const fonts = [{ label: "M", size: "20px" }, { label: "L", size: "23px" }, { label: "S", size: "17px" }];
-let fontIndex = 0;
-function updateFontLabel() {
-  fontSizeBtn.setAttribute("aria-label", t("reader.fontSizeLabel", { size: fonts[fontIndex]!.label }));
-}
-fontSizeBtn.addEventListener("click", () => {
-  fontIndex = (fontIndex + 1) % fonts.length;
-  const font = fonts[fontIndex]!;
-  content.style.fontSize = font.size;
-  fontSizeBtn.textContent = `Aa · ${font.label}`;
-  updateFontLabel();
-});
-window.addEventListener("ui-language-changed", updateFontLabel);
 clearBtn.addEventListener("click", async () => {
   if (isBusy() || !(await confirmReplace(msg("confirm.clearArticle"), msg("confirm.clearMessage"))) || isBusy()) return;
   render(""); deselectEntry(); openPanel("readPanel", false);
@@ -84,4 +72,4 @@ translateBtn.addEventListener("click", () => {
 document.getElementById("defineSelectedBtn")!.addEventListener("click", () => { void translateSelected(); });
 document.getElementById("refreshSelectedBtn")!.addEventListener("click", () => { void translateSelected(true); });
 document.getElementById("deleteBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); toggleDeleteMode(); } });
-initUILanguage(); initPanels(); initReadingToolbar(); initReadingSearch(); initDefinitionModeControl(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();
+initUILanguage(); initPanels(); initReadingFont(); initDefinitionList(); initReadingToolbar(); initReadingSearch(); initDefinitionModeControl(); initReadingBackground(); initCollectionCanvas(); initAISettings(); initDb(); initAuth(); render(""); initEditor(); initWordExport(); void refreshList();

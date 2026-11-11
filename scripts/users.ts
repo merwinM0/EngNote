@@ -13,7 +13,7 @@ const help = `bun users [选项] [命令]；不带命令进入交互
 list [邮箱/ID] [页码]  用户列表，每页 ${USER_PAGE_SIZE} 人
 show <邮箱/ID>         用户与文章列表
 article <文章ID>       文章全文
-delete <邮箱/ID>        删除用户及全部文章
+delete <邮箱/ID>        删除用户、全部文章及释义
 help / quit           帮助 / 退出
 
 --db 路径             指定数据库
@@ -60,13 +60,13 @@ async function command(dbPath: string, backupDirectory: string, args: string[], 
     } else {
       const preview = previewUser(db, target!); if (!preview) throw new Error("用户不存在。");
       showUser(io, preview.user, preview.articles);
-      line(io, statusPanel("删除确认", [`永久删除此用户及全部 ${preview.user.article_count} 篇文章。`, "无法撤回；删除前备份整个数据库。"], "warning", io.columns, io.color));
+      line(io, statusPanel("删除确认", [`永久删除此用户及全部 ${preview.user.article_count} 篇文章、${preview.vocabulary} 条释义。`, "无法撤回；删除前备份整个数据库。"], "warning", io.columns, io.color));
       const answer = await io.readLine(`输入 DELETE ${singleLine(preview.user.email)} 确认，其他输入取消：`);
       if (answer !== `DELETE ${preview.user.email}`) { line(io, "已取消，未修改数据。"); return; }
       const writer = openAdminDatabase(dbPath, true);
       try {
         const result = deleteUserWithArticles(writer, preview, backupDirectory);
-        line(io, successLine(`已删除用户 #${preview.user.id} 及 ${result.articles} 篇文章。`, io.color));
+        line(io, successLine(`已删除用户 #${preview.user.id} 及 ${result.articles} 篇文章、${result.vocabulary} 条释义。`, io.color));
         line(io, `备份  ${singleLine(result.backup)}`);
       } finally { writer.close(); }
     }

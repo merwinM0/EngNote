@@ -1,13 +1,13 @@
 .editor-card { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; box-shadow: var(--paper-shadow); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 28px 0 44px; padding: 16px 0 12px; border-bottom: 1px solid var(--border); color: var(--muted); }
 .card-head h2 { margin: 0; font: italic 17px var(--serif); overflow-wrap: anywhere; }
-.content { position: relative; padding: 28px 32px 40px 44px; min-height: 420px; font: 20px/1.95 var(--serif); overflow-wrap: anywhere; }
+.content { position: relative; padding: 28px 32px 40px 44px; min-height: 420px; font: var(--reading-font-size, 20px)/1.95 var(--serif); overflow-wrap: anywhere; }
 .editor-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 28px; border-left: 1px solid #bba4a04d; pointer-events: none; }
 .content:empty { background-image: repeating-linear-gradient(transparent 0 38px, #788c8714 38px 39px), var(--reading-paper-image, none); background-size: auto, var(--reading-paper-size, auto); background-clip: content-box; }
 .content:empty::before { content: attr(data-placeholder); display: block; color: var(--muted); font-style: italic; max-width: 440px; font-size: 20px; }
 .content p { margin: 0 0 24px; white-space: pre-wrap; }
 .content p:last-child { margin-bottom: 0; }
-.content.word-document { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.2; }
+.content.word-document { font-family: "Times New Roman", serif; font-size: calc(12pt * var(--reading-font-scale, 1)); line-height: 1.2; }
 .content.word-document p { min-height: 1em; max-width: 100%; }
 .word-list-marker { display: inline; white-space: pre; }
 .word-page-break { border-top: 1px dashed var(--border); padding-top: 12px; }
@@ -35,7 +35,7 @@
     linear-gradient(var(--tape-color), var(--tape-color)) center / calc(100% - 8px) 100% no-repeat,
     conic-gradient(from 45deg at 0 50%, var(--tape-color) 0deg 90deg, transparent 0deg) left / 4px 8px repeat-y,
     conic-gradient(from 225deg at 100% 50%, var(--tape-color) 0deg 90deg, transparent 0deg) right / 4px 8px repeat-y;
-  font: .8em/1.7 var(--sans); padding: 3px 7px; border-radius: 0;
+  font: 1em/1.7 var(--sans); padding: 3px 7px; border-radius: 0;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .content .note[data-tape="sage"] { --note-bg: var(--tape-sage); }

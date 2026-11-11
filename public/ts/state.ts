@@ -92,6 +92,7 @@ export function setBusy(on: boolean) {
   updateNavigation();
   updateDefinitionControls();
   refreshDefinitionNotes();
+  window.dispatchEvent(new Event("reading-busy-changed"));
 }
 
 export function refreshDefinitionNotes() {
@@ -141,6 +142,10 @@ function paint(changed = false, keepDeleteMode = false) {
     for (const piece of splitParagraph(block.text)) {
       if (piece.type === "note") {
         const note = el("span", "note", piece.text);
+        // Imported Word runs may differ in size: notes match the immediately preceding source word.
+        const previous = p.lastElementChild;
+        const sourceRun = previous?.classList.contains("term") ? previous.lastElementChild : previous;
+        if (sourceRun instanceof HTMLElement && sourceRun.style.fontSize) note.style.fontSize = sourceRun.style.fontSize;
         note.dataset.start = String(offset);
         note.dataset.end = String(offset + piece.text.length + 2);
         const definition = definitionViews.at(offset);

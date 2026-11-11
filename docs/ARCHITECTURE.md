@@ -37,6 +37,7 @@ EngNote/
 │   ├── terminal.ts           # 终端边框、字素换行、安全转义、语义状态与 JSON / 错误展示
 │   ├── server.ts             # HTML 路由、REST API 与校验
 │   ├── database.ts           # 数据库路径、模式与无损迁移
+│   ├── vocabulary.ts         # 永久词汇表、一次性汇入、私有查询与去重写入
 │   ├── userAdmin.ts          # 只读检查、预览核对、受限备份及事务删除
 │   ├── auth.ts               # 注册、登录、验证码与会话
 │   ├── redis.ts              # Redis / 开发内存存储与 TTL
@@ -75,6 +76,8 @@ EngNote/
 | `documentFormatting.ts` / `formattedReading.ts` | 可共享的格式校验与偏移映射；受限样式和原生 DOM 渲染 |
 | `wordExport.ts` / `wordFormattingExport.ts` / `exportWord.ts` | 保留支持的格式与各批注当前语言的 OOXML / ZIP 生成及浏览器下载 |
 | `definitionViews.ts` / `definitionLanguage.ts` | 每条批注的双语内容、独立显示状态与本地切换 |
+| `vocabulary.ts` / `definitionList.ts` / `vocabularyClient.ts` | 全文释义提取与词条校验、本篇 / 跨文章清单及筛选分页、分账号防迟到收录；不复用或改动 AI 临时缓存 |
+| `readingFont.ts` | 五档阅读字号、Word 原字号比例与清单字号，仅修改显示变量 |
 | `wordSearch.ts` / `readingSearch.ts` | 纯正文单词索引、有限拼写容错、UTF-16 定位 / Unicode 距离排序；本地搜索组合框、虚拟结果行、逐处释义预览和只读定位 |
 | `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
 | `definitionMode.ts` / `definitionModeControl.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好与功能栏选择 / 介绍、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
@@ -104,6 +107,9 @@ EngNote/
 - 首页使用 `home.css`；手册使用 `manual.css`；收藏白板使用 `collection.css`；弹窗由 `notes.css` 与 `panels.css` 配合实现；短时消息使用 `statusToast.css`，复用便签纸、胶带与阴影变量。
 - `public/icons/reading-sketch.svg`、`pencil-line.svg` 和 `favicon.svg` 均为本地资源，不加载外部字体或 UI 框架。
 - 验证码邮件不能直接加载站点 CSS，因此 `verificationEmail.ts` 将同一配色解析为内联样式，以表格布局和无外部资源的模板兼容邮件客户端。
+
+- `vocabulary.css` 沿用纸面、墨迹、青色选中面和胶带变量，不增加配色；本篇清单按钮与字符计数组合，顶栏新增总清单按钮后允许按可用宽度换行。两个清单复用一个原生便签弹窗，原生按钮切换释义语言，按 100 条分页控制 DOM 数量，未知加载 / 收录耗时复用标准胶带进度。
+- 阅读字号通过 `--reading-font-size` 和 `--reading-font-scale` 改变显示；Word 固定字号 / 固定行距按比例计算，批注复制紧邻原词的字号表达式，普通批注使用 `1em`，不改变 Word 元数据、正文、分页计数或导出内容。
 
 ### 终端展示与机器边界
 
@@ -203,6 +209,8 @@ type DefinitionView = {
 - 格式使用正文 UTF-16 范围：`runs[{start,end,style}]` 与 `paragraphs[{start,end,style,marker?,cell?}]`，不存任意 CSS / HTML、外链、密钥或原始 ZIP。白名单验证颜色、字体名、数值与完整段落边界；最多 256000 个序列化 UTF-16 单元、6000 个范围 / 表格跨度预算、3000 个段落，限制重叠单元格及稀疏表格行数。未知 / 损坏的旧格式读取降级为空，显式写入非法格式原子拒绝。
 - 格式编辑先计算新元数据再提交正文，使用明确释义编辑或段落空白编辑逐段映射，普通手动编辑采用最小前后缀差异；新文字继承邻近字体。格式纳入历史、草稿、未保存比较与保存基线。
 - `users(id, email, password_hash, created_at)`：邮箱账号，密码使用 `Bun.password` 的 Argon2id 慢哈希，不存明文。
+- `vocabulary(user_id, term_key, term, english, chinese, british_ipa, language, updated_at)`：账号私有永久词汇，主键为 `(user_id, term_key)`；规范空白 / 撇号，普通词大小写合并、缩写独立，后收录的词义覆盖旧项，相同内容不推进时间。按用户与更新时间建索引，接口只接受当前会话用户，不接收身份声明、语境、全文或密钥。
+- `initVocabulary()` 首次创建词汇表时，在事务内流式遍历能匹配现有账号的文章，按保存时间及 ID 顺序汇入有效释义；重启不重复汇入、不覆盖后续收录，不认领无作者历史数据。文章保存和对应收录使用同一事务。永久词汇不随来源文章 / 批注或临时词典缓存删除；本机账号删除预览指纹包含其全部词汇，备份后事务删除文章、词汇和用户。
 - `updated_at` 为服务端 Unix 毫秒整数，创建与更新在同一 SQL 写入中使用当前时间及该账号现有最大值 + 1 的较大值；同毫秒写入也严格有序。收藏用 `(owner_email, updated_at DESC, id DESC)` 索引，按最近写入优先返回，日期展示最近保存时间；读取不更新时间，`created_at` 不变。
 - 启动时为旧文章表无损追加 `owner_email`、`definitions`、可空 `formatting` 与 `updated_at`；新增时间列及按原 UTC 创建时间回填在同一事务完成，无有效日期时为 0，重启不覆盖已有更新时间；旧作者不推断，双语列默认 `[]`。无作者历史文章保留在数据库中但隔离于所有账号列表与读取接口，不自动认领或删除；经确认的人工归属迁移另行处理。
 - 有效双语数据必须匹配正文中的英文批注；读取旧文章时忽略失效元数据，写入新元数据时原子校验。更新请求省略 `definitions` 时，保留仍匹配新正文的旧批注；省略 `formatting` 时映射现有格式，显式 `null` 才清空。
@@ -229,6 +237,8 @@ type DefinitionView = {
 | 各篇文章的阅读显示语言 | `er_article_definition_languages_v1`，`sessionStorage`；最近 100 篇、最多 256 KiB，仅存版本 SHA-256 指纹与排序后的语言列表，不存正文、释义或凭证；存储受限时保留有界内存 |
 | 阅读纸张 | `er_reading_background`，`localStorage` |
 | 词典查询缓存 | `er_dictionary_cache_v2`，`localStorage`，最多 256 条、7 天有效，按最近最少使用淘汰 |
+
+总清单的临时显示语言仅放在当前页面内存，并在切号时清理；本篇清单直接切换对应 `DefinitionViews` 的语言，不另存正文。`vocabularyClient.ts` 捕获账号及会话代次，只收录同一次账号会话的成功结果，无匿名重放或后台重试队列；每批上限 500 项，未保存文章也只提交新生成的词条和释义。`/api/vocabulary` 按 100 条分页读取和最多 64 字符筛选，不一次加载整个账号词汇。
 
 文章手动保存及释义后自动保存均使用 `DefinitionViews.snapshot()` 保留逐条语言；阅读点击切换不产生未保存状态或后台写请求。离开干净的保存版本前及切换语言时记录本标签页选择，打开文章时只对正文与语言无关批注内容指纹完全一致的版本回填；不同文章、改写内容和不同批注不串用，删除记录同时清理偏好。存储上限之外的旧文章回退到服务端保存的选择。旧版曾强制改成英文的选择无法从数据库推断回去，无需数据库结构迁移，也不自动重新请求 AI。
 

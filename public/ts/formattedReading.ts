@@ -3,14 +3,14 @@ import { cellKey, formattingSegments, type DocumentFormatting, type FormatParagr
 
 export function applyRunStyle(node: HTMLElement, style: RunStyle) {
   if (style.font || style.eastAsiaFont) node.style.fontFamily = [...new Set([style.font, style.eastAsiaFont].filter((font): font is string => !!font))].map(font => JSON.stringify(font)).join(", ") + ", serif";
-  if (style.size !== undefined) node.style.fontSize = `${style.size}pt`;
+  if (style.size !== undefined) node.style.fontSize = `calc(${style.size}pt * var(--reading-font-scale, 1))`;
   if (style.bold !== undefined) node.style.fontWeight = style.bold ? "700" : "400";
   if (style.italic !== undefined) node.style.fontStyle = style.italic ? "italic" : "normal";
   if (style.underline !== undefined || style.strike !== undefined) node.style.textDecoration = [style.underline ? "underline" : "", style.strike ? "line-through" : ""].filter(Boolean).join(" ") || "none";
   if (style.color) node.style.color = style.color;
   if (style.highlight) node.style.backgroundColor = style.highlight === "none" ? "transparent" : style.highlight;
   if (style.spacing !== undefined) node.style.letterSpacing = `${style.spacing}pt`;
-  if (style.vertical && style.vertical !== "baseline") { node.style.verticalAlign = style.vertical === "superscript" ? "super" : "sub"; node.style.fontSize = style.size ? `${style.size * .75}pt` : ".75em"; }
+  if (style.vertical && style.vertical !== "baseline") { node.style.verticalAlign = style.vertical === "superscript" ? "super" : "sub"; node.style.fontSize = style.size ? `calc(${style.size * .75}pt * var(--reading-font-scale, 1))` : ".75em"; }
 }
 export function applyParagraphStyle(node: HTMLElement, style: ParagraphStyle) {
   node.style.textAlign = style.align ?? "left";
@@ -19,7 +19,7 @@ export function applyParagraphStyle(node: HTMLElement, style: ParagraphStyle) {
   node.style.setProperty("--word-left", `${style.left ?? 0}pt`); node.style.setProperty("--word-right", `${style.right ?? 0}pt`);
   node.style.setProperty("--word-indent", `${style.firstLine ?? 0}pt`);
   node.style.textIndent = `${style.firstLine ?? 0}pt`;
-  node.style.lineHeight = style.linePoints ? `${style.linePoints}pt` : String(style.lineHeight ?? 1.2);
+  node.style.lineHeight = style.linePoints ? `calc(${style.linePoints}pt * var(--reading-font-scale, 1))` : String(style.lineHeight ?? 1.2);
   if (style.heading) { node.setAttribute("role", "heading"); node.setAttribute("aria-level", String(style.heading)); }
   if (style.pageBreak) node.classList.add("word-page-break");
 }

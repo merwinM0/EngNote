@@ -11,6 +11,8 @@ import { lookupDefinitions } from "./dictionaryLookup";
 import { definitionLanguagePreference } from "./definitionPreference";
 import { aiUsage } from "./aiUsage";
 import { remapSelection } from "./selectionRecovery";
+import { captureVocabularyAccount, saveVocabularyItems } from "./vocabularyClient";
+import type { VocabularyItem } from "./vocabulary";
 let activeRequest: AbortController | null = null;
 window.addEventListener("reading-history-request", () => cancelDefinitions(false));
 export const onTermClick = (id: number) => togglePick(id);
@@ -38,7 +40,8 @@ export async function translateSelected(refresh = false) {
   const restoreFocus = ["defineSelectedBtn", "refreshSelectedBtn"].includes(document.activeElement?.id ?? "");
   const request = new AbortController();
   activeRequest = request;
-  const revision = getRevision();
+  const revision = getRevision(), vocabularyAccount = captureVocabularyAccount();
+  let vocabulary: VocabularyItem[] = [];
   const mode = definitionModePreference.mode, article = getCurrentText();
   const targets = groupIds(ids).map(group => {
     const term = groupText(group), word = wordsById.get(group.at(-1)!)!, note = definitionViews.at(word.end);
@@ -81,6 +84,8 @@ export async function translateSelected(refresh = false) {
       .map(target => ({ start: target.start, end: target.offset })), ...otherPages];
     const edits = addDefinitions(result.definitions.map(item => ({ offset: item.offset, meaning: item.english, chinese: item.chinese, term: byKey.get(item.term)!.term,
       ...(item.britishIPA ? { britishIPA: item.britishIPA } : {}), mode, ...(mode !== "general" ? { contextKey: item.term } : {}) })), definitionLanguagePreference.language);
+    vocabulary = result.definitions.map(item => ({ term: byKey.get(item.term)!.term, english: item.english, chinese: item.chinese,
+      ...(item.britishIPA ? { britishIPA: item.britishIPA } : {}), language: definitionLanguagePreference.language }));
     retryRanges = remapSelection(retryRanges, edits);
     const missing = targets.length - result.kept - result.definitions.length;
     const requests = aiUsage.snapshot().requests - requestsBefore;
@@ -103,9 +108,15 @@ export async function translateSelected(refresh = false) {
   // Finish the cancellable AI phase first. Esc/Read must not release the database-write lock.
   if (completion?.changed) {
     const result = await saveDefinitionChanges();
-    if (!result) return;
-    const summary = completion.message;
-    setStatus(() => summary() + (result.saved ? t("save.autoSaved") : t("save.autoFailed", { error: errorMessage(result.error) })),
-      !result.saved || completion.missing ? "error" : "ok");
+    if (result) {
+      const summary = completion.message;
+      setStatus(() => summary() + (result.saved ? t("save.autoSaved") : t("save.autoFailed", { error: errorMessage(result.error) })),
+        !result.saved || completion.missing ? "error" : "ok");
+    }
+  }
+  if (completion) {
+    const recordedRevision = getRevision();
+    const recorded = await saveVocabularyItems(vocabulary, vocabularyAccount);
+    if (recorded && !recorded.saved && getRevision() === recordedRevision) setStatus(() => t("vocabulary.saveFailed", { error: errorMessage(recorded.error) }), "error");
   }
 }

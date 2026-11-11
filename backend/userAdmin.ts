@@ -6,7 +6,8 @@ export { terminalText } from "./terminal";
 
 export type AdminUser = { id: number; email: string; created_at: string; article_count: number };
 export type AdminArticle = { id: number; title: string; created_at: string; characters: number };
-export type UserPreview = { user: AdminUser; articles: AdminArticle[]; stamp: string };
+export type UserPreview = { user: AdminUser; articles: AdminArticle[]; vocabulary: number; stamp: string };
+const hasVocabulary = (db: Database) => !!db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'vocabulary'").get();
 export const USER_PAGE_SIZE = 50;
 export function openAdminDatabase(path: string, writable = false): Database {
   const filename = realpathSync(resolve(path)); // Fail rather than silently creating a mistyped database.
@@ -46,7 +47,11 @@ export function previewUser(db: Database, target: string): UserPreview | null {
   const hash = createHash("sha256").update(JSON.stringify(user));
   // Include saved contents and metadata, not just counts: any concurrent article change requires a new preview.
   for (const row of db.query("SELECT * FROM entries WHERE owner_email = ? ORDER BY id").iterate(user.email)) hash.update(JSON.stringify(row));
-  return { user, articles: userArticles(db, user), stamp: hash.digest("hex") };
+  let vocabulary = 0;
+  if (hasVocabulary(db)) for (const row of db.query("SELECT * FROM vocabulary WHERE user_id = ? ORDER BY term_key").iterate(user.id)) {
+    hash.update(JSON.stringify(row)); vocabulary++;
+  }
+  return { user, articles: userArticles(db, user), vocabulary, stamp: hash.digest("hex") };
 }
 function backupSnapshot(db: Database, directory: string, userId: number): string {
   const root = resolve(directory);
@@ -61,14 +66,15 @@ function backupSnapshot(db: Database, directory: string, userId: number): string
   try { fsyncSync(directoryFd); } finally { closeSync(directoryFd); }
   return path;
 }
-export function deleteUserWithArticles(db: Database, preview: UserPreview, backupDirectory: string): { articles: number; backup: string } {
+export function deleteUserWithArticles(db: Database, preview: UserPreview, backupDirectory: string): { articles: number; vocabulary: number; backup: string } {
   return db.transaction(() => {
     const current = previewUser(db, String(preview.user.id));
-    if (!current || current.user.email !== preview.user.email || current.stamp !== preview.stamp) throw new Error("用户或文章在预览后发生变化，请重新查看并确认；未删除数据。");
+    if (!current || current.user.email !== preview.user.email || current.stamp !== preview.stamp) throw new Error("用户、文章或释义在预览后发生变化，请重新查看并确认；未删除数据。");
     const backup = backupSnapshot(db, backupDirectory, current.user.id);
     const articles = db.query("DELETE FROM entries WHERE owner_email = ?").run(current.user.email).changes;
+    const vocabulary = hasVocabulary(db) ? db.query("DELETE FROM vocabulary WHERE user_id = ?").run(current.user.id).changes : 0;
     const deleted = db.query("DELETE FROM users WHERE id = ? AND email = ?").run(current.user.id, current.user.email).changes;
-    if (deleted !== 1 || articles !== current.user.article_count) throw new Error("删除数量不一致，事务已回滚。");
-    return { articles, backup };
+    if (deleted !== 1 || articles !== current.user.article_count || vocabulary !== current.vocabulary) throw new Error("删除数量不一致，事务已回滚。");
+    return { articles, vocabulary, backup };
   }).immediate();
 }
