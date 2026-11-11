@@ -40,6 +40,8 @@ HTTPS 请求或 `COOKIE_SECURE=true` 时追加 `Secure`。浏览器自动携带�
 
 列表按当前会话的作者邮箱在 SQL 查询中隔离，再按 `updated_at DESC, id DESC` 排序；每项为 `{ id, title, created_at, updated_at, can_edit }`，不返回完整正文或双语数据。
 
+前端登录或恢复会话后，待草稿恢复完成，若阅读区与编辑区为空且无其他交互，可用上述列表首项再调用 `GET /api/entries/:id` 自动打开最近修改文章；不新增接口、不跳过账号权限、不写入或推进修改时间。每次登录工作区只尝试一次，用户操作或切号后的迟到读取不得覆盖现状。
+
 `updated_at` 是服务端生成的 Unix 毫秒整数；创建与每次成功更新均推进，同账号同毫秒内连续写入也严格递增。旧文章从原 UTC 创建时间回填（无法解析时为 0），不推测历史修改时间。`created_at` 保持原始创建时间，读取和失败写入不改变时间或顺序，客户端提交的时间字段不生效。
 
 单篇 `entry` 包含 `id`、`title`、`content`、`created_at`、`updated_at`、`definitions`、`formatting`、`can_edit`。查询已限定当前作者，因此有效响应的 `can_edit` 为 `true`；接口不公开 `owner_email`。

@@ -2,9 +2,11 @@ import type { DocumentFormatting } from "./documentFormatting";
 import { api, ApiError, jsonBody, setStatus, sanitizeTitle, el, errorMessage, setToolLabel } from "./util";
 import { msg, setUIText, t, uiLanguage } from "./i18n";
 import type { MessageKey, UIMessage } from "./i18n";
-import { definitionViews, definitionViewChanged, getCurrentText, getDocumentFormatting, render, isBusy, setBusy } from "./state";
+import { definitionViews, definitionViewChanged, getCurrentText, getDocumentFormatting, getRevision, render, isBusy, setBusy } from "./state";
 import { getEmail, isLoggedIn, openLogin } from "./auth";
-import { openPanel, closePanel, confirmInPanel } from "./panels";
+import { activePanel, openPanel, closePanel, confirmInPanel } from "./panels";
+import { hasOpenNote } from "./notes";
+import { LatestArticleOnLogin } from "./articleAutoOpen";
 import { callDeepSeek, getStoredApiKey } from "./deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
 import type { DraftEntry } from "./articleDraft";
@@ -33,6 +35,8 @@ let openRequest = 0;
 let deleteRequest = 0;
 let loginSaveRequested = false;
 let workspaceReady = false;
+let availableEntries: Entry[] | null = null;
+const latestOnLogin = new LatestArticleOnLogin<Entry>();
 const articleLanguages = new ArticleDefinitionLanguages(() => sessionStorage);
 let warnedLanguageStorage = false;
 const canEdit = (entry: Entry) => isLoggedIn() && entry.can_edit;
@@ -127,17 +131,29 @@ function refreshCollectionCopy() {
   }
 }
 
-async function openEntry(entry: Entry) {
+function mayOpenLatestEntry() {
+  return workspaceReady && isLoggedIn() && !getCurrentText().trim() && !selected && selectionStatus === "ready"
+    && !isBusy() && !loginSaveRequested && activePanel() === "readPanel" && !hasOpenNote()
+    && !(document.getElementById("editorText") as HTMLTextAreaElement).value.trim();
+}
+function openLatestForEmptyWorkspace() {
+  const entry = latestOnLogin.take(availableEntries, workspaceReady, mayOpenLatestEntry());
+  if (entry) void openEntry(entry, true);
+}
+async function openEntry(entry: Entry, automatic = false) {
   if (isBusy()) return;
   const account = getEmail();
   if (!account) return openLogin();
   const request = ++openRequest;
-  if (!(await confirmReplace()) || request !== openRequest || isBusy() || !collectionPanel.open) return;
-  const startingText = getCurrentText();
-  showError("collectionMsg", msg("status.opening", { title: entry.title }));
+  if (automatic) { if (!mayOpenLatestEntry()) return; }
+  else if (!(await confirmReplace()) || request !== openRequest || isBusy() || !collectionPanel.open) return;
+  const startingText = getCurrentText(), revision = getRevision();
+  if (automatic) setStatus(msg("status.opening", { title: entry.title }));
+  else showError("collectionMsg", msg("status.opening", { title: entry.title }));
   try {
     const data = await api<{ entry: Entry & { content: string } }>(`/api/entries/${entry.id}`);
-    if (request !== openRequest || getEmail() !== account || isBusy() || getCurrentText() !== startingText) return;
+    if (request !== openRequest || getEmail() !== account || isBusy() || getCurrentText() !== startingText
+      || automatic && (getRevision() !== revision || !mayOpenLatestEntry())) return;
     rememberDefinitionLanguages();
     const definitions = articleLanguages.apply(entry.id, data.entry.content, data.entry.definitions);
     render(data.entry.content, 0, definitions, data.entry.formatting);
@@ -146,7 +162,11 @@ async function openEntry(entry: Entry) {
     selectEntry(data.entry, getCurrentText());
     const detail = "status.openedOwner";
     setStatus(() => t("status.opened", { title: entry.title, detail: t(detail) }), "ok");
-  } catch (error) { if (request === openRequest) showError("collectionMsg", () => errorMessage(error)); }
+  } catch (error) {
+    if (request !== openRequest || getEmail() !== account) return;
+    if (!automatic) showError("collectionMsg", () => errorMessage(error));
+    else if (getRevision() === revision && mayOpenLatestEntry()) setStatus(() => t("status.latestOpenFailed", { error: errorMessage(error) }), "error");
+  }
 }
 export async function refreshList() {
   const request = ++listRequest, account = getEmail();
@@ -197,7 +217,9 @@ export async function refreshList() {
       const fresh = data.entries.find(entry => entry.id === selected?.id);
       if (fresh) selected = { ...selected, can_edit: fresh.can_edit };
     }
+    availableEntries = data.entries;
     updateSelection();
+    openLatestForEmptyWorkspace();
   } catch (error) {
     if (request === listRequest) { entryList.replaceChildren(emptyCollection("collection.loadFailed")); setStatus(() => errorMessage(error), "error"); }
   } finally { if (request === listRequest) entryList.setAttribute("aria-busy", "false"); }
@@ -311,7 +333,7 @@ export function initDb() {
     loginSaveRequested = false;
     saveBtn.click();
   };
-  window.addEventListener("workspace-ready", () => { workspaceReady = true; continueSave(); });
+  window.addEventListener("workspace-ready", () => { workspaceReady = true; continueSave(); openLatestForEmptyWorkspace(); });
   window.addEventListener("entry-selection-changed", () => { queueMicrotask(continueSave); });
   window.addEventListener("save-login-cancelled", () => { loginSaveRequested = false; });
   document.getElementById("authPanel")!.addEventListener("panel-close", () => { if (!isLoggedIn()) loginSaveRequested = false; });
@@ -377,6 +399,8 @@ export function initDb() {
   window.addEventListener("session-changed", () => {
     // Invalidate every old-account response before the editor switches local workspaces.
     openRequest++; selectionRequest++; listRequest++; deleteRequest++; pendingDelete = null; workspaceReady = false;
+    availableEntries = null;
+    latestOnLogin.reset(isLoggedIn());
     window.dispatchEvent(new Event("reading-history-request"));
     if (saveTask) { saveTask.request.abort(); saveTask = null; updateSaveProgress(); }
     setBusy(false);

@@ -8,7 +8,7 @@
 .vocabulary-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .vocabulary-term { font: 600 1em/1.7 var(--serif); }
 /* Only the shared decorative layer is torn; text and native button focus stay unclipped. */
-.vocabulary-meaning { display: block; justify-self: start; min-width: 0; max-width: 100%; padding: 4px 12px; font: 1em/1.7 var(--sans); text-align: start; white-space: normal; overflow-wrap: anywhere; transform: none; }
+.vocabulary-meaning { display: block; justify-self: start; min-width: 0; max-width: 100%; padding: 4px 12px; font: 1em/1.7 var(--sans); color: var(--note-text); text-align: start; white-space: normal; overflow-wrap: anywhere; transform: none; }
 .vocabulary-meaning:not(button) { cursor: default; }
 .vocabulary-meaning:not(button):hover { transform: none; }
 .vocabulary-meaning:not(button):hover::before { filter: none; }

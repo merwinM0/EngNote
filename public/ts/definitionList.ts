@@ -6,6 +6,7 @@ import { api, el, errorMessage } from "./util";
 import { withIPA } from "./pronunciation";
 import { articleVocabulary, readVocabularyItem, vocabularyKey, VOCABULARY_PAGE_SIZE, type ArticleVocabularyItem, type VocabularyItem } from "./vocabulary";
 import { saveVocabularyItems } from "./vocabularyClient";
+import { randomNoteTape, termNoteTape } from "./noteTape";
 
 /** Both lists share paper, filtering and keyboard-native meaning buttons; only the all-article list fetches. */
 export function initDefinitionList() {
@@ -28,11 +29,12 @@ export function initDefinitionList() {
   const languages = new Map<string, "en" | "zh">();
   const currentItems = () => articleVocabulary(getCurrentText(), definitionViews.snapshot());
   function draw() {
+    const articleItems = currentItems(), byTerm = new Map(articleItems.map(item => [vocabularyKey(item.term), item]));
     document.getElementById("definitionListHeading")!.textContent = t(scope === "article" ? "vocabulary.articleHeading" : "vocabulary.allHeading");
     document.getElementById("definitionListDescription")!.textContent = t(scope === "article" ? "vocabulary.articleDescription" : "vocabulary.allDescription");
     login.hidden = scope !== "all" || !!getEmail();
     collect.hidden = !getEmail();
-    collect.disabled = collecting || isBusy() || !currentItems().length;
+    collect.disabled = collecting || isBusy() || !articleItems.length;
     collect.textContent = t(collecting ? "vocabulary.collecting" : "vocabulary.collect");
     retry.hidden = !failure || collectionFailure;
     progress.hidden = !loading && !collecting;
@@ -54,7 +56,12 @@ export function initDefinitionList() {
       term.lang = "en";
       const key = vocabularyKey(item.term), language = scope === "all" ? languages.get(key) ?? item.language : item.language;
       const chinese = language === "zh" && !!item.chinese;
-      const meaning = el(item.chinese ? "button" : "span", "tape-button tape-clear vocabulary-meaning", withIPA(chinese ? item.chinese! : item.english, item.britishIPA));
+      const local = byTerm.get(key);
+      const source = "start" in item ? item : local?.english === item.english && local.chinese === item.chinese ? local : undefined;
+      const note = source ? definitionViews.at(source.start) : undefined;
+      const tape = note ? note.tape ??= randomNoteTape() : termNoteTape(key);
+      const meaning = el(item.chinese ? "button" : "span", `tape-button vocabulary-meaning tape-${tape}`, withIPA(chinese ? item.chinese! : item.english, item.britishIPA));
+      meaning.dataset.tape = tape;
       meaning.lang = chinese ? "zh-Hans" : "en";
       if (meaning instanceof HTMLButtonElement) {
         meaning.type = "button"; meaning.dataset.vocabularyKey = key;

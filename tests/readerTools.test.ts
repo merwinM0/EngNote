@@ -103,11 +103,14 @@ describe("compact reading tools", () => {
   });
   test("definition lists reuse transparent tape without clipping text or focus and the shared sticky-note modal", () => {
     const source = readFileSync("public/ts/definitionList.ts", "utf8");
-    expect(source).toContain('el(item.chinese ? "button" : "span", "tape-button tape-clear vocabulary-meaning"');
+    expect(source).toContain('`tape-button vocabulary-meaning tape-${tape}`');
+    expect(source).toContain('note.tape ??= randomNoteTape()');
+    expect(source).toContain('termNoteTape(key)');
     const css = readFileSync("public/css/vocabulary.css", "utf8");
     expect(css).not.toContain("background: var(--selected)");
     expect(css).not.toMatch(/\.vocabulary-window\s*\{/);
     expect(css).not.toMatch(/(?:clip-path|opacity)\s*:/);
+    expect(css).toContain("color: var(--note-text)");
     expect(css).toContain("justify-self: start");
     expect(css).toContain("max-width: 100%");
     expect(css).toContain("padding: 4px 8px 8px 4px");
