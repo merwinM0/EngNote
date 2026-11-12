@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { DOMParser as XmlParser } from "@xmldom/xmldom";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import { extractWordParts, importWord } from "../public/ts/word";
-import { wordPartsToDocument } from "../public/ts/wordFormattingImport";
-import { createWordDocument } from "../public/ts/wordExport";
+import { extractWordParts, importWord } from "../public/ts/word/word";
+import { wordPartsToDocument } from "../public/ts/word/wordFormattingImport";
+import { createWordDocument } from "../public/ts/word/wordExport";
 const previous = globalThis.DOMParser;
 beforeAll(() => { globalThis.DOMParser = XmlParser as unknown as typeof DOMParser; });
 afterAll(() => { globalThis.DOMParser = previous; });

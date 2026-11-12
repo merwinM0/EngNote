@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
-import { articleVocabulary, vocabularyKey, type VocabularyItem } from "../public/ts/vocabulary";
-import { readDefinitionViews } from "../public/ts/definitionViews";
+import { articleVocabulary, vocabularyKey, type VocabularyItem } from "../public/ts/vocabulary/vocabulary";
+import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
 
 type StoredVocabulary = { term: string; english: string; chinese: string | null; british_ipa: string | null; language: "en" | "zh"; updated_at: number };
 /** All callers authenticate first; repeat the user-ID check inside the write transaction. */

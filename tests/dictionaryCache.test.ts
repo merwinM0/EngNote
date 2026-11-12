@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { DictionaryCache, DICTIONARY_CACHE_LIMIT, DICTIONARY_CACHE_STORAGE, DICTIONARY_CACHE_TTL } from "../public/ts/dictionaryCache";
-import { DICTIONARY_VERSION } from "../public/ts/dictionary";
+import { DictionaryCache, DICTIONARY_CACHE_LIMIT, DICTIONARY_CACHE_STORAGE, DICTIONARY_CACHE_TTL } from "../public/ts/ai/dictionaryCache";
+import { DICTIONARY_VERSION } from "../public/ts/ai/dictionary";
 const meaning = { english: "a financial institution", chinese: "银行" };
 function storage() {
   const values = new Map<string, string>();

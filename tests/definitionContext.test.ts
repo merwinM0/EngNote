@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { sha256Hex, contextDigest } from "../public/ts/contextFingerprint";
+import { sha256Hex, contextDigest } from "../public/ts/definitions/contextFingerprint";
 import { describe, expect, test } from "bun:test";
-import { contextQuery, contextPayload, plainBody, ARTICLE_CONTEXT_LIMIT, CONTEXT_PROMPT } from "../public/ts/definitionContext";
-import { DefinitionModePreference, DEFINITION_MODE_KEY } from "../public/ts/definitionMode";
-import { DictionaryCache } from "../public/ts/dictionaryCache";
-import { lookupDefinitions } from "../public/ts/dictionaryLookup";
-import { paginate } from "../public/ts/pagination";
+import { contextQuery, contextPayload, plainBody, ARTICLE_CONTEXT_LIMIT, CONTEXT_PROMPT } from "../public/ts/definitions/definitionContext";
+import { DefinitionModePreference, DEFINITION_MODE_KEY } from "../public/ts/definitions/definitionMode";
+import { DictionaryCache } from "../public/ts/ai/dictionaryCache";
+import { lookupDefinitions } from "../public/ts/ai/dictionaryLookup";
+import { paginate } from "../public/ts/reading/pagination";
 
 const meaning = { english: "land beside water", chinese: "河岸", britishIPA: "/bæŋk/" };
 function fixture() {

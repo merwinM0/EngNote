@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { remapSelection } from "../public/ts/selectionRecovery";
+import { remapSelection } from "../public/ts/definitions/selectionRecovery";
 
 describe("failed definition selections", () => {
   test("a completely failed request keeps the same word and phrase positions", () => {

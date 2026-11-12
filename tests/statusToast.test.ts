@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { createStatusTimer } from "../public/ts/statusTimer";
+import { createStatusTimer } from "../public/ts/ui/statusTimer";
 
 function fixture() {
   let now = 0, expired = 0;
@@ -59,7 +59,7 @@ describe("1.7-second pausable status notes", () => {
     expect(css).toContain(".status-copy { display: block; font-size: 12px; line-height: 1.7;");
     expect(css).not.toContain(".status-close");
     expect(css.match(/\.status-heading\s*\{([^}]+)\}/)?.[1]).not.toContain("padding-right");
-    const source = readFileSync("public/ts/statusToast.ts", "utf8");
+    const source = readFileSync("public/ts/ui/statusToast.ts", "utf8");
     expect(source).toContain('bar.addEventListener("click", dismissStatus)');
   });
   test("uses a lower tape strip only for messages, preserving the shared progress style", () => {

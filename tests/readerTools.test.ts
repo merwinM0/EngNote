@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { tooltipPosition } from "../public/ts/tooltips";
-import { setToolLabel } from "../public/ts/util";
-import { definitionModePresentation } from "../public/ts/definitionModeControl";
-import { DEFINITION_MODES } from "../public/ts/definitionMode";
-import { t, uiLanguagePreference } from "../public/ts/i18n";
-import { READING_FONT_LEVELS } from "../public/ts/readingFont";
+import { tooltipPosition } from "../public/ts/ui/tooltips";
+import { setToolLabel } from "../public/ts/ui/util";
+import { definitionModePresentation } from "../public/ts/definitions/definitionModeControl";
+import { DEFINITION_MODES } from "../public/ts/definitions/definitionMode";
+import { t, uiLanguagePreference } from "../public/ts/ui/i18n";
+import { READING_FONT_LEVELS } from "../public/ts/reading/readingFont";
 
 afterEach(() => { uiLanguagePreference.set("en"); });
 
@@ -48,7 +48,7 @@ describe("compact reading tools", () => {
     expect(tooltipPosition(100, 144, 60, 200, 1440)).toEqual({ left: 22, top: 68 });
     expect(tooltipPosition(0, 44, 60, 280, 320)).toEqual({ left: 8, top: 68 });
     expect(tooltipPosition(290, 334, 60, 200, 320)).toEqual({ left: 112, top: 68 });
-    const source = readFileSync("public/ts/tooltips.ts", "utf8");
+    const source = readFileSync("public/ts/ui/tooltips.ts", "utf8");
     expect(source).toContain('document.body.append(tooltip)');
     expect(source).toContain('tooltip.role = "tooltip"');
     for (const action of ["pointerover", "focusin", "pointerenter", "ui-language-changed"]) expect(source).toContain(`"${action}"`);
@@ -58,9 +58,9 @@ describe("compact reading tools", () => {
     expect(source).toContain('"data-tool-description"');
   });
   test("mode guidance remains available to assistive technology without popup reminders", () => {
-    const state = readFileSync("public/ts/state.ts", "utf8");
+    const state = readFileSync("public/ts/reading/state.ts", "utf8");
     expect(state).toContain('modeHint.textContent = translateMode ? t("reader.modeSelect")');
-    for (const file of ["main", "translate", "deleteNote"]) {
+    for (const file of ["main", "definitions/translate", "definitions/deleteNote"]) {
       const source = readFileSync(`public/ts/${file}.ts`, "utf8");
       expect(source).not.toMatch(/msg\("(?:reader\.modeSelect|reader\.modeDelete|status\.readingMode|status\.definitionSelected)"\)/);
     }
@@ -87,7 +87,7 @@ describe("compact reading tools", () => {
     expect(css).toContain("font: 1em/1.7 var(--sans)");
     expect(css).not.toContain("font: .8em");
     expect(css).toContain("var(--reading-font-scale, 1)");
-    const source = readFileSync("public/ts/readingFont.ts", "utf8");
+    const source = readFileSync("public/ts/reading/readingFont.ts", "utf8");
     expect(source).not.toMatch(/document-changed|setText|formatting|sessionStorage|localStorage/);
   });
   test("definition lists sit in the requested positions without changing AI cache settings", () => {
@@ -102,7 +102,7 @@ describe("compact reading tools", () => {
     expect(html.match(/<dialog id="aiPanel"[\s\S]*?<\/dialog>/)?.[0]).toContain('id="clearDictionaryCacheBtn"');
   });
   test("definition lists reuse transparent tape without clipping text or focus and the shared sticky-note modal", () => {
-    const source = readFileSync("public/ts/definitionList.ts", "utf8");
+    const source = readFileSync("public/ts/vocabulary/definitionList.ts", "utf8");
     expect(source).toContain('`tape-button vocabulary-meaning tape-${tape}`');
     expect(source).toContain('note.tape ??= randomNoteTape()');
     expect(source).toContain('termNoteTape(key)');

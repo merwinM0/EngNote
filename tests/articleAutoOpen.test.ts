@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { LatestArticleOnLogin } from "../public/ts/articleAutoOpen";
+import { LatestArticleOnLogin } from "../public/ts/articles/articleAutoOpen";
 
 const entries = [{ id: 9, title: "Most recently modified" }, { id: 3, title: "Older" }];
 describe("latest article on an empty signed-in workspace", () => {

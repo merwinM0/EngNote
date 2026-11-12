@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { AIUsage, AI_USAGE_STORAGE, describeAIUsage } from "../public/ts/aiUsage";
+import { AIUsage, AI_USAGE_STORAGE, describeAIUsage } from "../public/ts/ai/aiUsage";
 function storage() {
   const values = new Map<string, string>();
   return { values, getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };

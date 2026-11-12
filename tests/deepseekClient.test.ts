@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { AIUsage } from "../public/ts/aiUsage";
-import { AIResponseError, DEEPSEEK_URL, requestDeepSeek } from "../public/ts/deepseekClient";
+import { AIUsage } from "../public/ts/ai/aiUsage";
+import { AIResponseError, DEEPSEEK_URL, requestDeepSeek } from "../public/ts/ai/deepseekClient";
 const request = { key: "fake-test-key", system: "Return JSON only.", userMessage: '["bank"]', options: { maxTokens: 300, jsonObject: true } };
 const reply = (content = '{"definitions":[]}', finish_reason = "stop") => ({ choices: [{ message: { content }, finish_reason }], usage: { prompt_tokens: 100, completion_tokens: 30, prompt_cache_hit_tokens: 60 } });
 const usage = () => new AIUsage(() => ({ getItem: () => null, setItem: () => {} }));

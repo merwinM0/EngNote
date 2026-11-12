@@ -1,24 +1,24 @@
-import { setStatus } from "./util";
-import { initUILanguage, msg } from "./i18n";
-import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory } from "./state";
-import { initAISettings } from "./aiSettings";
-import { initDefinitionModeControl } from "./definitionModeControl";
-import { onFormat } from "./format";
-import { cancelDefinitions, onTranslateClick, onTermClick, translateSelected } from "./translate";
-import { handleDeleteNote, toggleDeleteMode } from "./deleteNote";
-import { refreshList, initDb, deselectEntry, confirmReplace } from "./db";
-import { initAuth } from "./auth";
-import { initEditor } from "./editor";
-import { activePanel, closePanel, initPanels, openPanel } from "./panels";
-import { hasOpenNote } from "./notes";
-import { initCollectionCanvas } from "./collectionCanvas";
-import { toggleDefinitionLanguage } from "./definitionLanguage";
-import { initReadingBackground } from "./readingBackground";
-import { initWordExport } from "./exportWord";
-import { initReadingToolbar } from "./readingToolbar";
-import { initReadingSearch } from "./readingSearch";
-import { initDefinitionList } from "./definitionList";
-import { initReadingFont } from "./readingFont";
+import { setStatus } from "./ui/util";
+import { initUILanguage, msg } from "./ui/i18n";
+import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory, isImmersiveReading, setImmersiveReading, revealDefinition } from "./reading/state";
+import { initAISettings } from "./ai/aiSettings";
+import { initDefinitionModeControl } from "./definitions/definitionModeControl";
+import { onFormat } from "./editor/format";
+import { cancelDefinitions, onTranslateClick, onTermClick, translateSelected } from "./definitions/translate";
+import { handleDeleteNote, toggleDeleteMode } from "./definitions/deleteNote";
+import { refreshList, initDb, deselectEntry, confirmReplace } from "./articles/db";
+import { initAuth } from "./account/auth";
+import { initEditor } from "./editor/editor";
+import { activePanel, closePanel, initPanels, openPanel } from "./ui/panels";
+import { hasOpenNote } from "./ui/notes";
+import { initCollectionCanvas } from "./articles/collectionCanvas";
+import { toggleDefinitionLanguage } from "./definitions/definitionLanguage";
+import { initReadingBackground } from "./reading/readingBackground";
+import { initWordExport } from "./word/exportWord";
+import { initReadingToolbar } from "./reading/readingToolbar";
+import { initReadingSearch } from "./search/readingSearch";
+import { initDefinitionList } from "./vocabulary/definitionList";
+import { initReadingFont } from "./reading/readingFont";
 
 document.getElementById("undoBtn")!.addEventListener("click", () => restoreHistory());
 document.getElementById("redoBtn")!.addEventListener("click", () => restoreHistory(true));
@@ -43,7 +43,7 @@ function activateTerm(target: EventTarget | null) {
   if (!term) return;
   if (isDeleteMode() && term.classList.contains("note")) { handleDeleteNote(term); return; }
   if (isTranslateMode() && term.classList.contains("term")) onTermClick(Number(term.dataset.wordId));
-  else if (!isTranslateMode() && !isDeleteMode() && term.classList.contains("note")) void toggleDefinitionLanguage(term);
+  else if (!isTranslateMode() && !isDeleteMode() && term.classList.contains("note") && !revealDefinition(term)) void toggleDefinitionLanguage(term);
 }
 content.addEventListener("click", event => activateTerm(event.target));
 content.addEventListener("keydown", event => {
@@ -53,6 +53,7 @@ function resetReadingMode() {
   const wasInteractive = isTranslateMode() || isDeleteMode();
   cancelDefinitions(false);
   setDeleteMode(false);
+  setImmersiveReading(false);
   if (wasInteractive) setStatus("");
   if (document.activeElement instanceof Element && document.activeElement.matches(".term, .note")) content.focus({ preventScroll: true });
 }
@@ -65,6 +66,11 @@ document.addEventListener("keydown", event => {
   else resetReadingMode();
 });
 function showReadForTool() { if (activePanel() !== "readPanel") openPanel("readPanel", false); }
+document.getElementById("immersiveBtn")!.addEventListener("click", () => {
+  if (isBusy()) return;
+  const on = !isImmersiveReading();
+  showReadForTool(); resetReadingMode(); setImmersiveReading(on);
+});
 document.getElementById("formatBtn")!.addEventListener("click", () => { if (!isBusy()) { showReadForTool(); resetReadingMode(); void onFormat(); } });
 translateBtn.addEventListener("click", () => {
   if (!isBusy()) { showReadForTool(); onTranslateClick(); }

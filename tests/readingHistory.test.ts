@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { ReadingHistory, type ReadingSnapshot } from "../public/ts/readingHistory";
-import { definitionContent, DefinitionViews } from "../public/ts/definitionViews";
-import { ReadingDocument } from "../public/ts/pagination";
+import { ReadingHistory, type ReadingSnapshot } from "../public/ts/reading/readingHistory";
+import { definitionContent, DefinitionViews } from "../public/ts/definitions/definitionViews";
+import { ReadingDocument } from "../public/ts/reading/pagination";
 const snap = (text: string): ReadingSnapshot => ({ text, definitions: [], offset: 0 });
 
 describe("bounded working-copy history", () => {

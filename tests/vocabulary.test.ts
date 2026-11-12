@@ -3,7 +3,7 @@ import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { articleVocabulary, readVocabularyItem, vocabularyKey } from "../public/ts/vocabulary";
+import { articleVocabulary, readVocabularyItem, vocabularyKey } from "../public/ts/vocabulary/vocabulary";
 import { initVocabulary, listVocabulary, storeVocabulary } from "../backend/vocabulary";
 import { openDatabase } from "../backend/database";
 import { deleteUserWithArticles, previewUser } from "../backend/userAdmin";

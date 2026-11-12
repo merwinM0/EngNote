@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseArticleTitle, summarizeArticleTitle, TITLE_PROMPT, TITLE_RETRY_PROMPT } from "../public/ts/articleTitle";
+import { parseArticleTitle, summarizeArticleTitle, TITLE_PROMPT, TITLE_RETRY_PROMPT } from "../public/ts/articles/articleTitle";
 
 describe("AI article titles", () => {
   test("accepts a short English title and removes surrounding quotes", () => {

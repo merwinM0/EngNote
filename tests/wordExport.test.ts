@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { strFromU8, unzipSync } from "fflate";
-import { DefinitionViews, type DefinitionView } from "../public/ts/definitionViews";
-import { paginate } from "../public/ts/pagination";
-import { extractWordXml } from "../public/ts/word";
-import { createWordDocument, WORD_DOCUMENT_TYPE, wordExportFilename, wordExportText } from "../public/ts/wordExport";
+import { DefinitionViews, type DefinitionView } from "../public/ts/definitions/definitionViews";
+import { paginate } from "../public/ts/reading/pagination";
+import { extractWordXml } from "../public/ts/word/word";
+import { createWordDocument, WORD_DOCUMENT_TYPE, wordExportFilename, wordExportText } from "../public/ts/word/wordExport";
 
 function bilingual(text: string, languages: Array<"en" | "zh">): DefinitionView[] {
   return [...text.matchAll(/『([^』]*)』/g)].map((match, index) => ({

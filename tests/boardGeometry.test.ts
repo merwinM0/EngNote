@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { boardColumns, clampBoardScale, fitBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, zoomBoardAt } from "../public/ts/boardGeometry";
+import { boardColumns, clampBoardScale, fitBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, zoomBoardAt } from "../public/ts/articles/boardGeometry";
 
 describe("collection canvas geometry", () => {
   test("clamps to visible minimum/maximum limits and recovers from invalid input", () => {

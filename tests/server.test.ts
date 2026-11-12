@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deleteUserWithArticles, previewUser } from "../backend/userAdmin";
-import { paragraphRanges } from "../public/ts/documentFormatting";
+import { paragraphRanges } from "../public/ts/word/documentFormatting";
 
 // No real SMTP, Redis, or user database may be touched by tests.
 process.env.NODE_ENV = "test";
@@ -228,8 +228,13 @@ describe("source server", () => {
     const buttons = [...tools.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(match => match[0]);
     expect(buttons.map(button => button.match(/\bid="([^"]+)"/)?.[1])).toEqual([
       "readBtn", "editorBtn", "formatBtn", "translateBtn", "defineSelectedBtn", "refreshSelectedBtn",
-      "definitionModeBtn", "deleteBtn", "saveBtn", "wordBtn", "exportWordBtn", "undoBtn", "redoBtn", "clearBtn",
+      "definitionModeBtn", "deleteBtn", "saveBtn", "wordBtn", "exportWordBtn", "undoBtn", "redoBtn", "immersiveBtn", "clearBtn",
     ]);
+    const immersive = buttons.find(button => button.includes('id="immersiveBtn"'))!;
+    expect(immersive).toContain('aria-pressed="false"');
+    expect(immersive).toContain('aria-controls="content"');
+    expect(immersive).toContain('data-i18n-aria-label="reader.immersive"');
+    expect(immersive).not.toContain('tool-caption');
     for (const id of ["undoBtn", "redoBtn"]) expect(tools).toMatch(new RegExp(`id="${id}"[^>]*disabled`));
     for (const button of buttons) {
       expect(button).toMatch(/aria-label="[^"]+"/);

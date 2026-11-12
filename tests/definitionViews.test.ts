@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { definitionContent, DefinitionViews, readDefinitionViews } from "../public/ts/definitionViews";
-import { parseArticleDraft } from "../public/ts/articleDraft";
+import { definitionContent, DefinitionViews, readDefinitionViews } from "../public/ts/definitions/definitionViews";
+import { parseArticleDraft } from "../public/ts/articles/articleDraft";
 
 const text = "A fox『an animal』 walks past a dog『an animal』 and a bird『a flying animal』.";
 function setup() { const views = new DefinitionViews(); views.reset(text); return views; }

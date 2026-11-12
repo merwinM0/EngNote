@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseParagraphs, sanitizeEnglish, sanitizeTitle, splitParagraph, WORD_PATTERN } from "../public/ts/text";
+import { parseParagraphs, sanitizeEnglish, sanitizeTitle, splitParagraph, WORD_PATTERN } from "../public/ts/reading/text";
 
 describe("English article rules", () => {
   test("keeps numbers, currency, punctuation and typography", () => {

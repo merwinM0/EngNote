@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { editFormatting, formattingSegments, formattedPageParagraphs, paragraphRanges, readFormatting, rebaseFormatting, validateFormatting, type DocumentFormatting } from "../public/ts/documentFormatting";
-import { paragraphTidying, PARAGRAPH_PROMPT } from "../public/ts/paragraphTidying";
-import { ReadingHistory } from "../public/ts/readingHistory";
-import { parseArticleDraft } from "../public/ts/articleDraft";
+import { editFormatting, formattingSegments, formattedPageParagraphs, paragraphRanges, readFormatting, rebaseFormatting, validateFormatting, type DocumentFormatting } from "../public/ts/word/documentFormatting";
+import { paragraphTidying, PARAGRAPH_PROMPT } from "../public/ts/editor/paragraphTidying";
+import { ReadingHistory } from "../public/ts/reading/readingHistory";
+import { parseArticleDraft } from "../public/ts/articles/articleDraft";
 const text = "Hello world.\n\nNext line.";
 const format: DocumentFormatting = { version: 1, runs: [
   { start: 0, end: 5, style: { font: "Georgia", size: 18, bold: true, color: "#123456" } },

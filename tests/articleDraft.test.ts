@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseArticleDraft } from "../public/ts/articleDraft";
-import { DOCUMENT_LIMIT, paginate, ReadingDocument } from "../public/ts/pagination";
+import { parseArticleDraft } from "../public/ts/articles/articleDraft";
+import { DOCUMENT_LIMIT, paginate, ReadingDocument } from "../public/ts/reading/pagination";
 
 const entry = { id: 42, title: "A quiet morning", savedText: "A fox『an animal』 reads." };
 const draft = { version: 2 as const, text: `${entry.savedText}\n\nAn unsaved thought.`, index: 1, entry };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DICTIONARY_PROMPT, dictionaryBatches, dictionaryKey, dictionaryTokenBudget, parseDictionaryResponse } from "../public/ts/dictionary";
+import { DICTIONARY_PROMPT, dictionaryBatches, dictionaryKey, dictionaryTokenBudget, parseDictionaryResponse } from "../public/ts/ai/dictionary";
 
 const pair = { term: "fox", english: "a wild animal", chinese: "一种野生动物" };
 describe("one-response bilingual dictionary", () => {

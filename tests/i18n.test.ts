@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { MESSAGES, UI_LANGUAGE_STORAGE, UILanguagePreference, describeAIUsageLocalized, interpolate, isMessageKey, localizeError, msg, setUIText, t, textOf, uiLanguagePreference } from "../public/ts/i18n";
+import { MESSAGES, UI_LANGUAGE_STORAGE, UILanguagePreference, describeAIUsageLocalized, interpolate, isMessageKey, localizeError, msg, setUIText, t, textOf, uiLanguagePreference } from "../public/ts/ui/i18n";
 
 function storage(initial: string | null = null) {
   const values = new Map<string, string>();

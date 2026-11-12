@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { characterCount, DOCUMENT_LIMIT, PAGE_LIMIT, paginate, ReadingDocument } from "../public/ts/pagination";
-import { reflowText } from "../public/ts/text";
+import { characterCount, DOCUMENT_LIMIT, PAGE_LIMIT, paginate, ReadingDocument } from "../public/ts/reading/pagination";
+import { reflowText } from "../public/ts/reading/text";
 
 function checkPages(text: string) {
   const pages = paginate(text);

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { ARTICLE_DEFINITION_LANGUAGES_KEY, ArticleDefinitionLanguages } from "../public/ts/articleDefinitionLanguages";
-import { DefinitionViews, type DefinitionView } from "../public/ts/definitionViews";
-import { DefinitionLanguagePreference } from "../public/ts/definitionPreference";
+import { ARTICLE_DEFINITION_LANGUAGES_KEY, ArticleDefinitionLanguages } from "../public/ts/definitions/articleDefinitionLanguages";
+import { DefinitionViews, type DefinitionView } from "../public/ts/definitions/definitionViews";
+import { DefinitionLanguagePreference } from "../public/ts/definitions/definitionPreference";
 
 const text = "😀 A fox『an animal』 meets a dog『an animal』 and a bird『a flying animal』.";
 const saved: DefinitionView[] = [

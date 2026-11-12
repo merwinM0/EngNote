@@ -1,13 +1,13 @@
 import type { Database } from "bun:sqlite";
 export { openDatabase } from "./database";
-import { readFormatting, validateFormatting, rebaseFormatting } from "../public/ts/documentFormatting";
+import { readFormatting, validateFormatting, rebaseFormatting } from "../public/ts/word/documentFormatting";
 import { resolve } from "node:path";
 import home from "../public/home.html";
 import reader from "../public/index.html";
 import { initAuth, register, login, requestCode, resolveToken, resolveSession, logout, SESSION_TTL } from "./auth";
-import { readDefinitionViews } from "../public/ts/definitionViews";
-import type { DefinitionView } from "../public/ts/definitionViews";
-import { readVocabularyItem, VOCABULARY_BATCH_LIMIT, VOCABULARY_PAGE_SIZE } from "../public/ts/vocabulary";
+import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
+import type { DefinitionView } from "../public/ts/definitions/definitionViews";
+import { readVocabularyItem, VOCABULARY_BATCH_LIMIT, VOCABULARY_PAGE_SIZE } from "../public/ts/vocabulary/vocabulary";
 import { collectArticleVocabulary, listVocabulary, storeVocabulary } from "./vocabulary";
 
 const projectRoot = resolve(import.meta.dir, "..");

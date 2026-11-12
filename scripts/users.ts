@@ -4,8 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { defaultDatabasePath } from "../backend/database";
 import { deleteUserWithArticles, findUser, listUsers, openAdminDatabase, previewUser, userArticles, viewArticle, USER_PAGE_SIZE, type AdminArticle, type AdminUser } from "../backend/userAdmin";
 import { CliError, cliErrorOutput, statusPanel, successLine, terminalColor, terminalJSON, terminalPanel, terminalText } from "../backend/terminal";
-import { readDefinitionViews } from "../public/ts/definitionViews";
-import { wordExportText } from "../public/ts/wordExport";
+import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
+import { wordExportText } from "../public/ts/word/wordExport";
 
 export type AdminIO = { columns?: number; color?: boolean; write(text: string): void; readLine(prompt: string): Promise<string | undefined> };
 const help = `bun users [选项] [命令]；不带命令进入交互

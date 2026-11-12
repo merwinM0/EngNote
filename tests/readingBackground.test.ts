@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { isReadingBackground, isReadingPaperColor, READING_PAPER_COLORS, READING_PAPER_COLOR_STORAGE, READING_BACKGROUNDS, READING_BACKGROUND_STORAGE, ReadingBackgroundPreference } from "../public/ts/readingBackgroundPreference";
-import { MESSAGES } from "../public/ts/i18n";
+import { isReadingBackground, isReadingPaperColor, READING_PAPER_COLORS, READING_PAPER_COLOR_STORAGE, READING_BACKGROUNDS, READING_BACKGROUND_STORAGE, ReadingBackgroundPreference } from "../public/ts/reading/readingBackgroundPreference";
+import { MESSAGES } from "../public/ts/ui/i18n";
 
 function storage(initial: string | null = null) {
   const values = new Map<string, string>();

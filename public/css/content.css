@@ -43,6 +43,8 @@
 .content .note[data-tape="wheat"] { --note-bg: var(--tape-wheat); }
 .content .note[data-tape="lilac"] { --note-bg: var(--tape-lilac); }
 .content .note[data-tape="rose"] { --note-bg: var(--tape-rose); }
+/* Keep the tape's size/click target while concealing only its definition. */
+.content .note.is-concealed .note-text { visibility: hidden; }
 .content .note::before { content: "『"; }
 .content .note::after { content: "』"; }
 .content .term.defining { text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }

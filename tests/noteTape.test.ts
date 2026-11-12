@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { NOTE_TAPE_COLORS, randomNoteTape, termNoteTape } from "../public/ts/noteTape";
-import { DefinitionViews } from "../public/ts/definitionViews";
+import { NOTE_TAPE_COLORS, randomNoteTape, termNoteTape } from "../public/ts/definitions/noteTape";
+import { DefinitionViews } from "../public/ts/definitions/definitionViews";
 import { readFileSync } from "node:fs";
 
 describe("random decorative note tape", () => {

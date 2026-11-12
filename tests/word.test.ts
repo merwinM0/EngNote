@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { zipSync, strToU8 } from "fflate";
-import { extractWordXml, MAX_WORD_BYTES } from "../public/ts/word";
+import { extractWordXml, MAX_WORD_BYTES } from "../public/ts/word/word";
 
 const xml = '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Hello, 2026!</w:t></w:r></w:p></w:body></w:document>';
 test("extracts only the main Word document, not embedded files", () => {

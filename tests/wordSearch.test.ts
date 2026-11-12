@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { indexSearchWords, searchExcerpt, searchWords } from "../public/ts/wordSearch";
-import { characterCount, paginate, type Page } from "../public/ts/pagination";
-import type { DefinitionView } from "../public/ts/definitionViews";
+import { indexSearchWords, searchExcerpt, searchWords } from "../public/ts/search/wordSearch";
+import { characterCount, paginate, type Page } from "../public/ts/reading/pagination";
+import type { DefinitionView } from "../public/ts/definitions/definitionViews";
 
 function pagesOf(...parts: string[]): Page[] {
   let start = 0;

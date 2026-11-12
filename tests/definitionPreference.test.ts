@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFINITION_LANGUAGE_STORAGE, DefinitionLanguagePreference } from "../public/ts/definitionPreference";
+import { DEFINITION_LANGUAGE_STORAGE, DefinitionLanguagePreference } from "../public/ts/definitions/definitionPreference";
 
 function storage(initial: string | null = null) {
   const values = new Map<string, string>();

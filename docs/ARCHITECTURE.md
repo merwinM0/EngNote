@@ -62,40 +62,23 @@ EngNote/
 
 ### 前端模块
 
-以下模块均位于 `public/ts/`：
+`public/ts/` 根目录只保留 `home.ts`、`main.ts` 两个页面入口；其余模块按功能归属组织，使用直接相对导入，不通过兼容转发文件维持旧路径：
 
-| 模块 | 职责 |
+| 目录 | 主要模块与职责 |
 | --- | --- |
-| `home.ts` / `main.ts` | 首页与阅读页入口，初始化并装配事件 |
-| `i18n.ts` | 双语界面、浏览器语言偏好、可随切换更新的动态提示 |
-| `manual.ts` | 仅内存的五步模拟指南，不调用真实 AI 或保存接口 |
-| `pagination.ts` | 完整正文模型、无损分页、全局偏移与光标定位 |
-| `text.ts` / `state.ts` | 文本规则、渲染、词组选择、阅读 / 释义 / 删除模式和操作锁 |
-| `articleAutoOpen.ts` | 登录后空工作区的单次最近文章选择，等待草稿及私有列表就绪，不在后续清空或刷新时再次触发 |
-| `editor.ts` / `articleDraft.ts` / `articleWorkspace.ts` | 粘贴、编辑、导入；分离匿名 / 各账号的标签页草稿，鉴权后恢复旧文章关联，退出与切号隔离阅读区 |
-| `word.ts` / `wordFormattingImport.ts` | 受限 `.docx` 白名单解压、正文 / 默认样式 / 继承 / 主题字体 / 列表 / 表格解析 |
-| `documentFormatting.ts` / `formattedReading.ts` | 可共享的格式校验与偏移映射；受限样式和原生 DOM 渲染 |
-| `wordExport.ts` / `wordFormattingExport.ts` / `exportWord.ts` | 保留支持的格式与各批注当前语言的 OOXML / ZIP 生成及浏览器下载 |
-| `definitionViews.ts` / `definitionLanguage.ts` | 每条批注的双语内容、独立显示状态与本地切换 |
-| `vocabulary.ts` / `definitionList.ts` / `vocabularyClient.ts` | 全文释义提取与词条校验、本篇 / 跨文章清单及筛选分页、分账号防迟到收录；不复用或改动 AI 临时缓存 |
-| `readingFont.ts` | 五档阅读字号、Word 原字号比例与清单字号，仅修改显示变量 |
-| `wordSearch.ts` / `readingSearch.ts` | 纯正文单词索引、有限拼写容错、UTF-16 定位 / Unicode 距离排序；本地搜索组合框、虚拟结果行、逐处释义预览和只读定位 |
-| `readingHistory.ts` | 有界工作副本快照、输入合并、撤回 / 恢复；不存凭证或服务端关联 |
-| `definitionMode.ts` / `definitionModeControl.ts` / `definitionContext.ts` / `contextFingerprint.ts` / `pronunciation.ts` | 释义模式偏好与功能栏选择 / 介绍、纯正文 / 位置 / 语境指纹、英式音标独立校验与显示 |
-| `definitionPreference.ts` | 后续新释义的默认显示语言，与界面语言独立 |
-| `articleDefinitionLanguages.ts` | 按文章及内容 / 批注版本隔离的有界标签页阅读语言记录，仅存指纹与逐条选择 |
-| `dictionary.ts` / `dictionaryLookup.ts` / `dictionaryCache.ts` | 双语响应校验、分批去重、已有释义复用和有界查询缓存 |
-| `deepseek.ts` / `deepseekClient.ts` / `aiUsage.ts` | 已确认密钥、可测试请求传输、预算、截断和用量统计 |
-| `format.ts` / `paragraphTidying.ts` / `translate.ts` / `articleTitle.ts` | 当前页段落整理及词句 / 标点完整性校验、所选词释义、整篇文章标题总结 |
-| `deleteNote.ts` | 单目标两次点击确认，点击其他批注只切换目标；删除后保持模式，同步移除对应双语数据 |
-| `db.ts` / `collectionCanvas.ts` / `boardGeometry.ts` | 保存与加载、白板手势、缩放几何和焦点可见性 |
-| `panels.ts` / `notes.ts` | 编辑面板、原生弹窗叠放、未保存确认、焦点与光标恢复 |
-| `auth.ts` / `aiSettings.ts` | 账号表单与 Cookie 会话、密钥草稿与确认存储 |
-| `readingBackground.ts` / `readingBackgroundPreference.ts` | 阅读纸张选择及浏览器偏好 |
-| `readingToolbar.ts` / `tooltips.ts` | 工具栏固定、向左收起与滚回恢复；独立浮层在按钮下方提供悬停 / 聚焦介绍，不被滚动行裁切，动态同步文案 |
-| `statusToast.ts` / `statusTimer.ts` | 右上角便签、可暂停的 1.7 秒真实计时、胶带进度与弹窗宿主 |
-| `selectionRecovery.ts` / `noteTape.ts` | 失败选词偏移恢复、仅用于显示的随机胶带配色 |
-| `util.ts` | DOM 辅助、保留图标的工具按钮文案更新、消息入口与同源 API 请求 |
+| `reading/` | `state.ts` 渲染、选词与操作锁；`pagination.ts` 完整正文和无损分页；`text.ts` 文本规则；`readingHistory.ts` 有界历史；`readingFont.ts` 五档显示字号；`readingBackground*.ts` 纸张偏好；`readingToolbar.ts` 固定与收起；`immersiveReading.ts` 独立的隐藏 / 揭示状态 |
+| `editor/` | `editor.ts` 粘贴、实时编辑、导入与工作区恢复；`format.ts` 当前页 AI 整理；`paragraphTidying.ts` 词句、标点与段落空白完整性校验 |
+| `definitions/` | `definitionViews.ts` 双语批注与偏移；`definitionLanguage.ts` 逐条切换；`translate.ts` 选词释义任务；`deleteNote.ts` 单目标两次确认；`definitionMode*.ts` 三种方式及功能栏；`definitionContext.ts` / `contextFingerprint.ts` 语境与指纹；`pronunciation.ts` 英式音标；`definitionPreference.ts` 默认语言；`articleDefinitionLanguages.ts` 逐篇语言记录；`selectionRecovery.ts` / `noteTape.ts` 失败选词恢复与显示配色 |
+| `articles/` | `db.ts` 私有保存、读取与保存基线；`articleDraft.ts` / `articleWorkspace.ts` 分账号草稿；`articleAutoOpen.ts` 空工作区单次自动打开；`articleTitle.ts` AI 标题；`collectionCanvas.ts` / `boardGeometry.ts` 收藏白板与手势几何 |
+| `ai/` | `deepseek.ts` / `deepseekClient.ts` 浏览器直连与可测试传输；`aiSettings.ts` 密钥草稿；`aiUsage.ts` 用量；`dictionary.ts` / `dictionaryLookup.ts` / `dictionaryCache.ts` 双语校验、分批复用与有界缓存 |
+| `word/` | `word.ts` / `wordFormattingImport.ts` 受限本地导入；`documentFormatting.ts` 格式校验与偏移映射；`formattedReading.ts` 原生 DOM 格式渲染；`wordExport.ts` / `wordFormattingExport.ts` / `exportWord.ts` OOXML、ZIP 与下载 |
+| `search/` | `wordSearch.ts` 纯正文索引、拼写容错、位置 / 距离排序；`readingSearch.ts` 搜索组合框、虚拟结果、逐处释义预览与只读定位 |
+| `vocabulary/` | `vocabulary.ts` 全文提取与词条校验；`definitionList.ts` 本篇 / 永久清单及筛选分页；`vocabularyClient.ts` 分账号防迟到收录，与 AI 缓存分离 |
+| `account/` | `auth.ts` 账号表单与 Cookie 会话 |
+| `guide/` | `manual.ts` 仅内存的五步模拟指南，不调用真实 AI 或保存接口 |
+| `ui/` | `i18n.ts` 双语界面；`panels.ts` / `notes.ts` 页内面板与原生弹窗；`tooltips.ts` 工具介绍；`statusToast.ts` / `statusTimer.ts` 可暂停的 1.7 秒消息；`util.ts` DOM、文案与同源 API 辅助 |
+
+后端与终端工具只直接复用对应目录中的纯函数模块，不导入 `reading/state.ts` 等 DOM 模块。新增模块放入对应功能目录，并同步测试、动态导入及文档链接。
 
 ### 样式与本地资源
 
@@ -145,7 +128,7 @@ AI 释义
 
 ### 实际数据结构
 
-以下为当前模型的主要字段，完整定义见 [`pagination.ts`](../public/ts/pagination.ts)、[`state.ts`](../public/ts/state.ts) 和 [`definitionViews.ts`](../public/ts/definitionViews.ts)：
+以下为当前模型的主要字段，完整定义见 [`pagination.ts`](../public/ts/reading/pagination.ts)、[`state.ts`](../public/ts/reading/state.ts) 和 [`definitionViews.ts`](../public/ts/definitions/definitionViews.ts)：
 
 ```ts
 type Page = {
@@ -189,6 +172,12 @@ type DefinitionView = {
 4. 不相邻片段分别成组，记录每组末尾的全局正文偏移。
 5. 先复用兼容当前模式 / 语境的有效注释及缓存，再对缺失查询分批请求；单纯模式按词条精确去重，参考模式使用词条、纯正文 UTF-16 位置和语境指纹，禁止将不同位置合并。
 6. 按偏移从后向前更新正文，避免前一次插入改变后续位置；中文元数据与正文一起同步。
+
+### 沉浸阅读显示状态
+
+`reading/immersiveReading.ts` 只保存本篇当前页面生命周期内的开关和已揭示身份，不写入正文、`DefinitionViews.snapshot()`、历史、草稿、缓存、API 或 Word。`state.ts` 使用 `.note-text` 子层与 `visibility: hidden` 保留未揭示胶带的尺寸、点击区域、Word 字号和分页；隐藏时标题与无障碍名称仅说明「显示释义」，不泄露释义内容。点击或 Enter / Space 揭示当前语言和音标，不调用中英文切换。
+
+退出只关闭隐藏，不清空已揭示集合；翻页和重绘继续沿用，普通偏移编辑按批注 ID 跟随，历史重建以位置及双语内容身份恢复，语言不参与身份。撤回 / 恢复不记录或回退开关与揭示动作。导入、清空、打开文章或账号工作区替换由 `render()` 清理集合，避免跨篇、跨账号串用。阅读、编辑、整理、选词、删除模式与 Esc 可退出，进入沉浸阅读时清理选词和删除目标。
 
 ### 只读单词搜索
 

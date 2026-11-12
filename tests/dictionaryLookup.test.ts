@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { lookupDefinitions } from "../public/ts/dictionaryLookup";
-import { AIResponseError } from "../public/ts/deepseekClient";
-import type { BilingualMeaning } from "../public/ts/dictionary";
+import { lookupDefinitions } from "../public/ts/ai/dictionaryLookup";
+import { AIResponseError } from "../public/ts/ai/deepseekClient";
+import type { BilingualMeaning } from "../public/ts/ai/dictionary";
 const meaning = { english: "a financial institution", chinese: "银行" };
 function cache() {
   const values = new Map<string, BilingualMeaning>();

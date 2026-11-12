@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { validBritishIPA, withIPA } from "../public/ts/pronunciation";
-import { parseDictionaryResponse } from "../public/ts/dictionary";
-import { DefinitionViews, definitionContent, readDefinitionViews } from "../public/ts/definitionViews";
-import { parseArticleDraft } from "../public/ts/articleDraft";
-import { wordExportText } from "../public/ts/wordExport";
-import { characterCount, paginate } from "../public/ts/pagination";
+import { validBritishIPA, withIPA } from "../public/ts/definitions/pronunciation";
+import { parseDictionaryResponse } from "../public/ts/ai/dictionary";
+import { DefinitionViews, definitionContent, readDefinitionViews } from "../public/ts/definitions/definitionViews";
+import { parseArticleDraft } from "../public/ts/articles/articleDraft";
+import { wordExportText } from "../public/ts/word/wordExport";
+import { characterCount, paginate } from "../public/ts/reading/pagination";
 const text = "water『a clear liquid』", view = { start: 5, term: "water", english: "a clear liquid", chinese: "水", language: "en" as const, britishIPA: "/ˈwɔːtə/" };
 describe("independent shared British IPA", () => {
   test("validates pronunciation separately, preserving usable legacy or malformed-IPA meanings", () => {

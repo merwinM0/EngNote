@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ARTICLE_DRAFT_KEY, type ArticleDraft } from "../public/ts/articleDraft";
-import { ArticleWorkspaces, workspaceDraftKey } from "../public/ts/articleWorkspace";
+import { ARTICLE_DRAFT_KEY, type ArticleDraft } from "../public/ts/articles/articleDraft";
+import { ArticleWorkspaces, workspaceDraftKey } from "../public/ts/articles/articleWorkspace";
 
 const text = "A fox『an animal』 reads.";
 const draft: ArticleDraft = { version: 2, text, index: 0, offset: 0, entry: { id: 42, title: "Fox", savedText: text }, definitions: [{ start: 5, english: "an animal", chinese: "动物", language: "zh", britishIPA: "/fɒks/" }] };

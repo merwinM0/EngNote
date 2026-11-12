@@ -189,7 +189,7 @@ POST 请求：
 
 ## 5. DeepSeek 请求约定
 
-实现见 [`deepseekClient.ts`](../public/ts/deepseekClient.ts)、[`dictionary.ts`](../public/ts/dictionary.ts)、[`format.ts`](../public/ts/format.ts) 和 [`articleTitle.ts`](../public/ts/articleTitle.ts)。
+实现见 [`deepseekClient.ts`](../public/ts/ai/deepseekClient.ts)、[`dictionary.ts`](../public/ts/ai/dictionary.ts)、[`format.ts`](../public/ts/editor/format.ts) 和 [`articleTitle.ts`](../public/ts/articles/articleTitle.ts)。
 
 ```text
 POST https://api.deepseek.com/chat/completions
