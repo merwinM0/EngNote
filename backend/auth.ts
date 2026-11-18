@@ -10,6 +10,9 @@ import { Database } from "bun:sqlite";
 import { randomInt } from "node:crypto";
 import { setex, get, delKey } from "./redis";
 import { sendVerificationEmail } from "./mail";
+import type { UserLogReason } from "./userLogs";
+
+type AuthFailure = { ok: false; error: string; reason: UserLogReason; userId?: number };
 
 export const CODE_TTL = 300; // seconds (5 min)
 export const SESSION_TTL = 60 * 60 * 24; // 24 hours, shared with the browser cookie.
@@ -35,15 +38,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // ---------------- Verification codes ----------------
 
 /** Generate and send a 6-digit code for an email; returns true if sent. */
-export async function requestCode(email: string): Promise<{ ok: boolean; error?: string; devCode?: string }> {
+export async function requestCode(email: string): Promise<{ ok: true; devCode?: string } | AuthFailure> {
   const e = email.trim().toLowerCase();
-  if (!EMAIL_RE.test(e) || e.length > 254) return { ok: false, error: "Invalid email address" };
-  if (await get("auth:cooldown:" + e)) return { ok: false, error: "Please wait one minute before requesting another code" };
+  if (!EMAIL_RE.test(e) || e.length > 254) return { ok: false, error: "Invalid email address", reason: "invalid_input" };
+  if (await get("auth:cooldown:" + e)) return { ok: false, error: "Please wait one minute before requesting another code", reason: "rate_limited" };
   await setex("auth:cooldown:" + e, 60, "1");
   const code = String(randomInt(100000, 1000000));
   const sent = await sendVerificationEmail(e, code, CODE_TTL / 60);
   const localDevelopment = process.env.NODE_ENV !== "production" && !process.env.SMTP_HOST;
-  if (!sent && !localDevelopment) return { ok: false, error: "Email could not be sent. Please try again later" };
+  if (!sent && !localDevelopment) return { ok: false, error: "Email could not be sent. Please try again later", reason: "delivery_failed" };
   await setex(CODE_EMAIL_PREFIX + e, CODE_TTL, code);
   await delKey("auth:code-attempts:" + e);
   return { ok: true, devCode: sent ? undefined : code };
@@ -70,21 +73,22 @@ export async function register(
   email: string,
   password: string,
   code: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: true; userId: number } | AuthFailure> {
   const e = email.trim().toLowerCase();
-  if (!EMAIL_RE.test(e)) return { ok: false, error: "Invalid email address" };
-  if (password.length < 6 || password.length > 128) return { ok: false, error: "Password must be 6–128 characters" };
+  if (!EMAIL_RE.test(e)) return { ok: false, error: "Invalid email address", reason: "invalid_input" };
+  if (password.length < 6 || password.length > 128) return { ok: false, error: "Password must be 6–128 characters", reason: "invalid_input" };
 
-  const exists = db.query("SELECT id FROM users WHERE email = ?").get(e);
-  if (exists) return { ok: false, error: "Email already registered" };
+  const exists = db.query<{ id: number }, [string]>("SELECT id FROM users WHERE email = ?").get(e);
+  if (exists) return { ok: false, error: "Email already registered", reason: "already_registered", userId: exists.id };
 
   const valid = await verifyCode(e, code);
-  if (!valid) return { ok: false, error: "Invalid or expired verification code" };
+  if (!valid) return { ok: false, error: "Invalid or expired verification code", reason: "invalid_code" };
 
   await consumeCode(e);
   const passwordHash = await Bun.password.hash(password, { algorithm: "argon2id" });
   const inserted = db.query("INSERT INTO users (email, password_hash) VALUES (?, ?) ON CONFLICT(email) DO NOTHING").run(e, passwordHash);
-  return Number(inserted.changes) ? { ok: true } : { ok: false, error: "Email already registered" };
+  return inserted.changes ? { ok: true, userId: Number(inserted.lastInsertRowid) }
+    : { ok: false, error: "Email already registered", reason: "already_registered" };
 }
 
 // ---------------- Login ----------------
@@ -92,26 +96,26 @@ export async function register(
 export async function login(
   email: string,
   password: string
-): Promise<{ ok: boolean; error?: string; email?: string; token?: string }> {
+): Promise<{ ok: true; email: string; token: string; userId: number } | AuthFailure> {
   const e = email.trim().toLowerCase();
   const attemptKey = "auth:login-attempts:" + e;
   const attempts = Number(await get(attemptKey) ?? "0");
-  if (attempts >= 10) return { ok: false, error: "Too many attempts. Please try again in 15 minutes" };
+  if (attempts >= 10) return { ok: false, error: "Too many attempts. Please try again in 15 minutes", reason: "rate_limited" };
   await setex(attemptKey, 900, String(attempts + 1));
   const row = db
     .query("SELECT id, email, password_hash FROM users WHERE email = ?")
     .get(e) as { id: number; email: string; password_hash: string } | undefined;
-  if (!row) return { ok: false, error: "Email or password is incorrect" };
+  if (!row) return { ok: false, error: "Email or password is incorrect", reason: "invalid_credentials" };
 
   const ok = await Bun.password.verify(password, row.password_hash);
-  if (!ok) return { ok: false, error: "Email or password is incorrect" };
+  if (!ok) return { ok: false, error: "Email or password is incorrect", reason: "invalid_credentials", userId: row.id };
 
   await delKey(attemptKey);
   const token = crypto.randomUUID().replace(/-/g, "");
   // Bind sessions to the account incarnation, not an email that can be registered again.
-  if (!db.query("SELECT id FROM users WHERE id = ? AND email = ?").get(row.id, row.email)) return { ok: false, error: "Email or password is incorrect" };
+  if (!db.query("SELECT id FROM users WHERE id = ? AND email = ?").get(row.id, row.email)) return { ok: false, error: "Email or password is incorrect", reason: "invalid_credentials", userId: row.id };
   await setex(TOKEN_EMAIL_PREFIX + token, SESSION_TTL, JSON.stringify({ userId: row.id, email: row.email }));
-  return { ok: true, email: row.email, token };
+  return { ok: true, email: row.email, token, userId: row.id };
 }
 
 // ---------------- Session ----------------

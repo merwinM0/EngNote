@@ -17,7 +17,7 @@ EngNote 是框架无关的 Bun 全栈应用。服务端直接导入两个 HTML �
 
 - [`index.ts`](../index.ts) 解析启动选项与端口、打开数据库、启动服务；仅展示 localhost 链接及实际 PID、Bun 版本和模式，支持 JSON 启动记录与可操作错误；退出时停止接收请求、关闭 Redis 和 SQLite。
 - [`backend/server.ts`](../backend/server.ts) 挂载页面，处理 API、会话 Cookie、请求来源与作者权限；[`backend/database.ts`](../backend/database.ts) 统一数据库路径、建表与无损迁移。
-- [`scripts/users.ts`](../scripts/users.ts) 与 [`backend/userAdmin.ts`](../backend/userAdmin.ts) 提供本机终端查看与经确认、备份后的级联删除，不加载网页服务器或新增管理接口。
+- [`scripts/users.ts`](../scripts/users.ts) 与 [`backend/userAdmin.ts`](../backend/userAdmin.ts) 提供本机终端查看、日志查询与导出，以及经确认、备份后的级联删除，不加载网页服务器或新增管理接口。
 - 浏览器模块只使用原生 DOM 和 Web API。后端可复用无 DOM 副作用的正文 / 释义校验模块，不将 SMTP、Redis 或数据库代码引入前端。
 - 开发时前端 HMR，服务端由 `--watch` 重启；生产 `bun start` 仍运行源码，但关闭开发功能。`dist/` 只是可选的前端构建检查产物。
 
@@ -99,7 +99,7 @@ EngNote/
 
 `backend/terminal.ts` 由启动入口和本机管理脚本复用，不进入浏览器依赖图。使用 Bun 显示宽度与 `Intl.Segmenter` 按字素排版，面板自动适配终端列数，长正文只换行不截断；普通面板无装饰颜色或图标，红 / 黄 / 绿只标记 TTY 中的错误、删除警告和成功，遵循 `NO_COLOR` / `TERM=dumb`。
 
-人类可读输出先转义终端控制和不可见格式字符，再添加受控的状态颜色；错误包含问题及修复建议，成功结果保持紧凑。`--json` 是显式机器模式，结果 / 错误写入 stdout，失败保留非零退出码，不混入面板、颜色或交互提示；不可见格式字符采用可逆 JSON 转义。用户管理 JSON 仅支持只读查询与帮助，不允许自动删除，既有权限、预览、备份和事务逻辑不变。
+人类可读输出先转义终端控制和不可见格式字符，再添加受控的状态颜色；错误包含问题及修复建议，成功结果保持紧凑。`--json` 是显式机器模式，结果 / 错误写入 stdout，失败保留非零退出码，不混入面板、颜色或交互提示；不可见格式字符采用可逆 JSON 转义。用户管理 JSON 支持只读查询、帮助、日志导出结果，不允许自动删除，既有权限、预览、备份和事务逻辑不变。
 
 启动面板不枚举网卡，仅改变展示而不收紧 `HOST` 监听；JSON 启动记录只包含运行元信息，不输出凭证或完整环境变量。
 
@@ -199,6 +199,7 @@ type DefinitionView = {
 - 格式使用正文 UTF-16 范围：`runs[{start,end,style}]` 与 `paragraphs[{start,end,style,marker?,cell?}]`，不存任意 CSS / HTML、外链、密钥或原始 ZIP。白名单验证颜色、字体名、数值与完整段落边界；最多 256000 个序列化 UTF-16 单元、6000 个范围 / 表格跨度预算、3000 个段落，限制重叠单元格及稀疏表格行数。未知 / 损坏的旧格式读取降级为空，显式写入非法格式原子拒绝。
 - 格式编辑先计算新元数据再提交正文，使用明确释义编辑或段落空白编辑逐段映射，普通手动编辑采用最小前后缀差异；新文字继承邻近字体。格式纳入历史、草稿、未保存比较与保存基线。
 - `users(id, email, password_hash, created_at)`：邮箱账号，密码使用 `Bun.password` 的 Argon2id 慢哈希，不存明文。
+- `user_logs(id, at, expires_at, event, user_id, article_id, reason)`：后端按已匹配的认证与文章写入路由记录结果，只保存内部 ID、时间与固定枚举，不复制请求数据。记录独立于账号和文章外键，保留 6 个 UTC 自然月，到期立即从查询和导出隐藏，启动与每小时清理表中旧行。日志在业务请求完成后写入；日志写入故障单独向 stderr 告警，不更改原业务结果。CLI 只读访问、分批写 JSON 导出文件，详细用法见[部署文档](DEPLOYMENT.md#用户日志查询与-json-导出)。
 - `vocabulary(user_id, term_key, term, english, chinese, british_ipa, language, updated_at)`：账号私有永久词汇，主键为 `(user_id, term_key)`；规范空白 / 撇号，普通词大小写合并、缩写独立，后收录的词义覆盖旧项，相同内容不推进时间。按用户与更新时间建索引，接口只接受当前会话用户，不接收身份声明、语境、全文或密钥。
 - `initVocabulary()` 首次创建词汇表时，在事务内流式遍历能匹配现有账号的文章，按保存时间及 ID 顺序汇入有效释义；重启不重复汇入、不覆盖后续收录，不认领无作者历史数据。文章保存和对应收录使用同一事务。永久词汇不随来源文章 / 批注或临时词典缓存删除；本机账号删除预览指纹包含其全部词汇，备份后事务删除文章、词汇和用户。
 - `updated_at` 为服务端 Unix 毫秒整数，创建与更新在同一 SQL 写入中使用当前时间及该账号现有最大值 + 1 的较大值；同毫秒写入也严格有序。收藏用 `(owner_email, updated_at DESC, id DESC)` 索引，按最近写入优先返回，日期展示最近保存时间；读取不更新时间，`created_at` 不变。

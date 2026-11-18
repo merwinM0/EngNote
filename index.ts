@@ -4,12 +4,15 @@ import { httpUrl, resolvePort } from "./backend/config";
 import { cliErrorOutput, startupPanel, terminalColor, terminalJSON } from "./backend/terminal";
 import { createServer, openDatabase } from "./backend/server";
 import { closeStore } from "./backend/redis";
+import { pruneUserLogs } from "./backend/userLogs";
 
 let db: ReturnType<typeof openDatabase> | undefined, server: ReturnType<typeof createServer> | undefined;
+let logMaintenance: ReturnType<typeof setInterval> | undefined;
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
   stopping = true;
+  clearInterval(logMaintenance);
   const timeout = setTimeout(() => process.exit(1), 10000);
   timeout.unref();
   await server?.stop();
@@ -22,14 +25,18 @@ const args = Bun.argv.slice(2), json = args.includes("--json");
 try {
   parseArgs({ args: args[0] === "--" ? args.slice(1) : args, strict: true, options: { json: { type: "boolean" } } });
   const port = resolvePort(), production = process.env.NODE_ENV === "production";
-  db = openDatabase();
-  server = createServer({ db, port });
+  const database = db = openDatabase();
+  server = createServer({ db: database, port });
+  logMaintenance = setInterval(() => {
+    try { pruneUserLogs(database); } catch { console.error("Expired user activity log cleanup failed."); }
+  }, 60 * 60 * 1000).unref();
   const info = { port: server.port ?? port, pid: process.pid, bunVersion: Bun.version, production };
   const ready = { ok: true, event: "ready", url: httpUrl("localhost", info.port), mode: production ? "production" : "development", pid: info.pid, bunVersion: info.bunVersion, hmr: !production };
   console.log(json ? terminalJSON(ready) : startupPanel(info, process.stdout.columns));
   process.once("SIGINT", () => { void shutdown(); });
   process.once("SIGTERM", () => { void shutdown(); });
 } catch (error) {
+  clearInterval(logMaintenance);
   await server?.stop(true);
   await closeStore();
   db?.close();

@@ -6,6 +6,7 @@ import { deleteUserWithArticles, findUser, listUsers, openAdminDatabase, preview
 import { CliError, cliErrorOutput, statusPanel, successLine, terminalColor, terminalJSON, terminalPanel, terminalText, type TerminalRow } from "../backend/terminal";
 import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
 import { wordExportText } from "../public/ts/word/wordExport";
+import { runUserLogs, userLogOptions } from "./userLogs";
 
 export type AdminIO = { columns?: number; color?: boolean; write(text: string): void; readLine(prompt: string): Promise<string | undefined> };
 const helpRows = [
@@ -14,6 +15,7 @@ const helpRows = [
   ["list [邮箱/ID] [页码]  用户列表", "show <邮箱/ID>  用户与文章列表"],
   ["article <文章ID>  文章全文", "delete <邮箱/ID>  删除账号数据"],
   ["help  帮助", "quit  退出"],
+  ["logs  查看用户日志", "logs export  导出 JSON"],
   "",
   ["--db 路径  指定数据库", "--backup-dir 目录  私有备份目录"],
   "--json  只读命令输出 JSON，不进入交互",
@@ -21,6 +23,9 @@ const helpRows = [
   `用户列表每页 ${USER_PAGE_SIZE} 人。`,
   "删除用户会一并删除全部文章及释义。",
   "删除前备份整个数据库，需输入 DELETE 邮箱确认。",
+  "",
+  "logs [--user ID] [--since 7d] [--event 类型] [--page 页码]",
+  "logs export --out 文件 [--user ID] [--since 7d] [--event 类型]",
 ] as const satisfies readonly TerminalRow[];
 const line = (io: AdminIO, text = "") => io.write(text + "\n");
 const panel = (io: AdminIO, title: string, rows: readonly TerminalRow[]) => line(io, terminalPanel(title, rows, io.columns));
@@ -77,9 +82,15 @@ async function command(dbPath: string, backupDirectory: string, args: string[], 
   } finally { db.close(); }
 }
 export async function runUserAdmin(argv: string[], io: AdminIO): Promise<void> {
-  const { values, positionals } = parseArgs({ args: argv[0] === "--" ? argv.slice(1) : argv, allowPositionals: true, strict: true, options: { db: { type: "string" }, "backup-dir": { type: "string" }, help: { type: "boolean", short: "h" }, json: { type: "boolean" } } });
+  const { values, positionals } = parseArgs({ args: argv[0] === "--" ? argv.slice(1) : argv, allowPositionals: true, strict: true, options: { db: { type: "string" }, "backup-dir": { type: "string" }, help: { type: "boolean", short: "h" }, json: { type: "boolean" }, ...userLogOptions } });
   if (values.help || positionals[0] === "help") { showHelp(io, values.json); return; }
   if (values.db !== undefined && !values.db.trim()) throw new CliError("数据库路径为空。", "为 --db 指定已有数据库文件路径。");
+  if (positionals[0] === "logs") {
+    if (values["backup-dir"] !== undefined) throw new CliError("日志命令不使用 --backup-dir。", "导出日志时用 --out 指定文件。");
+    runUserLogs(resolve(values.db || defaultDatabasePath()), positionals.slice(1), values, io);
+    return;
+  }
+  if (Object.keys(userLogOptions).some(option => Object.hasOwn(values, option))) throw new CliError("日志筛选及导出选项仅用于 logs。", "运行 bun users --help 查看用法。");
   if (values.json && !positionals.length) throw new CliError("JSON 模式需要指定命令。", "例如：bun users list --json。");
   const path = resolve(values.db || defaultDatabasePath()), backups = resolve(values["backup-dir"] || join(dirname(path), ".engnote-backups"));
   if (positionals.length) { if (!values.json) line(io, `数据库：${singleLine(path)}`); await command(path, backups, positionals, io, values.json); return; }
@@ -89,6 +100,7 @@ export async function runUserAdmin(argv: string[], io: AdminIO): Promise<void> {
     ["list 列表", "show <用户> 详情"],
     ["article <ID> 正文", "delete <用户> 删除"],
     ["help 帮助", "quit 退出"],
+    ["logs 日志", "logs export 导出"],
   ]);
   while (true) {
     const input = await io.readLine("users> ");
@@ -96,7 +108,12 @@ export async function runUserAdmin(argv: string[], io: AdminIO): Promise<void> {
     // Quoted empty search permits paging all users: list "" 2.
     const args = input.trim().match(/"[^"]*"|[^\s]+/g)?.map(value => value.startsWith('"') ? value.slice(1, -1) : value) ?? [];
     if (!args.length) continue;
-    try { await command(path, backups, args, io); }
+    try {
+      if (args[0] === "logs") {
+        const { values, positionals } = parseArgs({ args: args.slice(1), allowPositionals: true, options: userLogOptions });
+        runUserLogs(path, positionals, values, io);
+      } else await command(path, backups, args, io);
+    }
     catch (error) { line(io, cliErrorOutput(error, "users", false, io.columns, io.color)); }
   }
 }

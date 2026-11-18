@@ -19,7 +19,7 @@ EngNote is an English reading app built with HTML, TypeScript, CSS and Bun. Past
 - Bounded dictionary cache, explicit refresh and reported AI usage.
 - Email accounts, automatic updates after adding or refreshing definitions in an already-saved article without another confirmation, a draggable/zoomable collection ordered by latest save or edit, automatic opening of the most recently modified article after sign-in when there is no text or draft, and local white-paper Word export using each note's displayed language while retaining supported source fonts and layout.
 - English UI by default with a Chinese switch; UI and definition languages are independent.
-- Local terminal administration with concise bordered views and read-only `--json` output; delete a user, all their articles and their vocabulary only after explicit confirmation and a database backup. No public admin API.
+- Local terminal administration for users and articles, with searchable and exportable account authentication and article change logs retained for six months. Delete a user, their articles and their vocabulary only after explicit confirmation and a database backup. No public admin API.
 
 > Saved articles are account-private: only their owner can view, update or delete them. Sharing is not supported. Reading, editing, importing, using your own AI key and Word export require no account; working drafts stay in this browser tab. Saving a new article still requires login and confirmation; new drafts are never uploaded automatically. When logged in with a verified saved article selected, completing definitions automatically updates that article. Your confirmed DeepSeek key stays in this tab; AI requests go directly to DeepSeek, never through this app's backend. New or refreshed definitions generated while signed in are collected separately into permanent vocabulary without automatically uploading an unsaved article's body. Existing anonymous definitions are collected only after explicitly choosing “Collect this article” while signed in, or confirming an article save.
 
@@ -50,7 +50,7 @@ Semantic HTML, native DOM TypeScript and CSS (no UI framework); Bun HTML bundlin
 | `bun run typecheck` | Browser and backend TypeScript checks |
 | `bun test` | Unit and API tests |
 | `bun run build` | Frontend inspection output in `dist/`, not a full deployment |
-| `bun run users` | Inspect users/articles and confirm backed-up cascade deletion; [commands and recovery](docs/DEPLOYMENT.md#9-终端用户与文章管理) |
+| `bun run users` | Inspect users/articles, query or export logs, and confirm backed-up cascade deletion; [commands and recovery](docs/DEPLOYMENT.md#9-终端用户与文章管理) |
 
 Deploy the Bun backend too, not just `dist/`. See [deployment](docs/DEPLOYMENT.md).
 

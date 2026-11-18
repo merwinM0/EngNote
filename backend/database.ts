@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { resolve } from "node:path";
 import { initVocabulary } from "./vocabulary";
+import { initUserLogs } from "./userLogs";
 
 export const defaultDatabasePath = () => process.env.DB_PATH === ":memory:" ? ":memory:" : resolve(process.env.DB_PATH || resolve(import.meta.dir, "..", "data.db"));
 /** Schema creation/migration belongs to application startup, never to read-only admin commands. */
@@ -29,5 +30,6 @@ export function openDatabase(path = defaultDatabasePath()): Database {
     password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
   initVocabulary(db);
+  initUserLogs(db);
   return db;
 }

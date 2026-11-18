@@ -174,7 +174,7 @@ bun run users article 123
 bun run users delete 12
 ```
 
-- 无命令进入交互模式，只显示数据库位置和简短命令概览，完整用法通过 `help` / `--help` 查看。命令说明每行两个、列首左对齐，中间只留空格；终端不足 56 列时改为单列。`bun users` 与 `bun run users` 等价。支持 `list`、`show`、`article`、`delete`、`help`、`quit`，用户列表每页 50 人。
+- 无命令进入交互模式，只显示数据库位置和简短命令概览，完整用法通过 `help` / `--help` 查看。命令说明每行两个、列首左对齐，中间只留空格；终端不足 56 列时改为单列。`bun users` 与 `bun run users` 等价。支持 `list`、`show`、`article`、`delete`、`logs`、`logs export`、`help`、`quit`，用户列表每页 50 人。
 - 标题、用户 / 文章元信息和正文分层展示，列表、详情、正文、删除警告及错误使用边框；按终端显示宽度换行，不截断长正文或拆开字素。错误同时说明问题与修复方法；删除成功仅显示简短结果和备份路径，不用大面板。
 - 界面不添加图标。普通面板不着色，只有 TTY 下的错误、删除警告和成功标签分别使用红、黄、绿；重定向、`NO_COLOR` 或 `TERM=dumb` 禁用颜色。人类可读输出转义 ANSI / OSC、双向及其他控制字符，正文的制表符按四个空格显示；`article` 使用批注已保存的显示语言。
 - 数据库优先使用 `--db`，否则使用 `DB_PATH` 或项目根目录 `data.db`；查看只读打开**已存在**的数据库。路径错误不创建空库，结构不兼容时提示先由应用迁移。`--help` 不打开数据库。
@@ -192,10 +192,25 @@ bun users show user@example.com --json
 bun users article 123 --json
 ```
 
-- `--json` 只支持查询及帮助，需要显式命令，不进入交互，也不能用来删除或跳过确认。成功和错误均向标准输出写入一个 JSON 文档，不夹带数据库横幅、边框、颜色或输入提示；成功退出 0，失败退出 1。普通模式的致命错误写入标准错误。Bun 命令运行器自身的日志可能写入标准错误，与应用 JSON 分开。
+- `--json` 支持查询、帮助和日志导出结果，需要显式命令，不进入交互，也不能用来删除或跳过确认。成功和错误均向标准输出写入一个 JSON 文档，不夹带数据库横幅、边框、颜色或输入提示；成功退出 0，失败退出 1。普通模式的致命错误写入标准错误。Bun 命令运行器自身的日志可能写入标准错误，与应用 JSON 分开。
 - 查询返回 `ok`、`command` 及对应的 `users`、`user` / `articles` 或 `article`；列表另含 `page` / `pageSize`。文章 `content` 是完整的当前显示语言文本，不是终端换行或转义后的副本；不输出密码哈希。
 - 错误结构为 `{ "ok": false, "error": { "code": "…", "message": "…", "hint": "…" } }`。JSON 保留原数据语义，控制字符与不可见格式字符用合法 JSON 转义，不触发终端控制。
 - 启动 JSON 记录包含 `ok`、`event: "ready"`、`url`、`mode`、`pid`、`bunVersion` 和 `hmr`；这只描述服务监听及开发状态，不证明 SMTP / Redis 已通过认证验收，后续运行日志不是管理命令的单文档结果。
+
+### 用户日志查询与 JSON 导出
+
+```bash
+bun users logs
+bun users logs --user 12 --since 7d --event auth.login
+bun users logs --page 2 --json
+bun users logs export --since 7d --out ./users-log.json
+```
+
+- 首次启动新版应用会自动建表，仅记录之后的事件，不回填历史。认证事件为 `auth.send_code`、`auth.register`、`auth.login`、`auth.logout`；文章事件为 `article.create`、`article.update`（含自动保存）、`article.delete`。不记录读取、词汇收录、CLI 操作或浏览器本地活动。
+- 字段包含日志 ID、UTC 时间 `time`、事件 `event`、结果 `outcome`、固定失败原因 `reason`，以及能确认时的 `userId` / `articleId`；缺省值为 `null`。不保存邮箱、IP、密码、验证码、令牌或请求内容。删号后仍可按历史用户 ID 查询，相同邮箱重注册不会继承日志。
+- 保留期限为自事件时间起 **6 个 UTC 自然月**，目标月缺少当日时以月末为准。查询与导出立即排除过期项，服务启动时和运行期间每小时清理 SQLite 表。旧备份或已导出的文件不随服务自动清理，请在私有目录中单独管理其权限和保留期限。
+- `logs` 默认查整个保留期，每页 50 条，按最新优先；可按正整数用户 ID、最近天数（如 `--since 7d`）及指定事件过滤。交互模式可输入 `logs` 及筛选选项。CLI 仅只读查询，不提供 Web 接口。
+- `logs export` 使用相同筛选但不分页，必须指定 `--out`；生成一个包含 `ok`、`command`、`logs` 和 `count` 的 JSON 文件，仅当前用户可读写（600），不覆盖现有文件。不要将导出的日志提交到 Git。可加 `--json` 让标准输出仅返回导出结果（含路径与数量），不重复输出日志明细。
 
 ### 删除确认与备份
 

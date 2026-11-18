@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deleteUserWithArticles, previewUser } from "../backend/userAdmin";
+import { readUserLogs } from "../backend/userLogs";
 import { paragraphRanges } from "../public/ts/word/documentFormatting";
 
 // No real SMTP, Redis, or user database may be touched by tests.
@@ -41,6 +42,75 @@ beforeAll(async () => {
   bob = second.headers.get("set-cookie")!.split(";")[0]!;
 });
 afterAll(async () => { await server?.stop(true); db?.close(); await closeStore(); });
+
+describe("local account and article activity logs", () => {
+  test("records outcomes with internal IDs and reason codes, without logging reads or sensitive values", async () => {
+    const lastId = [...readUserLogs(db, {})][0]?.id ?? 0;
+    const email = "audit-fixture@example.com", password = "audit-fixture-password", content = "audit-fixture-private-text";
+    const codeResponse = await request("/api/auth/send-code", "POST", { email }, "");
+    expect(codeResponse.status).toBe(200);
+    const { devCode } = await codeResponse.json();
+    expect(devCode).toMatch(/^\d{6}$/);
+    expect((await request("/api/auth/send-code", "POST", { email }, "")).status).toBe(400);
+    const invalidCode = devCode === "000000" ? "000001" : "000000";
+    expect((await request("/api/auth/register", "POST", { email, password, code: invalidCode }, "")).status).toBe(400);
+    const registration = await request("/api/auth/register", "POST", { email, password, code: devCode }, "");
+    expect(registration.status).toBe(201);
+    expect(await registration.json()).toEqual({ ok: true });
+    const userId = db.query<{ id: number }, [string]>("SELECT id FROM users WHERE email = ?").get(email)!.id;
+    const failedLogin = await request("/api/auth/login", "POST", { email, password: "wrong-password" }, "");
+    expect(failedLogin.status).toBe(401);
+    expect(await failedLogin.json()).toEqual({ ok: false, error: "Email or password is incorrect" });
+    const unknownLogin = await request("/api/auth/login", "POST", { email: "audit-unknown@example.com", password }, "");
+    expect(unknownLogin.status).toBe(401);
+    const login = await request("/api/auth/login", "POST", { email, password }, "");
+    expect(login.status).toBe(200);
+    expect(await login.json()).toEqual({ ok: true, email });
+    const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+    const created = await request("/api/entries", "POST", { title: "Audit fixture title", content }, cookie);
+    expect(created.status).toBe(201);
+    const articleId = (await created.json()).id;
+    expect((await request(`/api/entries/${articleId}`, "GET", undefined, cookie)).status).toBe(200);
+    expect((await request(`/api/entries/${articleId}`, "PUT", { content }, alice)).status).toBe(404);
+    expect((await request(`/api/entries/${articleId}`, "PUT", { content: "" }, cookie)).status).toBe(400);
+    expect((await request(`/api/entries/${articleId}`, "PUT", { content: content + "." }, cookie)).status).toBe(200);
+    expect((await request(`/api/entries/${articleId}`, "DELETE", undefined, cookie)).status).toBe(200);
+    expect((await request("/api/auth/logout", "POST", undefined, cookie)).status).toBe(200);
+    expect((await request("/api/auth/logout", "POST", undefined, "")).status).toBe(200);
+
+    const logs = [...readUserLogs(db, {})].filter(log => log.id > lastId).reverse();
+    expect(logs.map(log => [log.event, log.userId, log.articleId, log.outcome, log.reason])).toEqual([
+      ["auth.send_code", null, null, "success", null],
+      ["auth.send_code", null, null, "failure", "rate_limited"],
+      ["auth.register", null, null, "failure", "invalid_code"],
+      ["auth.register", userId, null, "success", null],
+      ["auth.login", userId, null, "failure", "invalid_credentials"],
+      ["auth.login", null, null, "failure", "invalid_credentials"],
+      ["auth.login", userId, null, "success", null],
+      ["article.create", userId, articleId, "success", null],
+      ["article.update", 1, null, "failure", "not_found"],
+      ["article.update", userId, articleId, "failure", "invalid_input"],
+      ["article.update", userId, articleId, "success", null],
+      ["article.delete", userId, articleId, "success", null],
+      ["auth.logout", userId, null, "success", null],
+      ["auth.logout", null, null, "failure", "unauthenticated"],
+    ]);
+    const serialized = JSON.stringify(logs);
+    for (const secret of [email, password, content, "Audit fixture title", cookie]) expect(serialized).not.toContain(secret);
+    expect(logs.every(log => Object.keys(log).sort().join(",") === "articleId,event,id,outcome,reason,time,userId")).toBe(true);
+  });
+
+  test("keeps normal API outcomes when the activity log cannot be written", async () => {
+    const warn = spyOn(console, "error").mockImplementation(() => {});
+    db.exec("CREATE TEMP TRIGGER reject_log BEFORE INSERT ON user_logs BEGIN SELECT RAISE(ABORT,'test log insert failure'); END;");
+    try {
+      const id = await create();
+      expect((await request(`/api/entries/${id}`, "GET")).status).toBe(200);
+      expect((await request(`/api/entries/${id}`, "DELETE")).status).toBe(200);
+      expect(warn.mock.calls).toEqual([["User activity log write failed."], ["User activity log write failed."]]);
+    } finally { db.exec("DROP TRIGGER reject_log"); warn.mockRestore(); }
+  });
+});
 
 describe("source server", () => {
   test("listens on all IPv4 interfaces by default, including an empty HOST", async () => {

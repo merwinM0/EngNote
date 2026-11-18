@@ -9,6 +9,7 @@ import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
 import type { DefinitionView } from "../public/ts/definitions/definitionViews";
 import { readVocabularyItem, VOCABULARY_BATCH_LIMIT, VOCABULARY_PAGE_SIZE } from "../public/ts/vocabulary/vocabulary";
 import { collectArticleVocabulary, listVocabulary, storeVocabulary } from "./vocabulary";
+import { recordUserLog, type UserLogAttempt, type UserLogReason } from "./userLogs";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const COOKIE_NAME = "er_session";
@@ -41,6 +42,15 @@ function sessionCookie(req: Request, value: string, age: number) {
 function allow(req: Request, methods: string[]) {
   if (!methods.includes(req.method)) return json({ ok: false, error: "Method not allowed." }, 405, { allow: methods.join(", ") });
 }
+const articlePath = /^\/api\/entries\/(\d+)$/;
+const loggedRoutes = new Map<string, UserLogAttempt["event"]>([
+  ["POST /api/auth/send-code", "auth.send_code"], ["POST /api/auth/register", "auth.register"],
+  ["POST /api/auth/login", "auth.login"], ["POST /api/auth/logout", "auth.logout"],
+  ["POST /api/entries", "article.create"], ["PUT /api/entries/:id", "article.update"], ["DELETE /api/entries/:id", "article.delete"],
+]);
+const logReasonsByStatus: Partial<Record<number, UserLogReason>> = {
+  400: "invalid_input", 401: "unauthenticated", 403: "forbidden", 404: "not_found", 415: "invalid_input",
+};
 type StoredEntry = { id: number; title: string; content: string; created_at: string; updated_at: number; owner_email: string | null; definitions: string; formatting: string | null };
 // Atomic, account-local millisecond ordering, including several writes in the same clock tick.
 const savedAtSQL = "MAX(?, COALESCE((SELECT MAX(updated_at) FROM entries WHERE owner_email = ?), 0) + 1)";
@@ -69,7 +79,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
   initAuth(db);
   const appOrigin = process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).origin : null;
   if (appOrigin && !/^https?:\/\//.test(appOrigin)) throw new Error("APP_ORIGIN must be an HTTP(S) origin.");
-  async function handleApi(req: Request, path: string): Promise<Response> {
+  async function handleApi(req: Request, path: string, audit?: UserLogAttempt): Promise<Response> {
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
       const origin = req.headers.get("origin");
       if (req.headers.get("sec-fetch-site") === "cross-site") throw new HttpError("Cross-site writes are not allowed.", 403);
@@ -84,21 +94,38 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         const email = await resolveToken(token(req));
         return email ? json({ ok: true, email }) : json({ ok: false, error: "Please log in." }, 401);
       }
-      if (action === "logout") { await logout(token(req)); return json({ ok: true }, 200, { "set-cookie": sessionCookie(req, "", 0) }); }
+      if (action === "logout") {
+        const sessionToken = token(req);
+        const session = await resolveSession(sessionToken).catch(() => null);
+        if (audit && session) audit.userId = session.userId;
+        else if (audit) audit.reason = "unauthenticated";
+        await logout(sessionToken);
+        return json({ ok: true }, 200, { "set-cookie": sessionCookie(req, "", 0) });
+      }
+      const authError = (result: { error: string; reason: UserLogReason; userId?: number }, status: number) => {
+        if (audit) {
+          audit.reason = result.reason;
+          if (result.userId !== undefined) audit.userId = result.userId;
+        }
+        return json({ ok: false, error: result.error }, status);
+      };
       const data = await body(req);
       const email = text(data.email, "Email", 254);
       if (action === "send-code") {
         const result = await requestCode(email);
-        return json(result, result.ok ? 200 : 400);
+        return result.ok ? json(result) : authError(result, 400);
       }
       const password = text(data.password, "Password", 128, false);
       if (action === "register") {
         const code = text(data.code, "Code", 6);
         const result = await register(email, password, code);
-        return json(result, result.ok ? 201 : 400);
+        if (!result.ok) return authError(result, 400);
+        if (audit) audit.userId = result.userId;
+        return json({ ok: true }, 201);
       }
       const result = await login(email, password);
-      if (!result.ok || !result.token) return json({ ok: false, error: result.error }, 401);
+      if (!result.ok) return authError(result, 401);
+      if (audit) audit.userId = result.userId;
       // Do not expose the token to browser JavaScript.
       return json({ ok: true, email: result.email }, 200, { "set-cookie": sessionCookie(req, result.token, SESSION_TTL) });
     }
@@ -125,6 +152,7 @@ export function createServer(options: { db: Database; port: number; hostname?: s
       if (invalidMethod) return invalidMethod;
       const session = await resolveSession(token(req)), email = session?.email;
       if (!session || !email) throw new HttpError("Please log in.", 401);
+      if (audit) audit.userId = session.userId;
       if (req.method === "GET") {
         const rows = db.query<Pick<StoredEntry, "id" | "title" | "created_at" | "updated_at">, [string, number, string]>("SELECT id, title, created_at, updated_at FROM entries WHERE owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?) ORDER BY updated_at DESC, id DESC").all(email, session.userId, email);
         return json({ ok: true, entries: rows.map(entry => ({ ...entry, can_edit: true })) });
@@ -142,25 +170,31 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         collectArticleVocabulary(db, session.userId, content, JSON.stringify(definitions));
         return result;
       })();
-      return json({ ok: true, id: Number(result.lastInsertRowid), title }, 201);
+      const id = Number(result.lastInsertRowid);
+      if (audit) audit.articleId = id;
+      return json({ ok: true, id, title }, 201);
     }
-    const single = path.match(/^\/api\/entries\/(\d+)$/);
+    const single = path.match(articlePath);
     if (single) {
       const invalidMethod = allow(req, ["GET", "PUT", "DELETE"]);
       if (invalidMethod) return invalidMethod;
       const session = await resolveSession(token(req)), email = session?.email;
       if (!session || !email) throw new HttpError("Please log in.", 401);
+      if (audit) audit.userId = session.userId;
       const id = Number(single[1]);
       if (!Number.isSafeInteger(id) || id < 1) throw new HttpError("Invalid article ID.", 400);
       // Scope every read/write lookup; unknown and inaccessible IDs are indistinguishable.
       const entry = db.query<StoredEntry, [number, string, number, string]>("SELECT * FROM entries WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").get(id, email, session.userId, email);
       if (!entry) throw new HttpError("Page not found.", 404);
+      if (audit) audit.articleId = id;
       if (req.method === "GET") {
         const { owner_email, definitions, formatting, ...page } = entry;
         return json({ ok: true, entry: { ...page, definitions: storedDefinitions(definitions, page.content), formatting: storedFormatting(formatting, page.content), can_edit: true } });
       }
-      if (req.method === "DELETE") db.query("DELETE FROM entries WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(id, email, session.userId, email);
-      else {
+      if (req.method === "DELETE") {
+        const deleted = db.query("DELETE FROM entries WHERE id = ? AND owner_email = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND email = ?)").run(id, email, session.userId, email);
+        if (deleted.changes !== 1) throw new HttpError("Page not found.", 404);
+      } else {
         const data = await body(req);
         const content = text(data.content, "Content", 100000, false);
         if (!content.trim()) throw new HttpError("Content cannot be empty.", 400);
@@ -185,8 +219,14 @@ export function createServer(options: { db: Database; port: number; hostname?: s
     routes: { "/": home, "/home.html": home, "/index.html": reader },
     async fetch(req) {
       const path = new URL(req.url).pathname;
+      const event = loggedRoutes.get(`${req.method} ${articlePath.test(path) ? "/api/entries/:id" : path}`);
+      const audit: UserLogAttempt | undefined = event ? { event } : undefined;
       try {
-        if (path === "/api" || path.startsWith("/api/")) return await handleApi(req, path);
+        if (path === "/api" || path.startsWith("/api/")) {
+          const response = await handleApi(req, path, audit);
+          if (audit) recordUserLog(db, audit);
+          return response;
+        }
         // Explicit allowlist: no arbitrary filesystem paths, source files, databases or .env files.
         if (path === "/icons/official") {
           const invalidMethod = allow(req, ["GET", "HEAD"]);
@@ -200,6 +240,10 @@ export function createServer(options: { db: Database; port: number; hostname?: s
         }
         return new Response("Not found", { status: 404 });
       } catch (error) {
+        if (audit) {
+          audit.reason = (error instanceof HttpError && logReasonsByStatus[error.status]) || "internal_error";
+          recordUserLog(db, audit);
+        }
         if (error instanceof HttpError) return json({ ok: false, error: error.message }, error.status);
         console.error("Request failed:", error instanceof Error ? error.message : "Unknown error");
         return json({ ok: false, error: "The request could not be completed. Please try again." }, 500);
