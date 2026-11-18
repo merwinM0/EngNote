@@ -59,16 +59,24 @@ function wrapLine(text: string, width: number): string[] {
   return lines;
 }
 
-/** Plain, injection-safe panels; null separates sections. No article content is truncated. */
-export function terminalPanel(title: string, content: ReadonlyArray<string | null>, columns = 80): string {
+export type TerminalRow = string | null | readonly [left: string, right: string];
+
+/** Plain, injection-safe panels; pairs use two columns, null separates sections. */
+export function terminalPanel(title: string, content: readonly TerminalRow[], columns = 80): string {
   const available = Math.max(6, Math.min(88, Number.isFinite(columns) && columns > 0 ? Math.floor(columns) : 80));
   const heading = terminalText(title).replace(/\n/g, " ").replace(/\t/g, "    ");
-  const lines = content.flatMap(line => line === null ? [null] : terminalText(line).replace(/\t/g, "    ").split("\n"));
+  const split = (text: string) => terminalText(text).replace(/\t/g, "    ").split("\n");
+  const lines = content.map(part => typeof part === "string" ? split(part) : part === null ? null : { left: split(part[0]), right: split(part[1]) });
   let desired = Math.max(40, Bun.stringWidth(heading) + 5);
-  for (const line of lines) if (line !== null) desired = Math.max(desired, Bun.stringWidth(line) + 4);
+  for (const part of lines) {
+    if (Array.isArray(part)) for (const text of part) desired = Math.max(desired, Bun.stringWidth(text) + 4);
+    else if (part !== null) desired = Math.max(desired, 72);
+  }
   const width = Math.min(available, desired), inner = width - 4;
   const divider = `├${"─".repeat(width - 2)}┤`;
-  const row = (text: string) => `│ ${text}${" ".repeat(Math.max(0, inner - Bun.stringWidth(text)))} │`;
+  const pad = (text: string, width: number) => text + " ".repeat(Math.max(0, width - Bun.stringWidth(text)));
+  const row = (text: string) => `│ ${pad(text, inner)} │`;
+  const wrapped = (lines: readonly string[], width: number) => lines.flatMap(text => wrapLine(text, width));
   const output: string[] = [];
   if (Bun.stringWidth(heading) <= width - 5) output.push(`╭─ ${heading} ${"─".repeat(width - Bun.stringWidth(heading) - 5)}╮`);
   else {
@@ -76,9 +84,17 @@ export function terminalPanel(title: string, content: ReadonlyArray<string | nul
     for (const part of wrapLine(heading, inner)) output.push(row(part));
     output.push(divider);
   }
-  for (const line of lines) {
-    if (line === null) output.push(divider);
-    else for (const part of wrapLine(line, inner)) output.push(row(part));
+  const gap = "    ", leftWidth = Math.floor((inner - gap.length) / 2);
+  for (const part of lines) {
+    if (part === null) output.push(divider);
+    else if (Array.isArray(part)) {
+      for (const text of part) for (const line of wrapLine(text, inner)) output.push(row(line));
+    } else if (leftWidth < 24) {
+      for (const line of wrapped([...part.left, ...part.right], inner)) output.push(row(line));
+    } else {
+      const left = wrapped(part.left, leftWidth), right = wrapped(part.right, inner - gap.length - leftWidth);
+      for (let i = 0; i < Math.max(left.length, right.length); i++) output.push(row(pad(left[i] ?? "", leftWidth) + gap + (right[i] ?? "")));
+    }
   }
   output.push(`╰${"─".repeat(width - 2)}╯`);
   return output.join("\n");

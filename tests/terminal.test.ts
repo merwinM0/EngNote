@@ -32,6 +32,20 @@ describe("plain terminal panels", () => {
     aligned(output, 40); expect(output).toContain("ID");
     expect(output.split("\n").some(line => line.includes(" I ") && !line.includes("ID"))).toBe(false);
   });
+  test("aligns pairs by display width, wrapping each cell independently", () => {
+    const output = terminalPanel("Commands", [
+      ["中文 e\u0301", "right one"],
+      ["word ".repeat(8) + "end", "right two\nnext"],
+    ], 56);
+    aligned(output, 56);
+    const rows = output.split("\n");
+    for (const value of ["right one", "right two", "next"]) {
+      const row = rows.find(line => line.includes(value))!;
+      expect(Bun.stringWidth(row.slice(0, row.indexOf(value)))).toBe(30);
+      expect(row.slice(1, -1)).not.toMatch(/[│|]/);
+    }
+    expect(rows.find(line => line.includes("next"))).toContain("end");
+  });
   test("handles invalid terminal dimensions without negative padding", () => {
     for (const columns of [0, -1, NaN, Infinity, 6]) aligned(terminalPanel("标题", ["正文"], columns), columns === 6 ? 6 : 80);
   });

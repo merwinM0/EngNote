@@ -3,26 +3,30 @@ import { createInterface } from "node:readline";
 import { dirname, join, resolve } from "node:path";
 import { defaultDatabasePath } from "../backend/database";
 import { deleteUserWithArticles, findUser, listUsers, openAdminDatabase, previewUser, userArticles, viewArticle, USER_PAGE_SIZE, type AdminArticle, type AdminUser } from "../backend/userAdmin";
-import { CliError, cliErrorOutput, statusPanel, successLine, terminalColor, terminalJSON, terminalPanel, terminalText } from "../backend/terminal";
+import { CliError, cliErrorOutput, statusPanel, successLine, terminalColor, terminalJSON, terminalPanel, terminalText, type TerminalRow } from "../backend/terminal";
 import { readDefinitionViews } from "../public/ts/definitions/definitionViews";
 import { wordExportText } from "../public/ts/word/wordExport";
 
 export type AdminIO = { columns?: number; color?: boolean; write(text: string): void; readLine(prompt: string): Promise<string | undefined> };
-const help = `bun users [选项] [命令]；不带命令进入交互
-
-list [邮箱/ID] [页码]  用户列表，每页 ${USER_PAGE_SIZE} 人
-show <邮箱/ID>         用户与文章列表
-article <文章ID>       文章全文
-delete <邮箱/ID>        删除用户、全部文章及释义
-help / quit           帮助 / 退出
-
---db 路径             指定数据库
---backup-dir 目录     指定私有备份目录
---json               只读命令输出 JSON，不进入交互
-删除前备份整个数据库，需输入 DELETE 邮箱确认。`;
+const helpRows = [
+  "bun users [选项] [命令]；不带命令进入交互",
+  "",
+  ["list [邮箱/ID] [页码]  用户列表", "show <邮箱/ID>  用户与文章列表"],
+  ["article <文章ID>  文章全文", "delete <邮箱/ID>  删除账号数据"],
+  ["help  帮助", "quit  退出"],
+  "",
+  ["--db 路径  指定数据库", "--backup-dir 目录  私有备份目录"],
+  "--json  只读命令输出 JSON，不进入交互",
+  "",
+  `用户列表每页 ${USER_PAGE_SIZE} 人。`,
+  "删除用户会一并删除全部文章及释义。",
+  "删除前备份整个数据库，需输入 DELETE 邮箱确认。",
+] as const satisfies readonly TerminalRow[];
 const line = (io: AdminIO, text = "") => io.write(text + "\n");
-const panel = (io: AdminIO, title: string, lines: ReadonlyArray<string | null>) => line(io, terminalPanel(title, lines, io.columns));
-const showHelp = (io: AdminIO, json = false) => json ? line(io, terminalJSON({ ok: true, command: "help", help })) : panel(io, "用户管理 / 帮助", [help]);
+const panel = (io: AdminIO, title: string, rows: readonly TerminalRow[]) => line(io, terminalPanel(title, rows, io.columns));
+const showHelp = (io: AdminIO, json = false) => json
+  ? line(io, terminalJSON({ ok: true, command: "help", help: helpRows.flat().join("\n") }))
+  : panel(io, "用户管理 / 帮助", helpRows);
 const singleLine = (value: string) => terminalText(value).replace(/\n/g, "\\n").replace(/\t/g, "\\t");
 function showUser(io: AdminIO, user: AdminUser, articles: AdminArticle[]) {
   panel(io, `用户 #${user.id}`, [
@@ -79,7 +83,13 @@ export async function runUserAdmin(argv: string[], io: AdminIO): Promise<void> {
   if (values.json && !positionals.length) throw new CliError("JSON 模式需要指定命令。", "例如：bun users list --json。");
   const path = resolve(values.db || defaultDatabasePath()), backups = resolve(values["backup-dir"] || join(dirname(path), ".engnote-backups"));
   if (positionals.length) { if (!values.json) line(io, `数据库：${singleLine(path)}`); await command(path, backups, positionals, io, values.json); return; }
-  panel(io, "EngNote 用户管理", [`数据库  ${singleLine(path)}`, null, "list 列表 | show <用户> 详情 | article <ID> 正文", "delete <用户> 删除 | help 帮助 | quit 退出"]);
+  panel(io, "EngNote 用户管理", [
+    `数据库  ${singleLine(path)}`,
+    "",
+    ["list 列表", "show <用户> 详情"],
+    ["article <ID> 正文", "delete <用户> 删除"],
+    ["help 帮助", "quit 退出"],
+  ]);
   while (true) {
     const input = await io.readLine("users> ");
     if (input === undefined || ["quit", "exit", "q"].includes(input.trim())) break;

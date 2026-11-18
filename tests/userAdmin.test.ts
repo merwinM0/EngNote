@@ -61,6 +61,36 @@ describe("local read-only user/article inspection", () => {
     expect(help.output()).toContain("--json"); expect(help.output()).toContain("DELETE 邮箱");
     expect(existsSync(missing)).toBe(false);
   });
+  test("shows aligned command pairs without inner dividers, stacking in narrow terminals", async () => {
+    const missing = join(directory, "absent.db");
+    for (const columns of [72, 56, 55, 40]) {
+      const terminal = io(["help", "quit"], { columns });
+      await runUserAdmin(["--db", missing], terminal.terminal);
+      const [welcome, help] = terminal.output().split("users> ");
+      for (const box of [welcome!, help!]) {
+        const rows = box.split("\n").filter(row => row.startsWith("│ "));
+        const cells = rows.map(row => row.slice(2, -2));
+        expect(rows.every(row => Bun.stringWidth(row) === columns)).toBe(true);
+        expect(cells.every(cell => !/[│|]/.test(cell))).toBe(true);
+        const pairs = [["list", "show"], ["article", "delete"], ["help", "quit"]] as const;
+        const starts = pairs.map(([left, right]) => {
+          const first = cells.findIndex(cell => cell.startsWith(`${left} `));
+          const second = cells.findIndex(cell => cell.includes(`${right} `));
+          expect(first).toBeGreaterThanOrEqual(0);
+          expect(second).toBe(columns >= 56 ? first : first + 1);
+          return Bun.stringWidth(cells[second]!.slice(0, cells[second]!.indexOf(right)));
+        });
+        expect(starts).toEqual(Array(3).fill(columns >= 56 ? (columns - 8) / 2 + 4 : 0));
+      }
+    }
+    const machine = io();
+    await runUserAdmin(["--db", missing, "--help", "--json"], machine.terminal);
+    const result = JSON.parse(machine.output());
+    expect(result).toMatchObject({ ok: true, command: "help" });
+    expect(result.help).toMatch(/\nlist [^\n]+\nshow /);
+    expect(machine.output()).not.toMatch(/[│╭\x1b]/);
+    expect(existsSync(missing)).toBe(false);
+  });
   test("read-only JSON commands emit one document with raw data and no interaction", async () => {
     for (const args of [["list"], ["show", "1"], ["article", "1"]]) {
       const terminal = io([], { color: true });
