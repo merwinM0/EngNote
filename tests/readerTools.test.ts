@@ -99,14 +99,13 @@ describe("compact reading tools", () => {
     const source = readFileSync("public/ts/reading/readingFont.ts", "utf8");
     expect(source).not.toMatch(/document-changed|setText|formatting|sessionStorage|localStorage/);
   });
-  test("font choices start as an inert ruler with a reversible, reduced-motion-safe reveal", () => {
+  test("shows only the default size on a single native button without a dropdown", () => {
     const html = readFileSync("public/index.html", "utf8");
-    expect(html).toMatch(/id="fontSizeBtn"[^>]*aria-expanded="false"[^>]*aria-controls="fontSizeRuler"/);
-    expect(html).toMatch(/id="fontSizeRuler"[^>]*aria-hidden="true" inert/);
-    const css = readFileSync("public/css/readingFont.css", "utf8");
-    expect(css).toMatch(/grid-template-rows: 0fr/);
-    expect(css).toMatch(/aria-expanded="true"[^\n]*grid-template-rows: 1fr/);
-    expect(css).toMatch(/prefers-reduced-motion: reduce[^\n]*transition: none/);
+    const button = html.match(/<button id="fontSizeBtn"([^>]*)>([^<]*)<\/button>/);
+    expect(button?.[1]).toContain('type="button"');
+    expect(button?.[1]).not.toMatch(/aria-(?:expanded|controls|haspopup)/);
+    expect(button?.[2]).toBe("M");
+    expect(html).not.toContain('id="fontSizeRuler"');
   });
   test("definition lists sit in the requested positions without changing AI cache settings", () => {
     const html = readFileSync("public/index.html", "utf8");
