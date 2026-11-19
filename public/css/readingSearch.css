@@ -25,10 +25,7 @@
 .word-search-empty { margin: 0; padding: 20px 12px; color: var(--muted); font: 13px/1.7 var(--sans); }
 .word-search-preview { z-index: 60; max-height: min(320px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; }
 .word-search-preview .search-preview-secondary { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); }
-.content :is(.term.search-hit, .immersive-trigger[aria-expanded]) { outline: 2px dashed var(--accent); outline-offset: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; scroll-margin-block: 96px; }
-.content .immersive-trigger[aria-expanded] { cursor: pointer; border-radius: 2px; }
-.content .immersive-trigger[aria-expanded]:focus-visible { outline-width: 3px; outline-offset: 5px; }
-.content .immersive-trigger[aria-expanded] .term.search-hit { outline: none; }
+.content .term.search-hit { outline: 2px dashed var(--accent); outline-offset: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; scroll-margin-block: 96px; }
 @media (max-width: 700px) {
   .page-next-tools { display: contents; }
   .word-search { flex: 1 1 176px; width: auto; }
@@ -39,5 +36,5 @@
   .word-search-field, .word-search-popup { background: Canvas; color: CanvasText; border-color: CanvasText; }
   .word-search-field:focus-within { outline: 2px solid Highlight; outline-offset: 3px; box-shadow: none; }
   .search-result[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; box-shadow: none; }
-  .content :is(.term.search-hit, .immersive-trigger[aria-expanded]) { outline-color: Highlight; }
+  .content .term.search-hit { outline-color: Highlight; }
 }

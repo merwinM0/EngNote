@@ -74,12 +74,19 @@ describe("compact reading tools", () => {
   });
   test("search location feedback outlines words without overriding source text or background colors", () => {
     const css = readFileSync("public/css/readingSearch.css", "utf8");
-    const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
-      .filter(match => /\.term\.search-hit|\.immersive-trigger\[aria-expanded\]/.test(match[1]!)).map(match => match[2]!);
-    expect(rules.length).toBeGreaterThanOrEqual(2);
-    expect(css).toMatch(/\.term\.search-hit, \.immersive-trigger\[aria-expanded\]\)\s*\{\s*outline: 2px dashed var\(--accent\)/);
+    const rules = [...css.matchAll(/\.term\.search-hit[^{}]*\{([^{}]*)\}/g)].map(match => match[1]!);
+    expect(rules.some(rule => rule.includes("outline: 2px dashed var(--accent)"))).toBe(true);
     expect(rules.some(rule => rule.includes("outline-color: Highlight"))).toBe(true);
-    for (const rule of rules) expect(rule).not.toMatch(/(?:^|;)\s*(?:background(?:-[\w-]+)?|color)\s*:/);
+    for (const rule of rules) expect(rule).not.toMatch(/(?:^|;)\s*(?:background(?:-[\w-]+)?|color)\s*:|outline:\s*none/);
+    expect(css).not.toContain(".immersive-trigger");
+  });
+  test("immersive marks use a black dashed underline, independently of the search outline", () => {
+    const css = readFileSync("public/css/content.css", "utf8");
+    const mark = css.match(/\.immersive-trigger\[aria-expanded\]\s*\{([^}]+)\}/)?.[1];
+    expect(mark).toContain("text-decoration: underline dashed #000 1px");
+    expect(mark).not.toContain("outline:");
+    expect(css).toMatch(/\.immersive-trigger\[aria-expanded\]:focus-visible\s*\{[^}]*text-decoration-thickness: 3px/);
+    expect(css).toMatch(/\.immersive-trigger\[aria-expanded\]\s*\{\s*text-decoration-color: CanvasText/);
   });
   test("offers five reading sizes while matching note size to prose without changing Word metadata", () => {
     expect(READING_FONT_LEVELS.map(level => level.label)).toEqual(["S", "M", "L", "XL", "XXL"]);

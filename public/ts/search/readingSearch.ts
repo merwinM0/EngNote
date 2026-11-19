@@ -152,7 +152,8 @@ export function initReadingSearch(): () => void {
     }
     const first = highlighted[0];
     const target = first?.closest<HTMLElement>('.immersive-trigger[role="button"]') ?? first;
-    target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "center", behavior: "instant" });
+    target?.focus({ preventScroll: true });
+    first?.scrollIntoView({ block: "center", behavior: "instant" });
     if (target) highlightTimer = setTimeout(clearHighlight, 1300);
   }
   const optionAt = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>(".search-result") : null;
