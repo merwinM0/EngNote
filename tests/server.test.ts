@@ -180,19 +180,26 @@ describe("source server", () => {
     }
     expect(icons.size).toBe(1);
   });
-  test("serves the Chinese public security filing link in both site footers", async () => {
+  test("serves a loadable filing badge before the registration number in both site footers", async () => {
+    const original = await Bun.file(new URL("../public/icons/official", import.meta.url)).bytes();
     for (const path of ["/", "/home.html", "/index.html"]) {
       const response = await request(path);
       expect(response.status).toBe(200);
       const html = await response.text();
       const footer = html.match(/<footer class="site-footer">([\s\S]*?)<\/footer>/);
       expect(footer?.index).toBeGreaterThan(html.indexOf("</main>"));
-      const link = footer?.[1]?.match(/<a\b([^>]*)>([^<]+)<\/a>/);
+      const link = footer?.[1]?.match(/<a\b([^>]*)>\s*<img\b([^>]*)>\s*<span>([^<]+)<\/span>\s*<\/a>/);
       expect(link?.[1]).toContain('href="https://beian.mps.gov.cn/#/query/webSearch?code=11011402057922"');
       expect(link?.[1]).toContain('rel="noreferrer"');
       expect(link?.[1]).toContain('target="_blank"');
       expect(link?.[1]).toContain('lang="zh-Hans"');
-      expect(link?.[2]).toBe("京公网安备11011402057922号");
+      expect(link?.[2]).toContain('alt=""');
+      expect(link?.[3]).toBe("京公网安备11011402057922号");
+      const src = link?.[2]?.match(/\bsrc="([^"]+)"/)?.[1];
+      expect(src).toBeDefined();
+      const badge = await fetch(new URL(src!, response.url));
+      expect(badge.status).toBe(200);
+      expect(await badge.bytes()).toEqual(original);
     }
   });
   test("home explains English-first reading with optional Chinese in English copy", async () => {
@@ -206,7 +213,7 @@ describe("source server", () => {
     expect(html).not.toContain("exclusively");
     expect(html).not.toContain("without translating into another language.");
     // The English page keeps its copy in English; the language switch and official filing text are exceptions.
-    const copy = html.replace(/<button id="uiLangBtn"[^>]*>[\s\S]*?<\/button>/, "").replace(/<a\b[^>]*\blang="zh-Hans"[^>]*>京公网安备11011402057922号<\/a>/, "");
+    const copy = html.replace(/<button id="uiLangBtn"[^>]*>[\s\S]*?<\/button>/, "").replace(/<span>京公网安备11011402057922号<\/span>/, "");
     expect(copy).not.toMatch(/\p{Script=Han}/u);
     expect(html).not.toContain("Stay in English. Slow down");
     expect(html).not.toContain('class="page-note"');
