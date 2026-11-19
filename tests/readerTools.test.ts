@@ -99,12 +99,12 @@ describe("compact reading tools", () => {
     const source = readFileSync("public/ts/reading/readingFont.ts", "utf8");
     expect(source).not.toMatch(/document-changed|setText|formatting|sessionStorage|localStorage/);
   });
-  test("shows only the default size on a single native button without a dropdown", () => {
+  test("shows only the desktop default on a single native button without a dropdown", () => {
     const html = readFileSync("public/index.html", "utf8");
     const button = html.match(/<button id="fontSizeBtn"([^>]*)>([^<]*)<\/button>/);
     expect(button?.[1]).toContain('type="button"');
     expect(button?.[1]).not.toMatch(/aria-(?:expanded|controls|haspopup)/);
-    expect(button?.[2]).toBe("M");
+    expect(button?.[2]).toBe("L");
     expect(html).not.toContain('id="fontSizeRuler"');
   });
   test("definition lists sit in the requested positions without changing AI cache settings", () => {
