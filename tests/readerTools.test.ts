@@ -74,9 +74,10 @@ describe("compact reading tools", () => {
   });
   test("search location feedback outlines words without overriding source text or background colors", () => {
     const css = readFileSync("public/css/readingSearch.css", "utf8");
-    const rules = [...css.matchAll(/\.content \.term\.search-hit[^{}]*\{([^}]+)\}/g)].map(match => match[1]!);
+    const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+      .filter(match => /\.term\.search-hit|\.immersive-trigger\[aria-expanded\]/.test(match[1]!)).map(match => match[2]!);
     expect(rules.length).toBeGreaterThanOrEqual(2);
-    expect(rules.some(rule => rule.includes("outline: 2px dashed var(--accent)"))).toBe(true);
+    expect(css).toMatch(/\.term\.search-hit, \.immersive-trigger\[aria-expanded\]\)\s*\{\s*outline: 2px dashed var\(--accent\)/);
     expect(rules.some(rule => rule.includes("outline-color: Highlight"))).toBe(true);
     for (const rule of rules) expect(rule).not.toMatch(/(?:^|;)\s*(?:background(?:-[\w-]+)?|color)\s*:/);
   });

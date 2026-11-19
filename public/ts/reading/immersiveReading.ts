@@ -2,28 +2,33 @@ import type { Definition } from "../definitions/definitionViews";
 
 /** Presentation only: never include this state in article data, drafts or history. */
 export class ImmersiveReading {
-  active = false;
-  private revealedIds = new Set<number>();
-  private revealedVersions = new Set<string>();
+  private enabled = false;
+  private byId = new Map<number, { visible: boolean }>();
+  private byVersion = new Map<string, { visible: boolean }>();
+
+  get active() { return this.enabled; }
+  set active(on: boolean) {
+    if (on === this.enabled) return;
+    this.enabled = on;
+    this.byId.clear(); this.byVersion.clear();
+  }
 
   private key(note: Definition) {
     // Exclude display language; include position so repeated words stay independent.
     return JSON.stringify([note.start, note.english, note.chinese, note.britishIPA, note.term, note.mode, note.contextKey]);
   }
-  reveal(note: Definition) {
-    this.revealedIds.add(note.id);
-    this.revealedVersions.add(this.key(note));
+  private state(note: Definition, create = false) {
+    const key = this.key(note);
+    // IDs follow edits; both IDs and history versions share the same visibility state.
+    const result = this.byId.get(note.id) ?? this.byVersion.get(key) ?? (create ? { visible: false } : undefined);
+    if (result) { this.byId.set(note.id, result); this.byVersion.set(key, result); }
+    return result;
   }
-  concealed(note: Definition) {
-    if (!this.active) return false;
-    // IDs follow ordinary offset edits; versions reconnect notes recreated by undo/redo.
-    if (!this.revealedIds.has(note.id) && !this.revealedVersions.has(this.key(note))) return true;
-    this.reveal(note);
-    return false;
+  toggle(note: Definition) {
+    if (!this.active) return;
+    const state = this.state(note, true)!;
+    state.visible = !state.visible;
   }
-  reset() {
-    this.active = false;
-    this.revealedIds.clear();
-    this.revealedVersions.clear();
-  }
+  concealed(note: Definition) { return this.active && !this.state(note)?.visible; }
+  reset() { this.active = false; }
 }

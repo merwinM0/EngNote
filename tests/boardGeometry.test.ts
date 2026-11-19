@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { boardColumns, clampBoardScale, fitBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, zoomBoardAt } from "../public/ts/articles/boardGeometry";
+import { boardCreationOrder, clampBoardScale, fitBoard, fitScatteredBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, scatterBoard, zoomBoardAt } from "../public/ts/articles/boardGeometry";
 
 describe("collection canvas geometry", () => {
   test("clamps to visible minimum/maximum limits and recovers from invalid input", () => {
@@ -35,10 +35,40 @@ describe("collection canvas geometry", () => {
     const oversized = revealBoardRect(view, { x: 0, y: 0, width: 800, height: 400 }, viewport);
     expect(oversized).toEqual({ x: -180, y: -300, scale: 0.6 });
   });
-  test("article layout expands into two dimensions rather than a single scrolling column", () => {
-    expect(boardColumns(0)).toBe(1);
-    expect(boardColumns(1)).toBe(1);
-    expect(boardColumns(7)).toBe(3);
-    expect(boardColumns(100)).toBe(10);
+  test("sorts by UTC creation date without changing the API order used for auto-open", () => {
+    const entries = [
+      { id: 1, created_at: "2025-05-01 12:00:00", updated_at: 100 },
+      { id: 3, created_at: "2025-05-02T12:00:00Z", updated_at: 80 },
+      { id: 2, created_at: "2025-05-02 12:00:00", updated_at: 60 },
+      { id: 4, created_at: "unknown", updated_at: 40 },
+    ];
+    expect(boardCreationOrder(entries).map(entry => entry.id)).toEqual([3, 2, 1, 4]);
+    expect(entries.map(entry => entry.id)).toEqual([1, 3, 2, 4]);
+  });
+  test("spirals out to all four quadrants without collisions, even for tall cards with delete controls", () => {
+    const cards = Array.from({ length: 500 }, (_, id) => ({ id, width: 200, height: 64 + id % 5 * 17,
+      control: { x: 164, y: -12, width: 44, height: 44 } }));
+    const { placements, bounds } = scatterBoard(cards);
+    expect(placements[0]).toMatchObject({ x: -100, y: -32, radius: 0 });
+    expect(new Set(placements.slice(1, 12).map((p, i) => `${Math.sign(p.x + 100)},${Math.sign(p.y + cards[i + 1]!.height / 2)}`)).size).toBe(4);
+    expect(placements.every((p, i) => !i || p.radius > placements[i - 1]!.radius)).toBe(true);
+    expect(placements.some(p => Math.abs(p.angle) >= 2)).toBe(true);
+    let collisions = 0;
+    for (const [i, { bounds: a }] of placements.entries()) for (let j = 0; j < i; j++) {
+      const b = placements[j]!.bounds;
+      if (a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y) collisions++;
+    }
+    expect(collisions).toBe(0);
+    expect(scatterBoard(cards.slice(0, 20)).placements).toEqual(placements.slice(0, 20));
+    expect(bounds.width).toBeGreaterThan(1000);
+    expect(bounds.height).toBeGreaterThan(1000);
+  });
+  test("fits the actual card envelope and centers the newest card when possible", () => {
+    const viewport = { width: 900, height: 400 };
+    expect(fitScatteredBoard(scatterBoard([{ id: 1, width: 200, height: 64 }]).bounds, viewport)).toEqual({ x: 450, y: 200, scale: 1 });
+    const { bounds } = scatterBoard(Array.from({length: 9 }, (_, id) => ({ id, width: 200, height: 96 })));
+    const fitted = fitScatteredBoard(bounds, viewport);
+    expect(fitted.x + fitted.scale * bounds.x).toBeGreaterThanOrEqual(15.9999);
+    expect(fitted.y + fitted.scale * (bounds.y + bounds.height)).toBeLessThanOrEqual(viewport.height - 15.9999);
   });
 });

@@ -1,4 +1,4 @@
-import { content, definitionViews, documentModel, goToPage, isBusy, wordsById } from "../reading/state";
+import { content, definitionViews, documentModel, goToPage, isBusy, isImmersiveReading, wordsById } from "../reading/state";
 import { activePanel, openPanel } from "../ui/panels";
 import { el } from "../ui/util";
 import { t } from "../ui/i18n";
@@ -142,12 +142,16 @@ export function initReadingSearch(): () => void {
     const result = results[active];
     if (!result || isBusy()) return;
     close(); input.blur(); clearHighlight();
-    openPanel("readPanel", false); goToPage(result.page);
+    if (!isImmersiveReading() || activePanel() !== "readPanel") openPanel("readPanel", false);
+    goToPage(result.page);
     anchor = result.start; page = documentModel.index;
     for (const word of wordsById.values()) if (word.start < result.end && word.end > result.start) {
-      word.el.classList.add("search-hit"); word.el.tabIndex = -1; highlighted.push(word.el);
+      word.el.classList.add("search-hit");
+      if (!word.el.closest('.immersive-trigger[role="button"]')) word.el.tabIndex = -1;
+      highlighted.push(word.el);
     }
-    const target = highlighted[0];
+    const first = highlighted[0];
+    const target = first?.closest<HTMLElement>('.immersive-trigger[role="button"]') ?? first;
     target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "center", behavior: "instant" });
     if (target) highlightTimer = setTimeout(clearHighlight, 1300);
   }

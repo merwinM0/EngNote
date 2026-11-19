@@ -7,6 +7,7 @@ import { getEmail, isLoggedIn, openLogin } from "../account/auth";
 import { activePanel, openPanel, closePanel, confirmInPanel } from "../ui/panels";
 import { hasOpenNote } from "../ui/notes";
 import { LatestArticleOnLogin } from "./articleAutoOpen";
+import { boardCreationOrder } from "./boardGeometry";
 import { callDeepSeek, getStoredApiKey } from "../ai/deepseek";
 import { summarizeArticleTitle } from "./articleTitle";
 import type { DraftEntry } from "./articleDraft";
@@ -182,7 +183,7 @@ export async function refreshList() {
     if (request !== listRequest || getEmail() !== account) return;
     const fragment = document.createDocumentFragment();
     if (!data.entries.length) fragment.append(emptyCollection("collection.empty"));
-    for (const entry of data.entries) {
+    for (const entry of boardCreationOrder(data.entries)) {
       const li = el("li"); li.dataset.id = String(entry.id);
       const open = el("button", "entry-open tape-button tape-clear"); open.type = "button";
       open.append(el("span", "entry-title", entry.title));

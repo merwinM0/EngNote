@@ -1,12 +1,12 @@
 import type { DefinitionView } from "../definitions/definitionViews";
 import type { Page } from "../reading/pagination";
-import { WORD_PATTERN } from "../reading/text";
+import { definitionSourceWords, foldSourceWord } from "../definitions/definitionSource";
 
 export type SearchScope = "article" | "page";
 export type WordOccurrence = { text: string; folded: string; start: number; end: number; page: number; noteStart?: number };
 export type WordSearchIndex = { words: WordOccurrence[]; positions: Uint32Array; body: string[] };
 export type WordSearchResult = WordOccurrence & { current: boolean; distance: number; direction: "before" | "after" | "here"; match: "exact" | "partial" | "fuzzy"; priority: number };
-const fold = (value: string) => value.toLowerCase().replace(/’/g, "'");
+const fold = foldSourceWord;
 
 /** Index canonical offsets, but never index definitions or count their text as reading distance. */
 export function indexSearchWords(text: string, pages: readonly Page[], definitions: readonly Pick<DefinitionView, "start" | "term">[] = []): WordSearchIndex {
@@ -18,14 +18,7 @@ export function indexSearchWords(text: string, pages: readonly Page[], definitio
     const start = match.index, value = match[0];
     if (value.startsWith("『")) {
       notes.push({ start, end: start + value.length });
-      const last = words.at(-1);
-      if (!last || last.end !== start) continue;
-      const term = metadata.get(start);
-      const parts = term ? Array.from(term.matchAll(WORD_PATTERN), word => fold(word[0])) : [];
-      const preceding = parts.length ? words.slice(-parts.length) : [];
-      const phrase = preceding.length === parts.length && preceding.every((word, index) => word.folded === parts[index]
-        && (!index || /^\s+$/.test(text.slice(preceding[index - 1]!.end, word.start))));
-      for (const word of phrase && preceding.length ? preceding : [last]) word.noteStart = start;
+      for (const word of definitionSourceWords(words, text, start, metadata.get(start))) word.noteStart = start;
       continue;
     }
     while (page + 1 < pages.length && start >= pages[page]!.end) page++;

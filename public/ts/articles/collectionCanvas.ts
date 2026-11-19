@@ -1,6 +1,6 @@
-import { boardColumns, clampBoardScale, fitBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, zoomBoardAt } from "./boardGeometry";
+import { clampBoardScale, fitBoard, fitScatteredBoard, MAX_BOARD_SCALE, MIN_BOARD_SCALE, revealBoardRect, scatterBoard, zoomBoardAt } from "./boardGeometry";
 import { t } from "../ui/i18n";
-import type { BoardView, Point } from "./boardGeometry";
+import type { BoardView, Point, Rect } from "./boardGeometry";
 
 /** The frame stays pinned; only the article world is translated and scaled. */
 export function initCollectionCanvas(): () => void {
@@ -12,6 +12,7 @@ export function initCollectionCanvas(): () => void {
   const events = new AbortController(), options = { signal: events.signal };
   let view: BoardView = { x: 16, y: 16, scale: 1 }, initialized = false, dragging = false, blockClick = false;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
+  let cards: HTMLElement[] = [], bounds: Rect | null = null;
   const pointers = new Map<number, { start: Point; point: Point }>();
   let pinch: { center: Point; distance: number } | null = null;
   const size = () => ({ width: viewport.clientWidth, height: viewport.clientHeight });
@@ -28,8 +29,8 @@ export function initCollectionCanvas(): () => void {
     const label = `${percentage}%${limit}`;
     if (value.textContent !== label) value.textContent = label;
   }
-  function fit() { render(fitBoard({ width: list.offsetWidth, height: list.offsetHeight }, size())); }
-  function reset() { render({ x: 16, y: 16, scale: 1 }); }
+  function fit() { render(bounds ? fitScatteredBoard(bounds, size()) : fitBoard({ width: list.offsetWidth, height: list.offsetHeight }, size())); }
+  function reset() { if (bounds) render({ ...center(), scale: 1 }); else fit(); }
   function zoom(scale: number, anchor = center()) { render(zoomBoardAt(view, scale, anchor)); }
   // Undo the whiteboard's small rotation before interpreting drag/pinch coordinates.
   function localPoint(point: Point): Point {
@@ -41,17 +42,26 @@ export function initCollectionCanvas(): () => void {
   function reveal(target: HTMLElement) {
     viewport.scrollLeft = viewport.scrollTop = panel.scrollTop = 0;
     const rect = target.getBoundingClientRect();
-    const corners = [localPoint({ x: rect.left, y: rect.top }), localPoint({ x: rect.right, y: rect.bottom })];
+    const corners = [rect.left, rect.right].flatMap(x => [rect.top, rect.bottom].map(y => localPoint({ x, y })));
     const left = Math.min(...corners.map(p => p.x)), top = Math.min(...corners.map(p => p.y));
-    render(revealBoardRect(view, { x: left, y: top, width: Math.abs(corners[1]!.x - corners[0]!.x), height: Math.abs(corners[1]!.y - corners[0]!.y) }, size()));
+    render(revealBoardRect(view, { x: left, y: top, width: Math.max(...corners.map(p => p.x)) - left, height: Math.max(...corners.map(p => p.y)) - top }, size()));
   }
   function measure() {
-    const count = list.querySelectorAll("li[data-id]").length;
-    list.style.setProperty("--board-columns", String(boardColumns(count)));
-    if (!panel.open || !viewport.clientWidth) return;
-    if (!count) { fit(); initialized = false; }
-    else if (!initialized) { fit(); initialized = true; }
-    else render();
+    if (!panel.open || !viewport.clientWidth || !viewport.clientHeight) return;
+    if (!cards.length) { fit(); return; }
+    const layout = scatterBoard(cards.map(card => {
+      const control = card.querySelector<HTMLElement>(".entry-del");
+      return { id: Number(card.dataset.id), width: card.offsetWidth, height: card.offsetHeight,
+        control: control ? { x: control.offsetLeft, y: control.offsetTop, width: control.offsetWidth, height: control.offsetHeight } : undefined };
+    }));
+    bounds = layout.bounds;
+    for (const [i, card] of cards.entries()) {
+      const placement = layout.placements[i]!;
+      card.style.left = `${placement.x}px`;
+      card.style.top = `${placement.y}px`;
+      card.style.transform = `rotate(${placement.angle}deg)`;
+    }
+    if (!initialized) { fit(); initialized = true; }
     if (document.activeElement instanceof HTMLElement && list.contains(document.activeElement)) reveal(document.activeElement);
   }
   function gesture() {
@@ -128,14 +138,24 @@ export function initCollectionCanvas(): () => void {
     else return;
     event.preventDefault();
   }, options);
-  list.addEventListener("focusin", event => { if (event.target instanceof HTMLElement) reveal(event.target); }, options);
+  list.addEventListener("focusin", event => {
+    // List refresh may restore focus before the mutation observer has positioned the new node.
+    if (event.target instanceof HTMLElement && event.target.closest<HTMLElement>("li[data-id]")?.style.left) reveal(event.target);
+  }, options);
   document.getElementById("boardFitBtn")!.addEventListener("click", fit, options);
   document.getElementById("boardResetBtn")!.addEventListener("click", reset, options);
   panel.addEventListener("panel-open", measure, options);
   panel.addEventListener("panel-close", clearGesture, options);
   window.addEventListener("ui-language-changed", () => render(), options);
-  const entries = new MutationObserver(measure); entries.observe(list, { childList: true });
-  const resize = new ResizeObserver(measure); resize.observe(viewport); resize.observe(list);
-  measure(); render();
+  const resize = new ResizeObserver(measure);
+  function observeCards() {
+    cards = Array.from(list.querySelectorAll<HTMLElement>("li[data-id]"));
+    if (!cards.length) { bounds = null; initialized = false; }
+    resize.disconnect(); resize.observe(viewport); resize.observe(list);
+    for (const card of cards) resize.observe(card, { box: "border-box" });
+    measure();
+  }
+  const entries = new MutationObserver(observeCards); entries.observe(list, { childList: true });
+  observeCards(); render();
   return () => { clearGesture(); events.abort(); entries.disconnect(); resize.disconnect(); };
 }

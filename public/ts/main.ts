@@ -1,6 +1,6 @@
 import { setStatus } from "./ui/util";
 import { initUILanguage, msg } from "./ui/i18n";
-import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory, isImmersiveReading, setImmersiveReading, revealDefinition } from "./reading/state";
+import { content, clearBtn, translateBtn, setDeleteMode, isTranslateMode, isDeleteMode, isBusy, render, restoreHistory, isImmersiveReading, setImmersiveReading, toggleImmersiveDefinition } from "./reading/state";
 import { initAISettings } from "./ai/aiSettings";
 import { initDefinitionModeControl } from "./definitions/definitionModeControl";
 import { onFormat } from "./editor/format";
@@ -39,15 +39,22 @@ clearBtn.addEventListener("click", async () => {
 });
 function activateTerm(target: EventTarget | null) {
   if (isBusy() || !(target instanceof Element)) return;
+  if (isImmersiveReading()) {
+    const trigger = target.closest<HTMLElement>(".immersive-trigger");
+    if (trigger) toggleImmersiveDefinition(trigger);
+    return;
+  }
   const term = target.closest<HTMLElement>(".term, .note");
   if (!term) return;
   if (isDeleteMode() && term.classList.contains("note")) { handleDeleteNote(term); return; }
   if (isTranslateMode() && term.classList.contains("term")) onTermClick(Number(term.dataset.wordId));
-  else if (!isTranslateMode() && !isDeleteMode() && term.classList.contains("note") && !revealDefinition(term)) void toggleDefinitionLanguage(term);
+  else if (!isTranslateMode() && !isDeleteMode() && term.classList.contains("note")) void toggleDefinitionLanguage(term);
 }
 content.addEventListener("click", event => activateTerm(event.target));
 content.addEventListener("keydown", event => {
-  if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.matches(".term, .note")) { event.preventDefault(); activateTerm(event.target); }
+  if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.matches(':is(.term, .note, .immersive-trigger)[role="button"]')) {
+    event.preventDefault(); if (!event.repeat) activateTerm(event.target);
+  }
 });
 function resetReadingMode() {
   const wasInteractive = isTranslateMode() || isDeleteMode();

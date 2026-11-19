@@ -10,8 +10,8 @@ export const UI_LANGUAGE_STORAGE = "er_ui_language_v1";
 const en = {
   "reader.immersive": "Immersive reading",
   "reader.noteReveal": "Show definition",
-  "reader.noteRevealed": "Definition revealed",
-  "tool.immersive": "Hide unrevealed definitions. Click a note to reveal it without switching language. Read, Edit page, Tidy this page or this button exits; revealed notes stay visible next time.",
+  "reader.noteHide": "Hide definition",
+  "tool.immersive": "Hide definition notes. Click the dashed outline around a word or phrase to show or hide its definition without switching languages. Definitions start hidden each time you enter.",
   "reader.undo": "Undo",
   "reader.redo": "Redo",
   "ai.definitionMode": "Definition method",
@@ -425,8 +425,8 @@ const en = {
 const zh: Record<keyof typeof en, string> = {
   "reader.immersive": "沉浸阅读",
   "reader.noteReveal": "显示释义",
-  "reader.noteRevealed": "释义已显示",
-  "tool.immersive": "隐藏尚未查看的释义，点击胶带显示原有语言的内容。点击阅读、编辑本页、整理本页或本按钮退出；再次进入保留已查看的释义。",
+  "reader.noteHide": "隐藏释义",
+  "tool.immersive": "隐藏释义胶带。点击词或短语上的虚线框，可显示或隐藏当前语言的释义。每次进入时都从全部隐藏开始。",
   "reader.undo": "撤回",
   "reader.redo": "恢复",
   "ai.definitionMode": "释义方式",

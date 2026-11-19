@@ -9,8 +9,8 @@ import type { TextRange } from "../definitions/selectionRecovery";
 import { t } from "../ui/i18n";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
-import { DefinitionViews } from "../definitions/definitionViews";
-import type { DefinitionView } from "../definitions/definitionViews";
+import { DefinitionViews, type Definition, type DefinitionView } from "../definitions/definitionViews";
+import { definitionSourceWords } from "../definitions/definitionSource";
 import type { DefinitionLanguage } from "../definitions/definitionPreference";
 
 import { ImmersiveReading } from "./immersiveReading";
@@ -18,14 +18,15 @@ import { ImmersiveReading } from "./immersiveReading";
 const immersiveReading = new ImmersiveReading();
 export const isImmersiveReading = () => immersiveReading.active;
 export function setImmersiveReading(on: boolean) {
+  if (!on && document.activeElement instanceof HTMLElement && document.activeElement.matches('.immersive-trigger[role="button"]')) content.focus({ preventScroll: true });
   immersiveReading.active = on;
   updateModes();
 }
-export function revealDefinition(element: HTMLElement) {
-  if (!immersiveReading.active) return false;
-  const note = definitionViews.get(Number(element.dataset.definitionId));
-  if (note) { immersiveReading.reveal(note); refreshDefinitionNotes(); }
-  return true;
+export function toggleImmersiveDefinition(element: HTMLElement) {
+  if (!immersiveReading.active || busy) return;
+  const id = Number(element.dataset.definitionId), mark = definitionMarks.get(id), definition = definitionViews.get(id);
+  if (mark?.trigger !== element || !definition) return;
+  immersiveReading.toggle(definition); updateImmersiveMark(mark, definition);
 }
 
 export const documentModel = new ReadingDocument();
@@ -43,6 +44,8 @@ const defineSelectedBtn = document.getElementById("defineSelectedBtn") as HTMLBu
 const refreshSelectedBtn = document.getElementById("refreshSelectedBtn") as HTMLButtonElement;
 export type WordInfo = { id: number; text: string; el: HTMLElement; start: number; end: number };
 export const wordsById = new Map<number, WordInfo>();
+type DefinitionMark = { note: HTMLElement; preceding: readonly WordInfo[]; trigger?: HTMLElement; term?: string; fallback?: boolean };
+const definitionMarks = new Map<number, DefinitionMark>();
 const pickedIds = new Set<number>();
 let retainedRanges: TextRange[] = [];
 let translateMode = false;
@@ -110,29 +113,66 @@ export function setBusy(on: boolean) {
   window.dispatchEvent(new Event("reading-busy-changed"));
 }
 
+function updateImmersiveMark(mark: DefinitionMark, definition: Definition) {
+  const { note } = mark;
+  // Reconnect after a draft's missing term metadata is restored from its saved article.
+  if (!mark.trigger || mark.term !== definition.term) {
+    if (mark.fallback) mark.trigger?.remove();
+    else if (mark.trigger) mark.trigger.replaceWith(...mark.trigger.childNodes);
+    const words = definitionSourceWords(mark.preceding, documentModel.text, definition.start, definition.term);
+    const trigger = el("span", "immersive-trigger");
+    trigger.dataset.definitionId = String(definition.id);
+    if (!words.length) {
+      trigger.textContent = "…"; note.before(trigger);
+    } else {
+      const first = words[0]!.el, last = words.at(-1)!.el;
+      first.before(trigger);
+      // Move intact Word runs and spaces, covering the phrase with one wrapping outline.
+      for (let node: ChildNode | null = first; node;) {
+        const next: ChildNode | null = node.nextSibling;
+        trigger.append(node); if (node === last) break;
+        node = next;
+      }
+    }
+    mark.trigger = trigger; mark.term = definition.term; mark.fallback = !words.length;
+  }
+  const { trigger } = mark;
+  const active = immersiveReading.active, concealed = immersiveReading.concealed(definition);
+  note.hidden = concealed;
+  trigger.hidden = !!mark.fallback && !active;
+  if (active) {
+    const action = t(concealed ? "reader.noteReveal" : "reader.noteHide");
+    trigger.tabIndex = 0; trigger.role = "button"; trigger.title = action;
+    trigger.setAttribute("aria-label", mark.fallback ? action : `${trigger.textContent}: ${action}`);
+    trigger.setAttribute("aria-expanded", String(!concealed)); trigger.setAttribute("aria-controls", note.id);
+    trigger.setAttribute("aria-disabled", String(busy));
+  } else {
+    for (const attr of ["tabindex", "role", "title", "aria-label", "aria-expanded", "aria-controls", "aria-disabled"]) trigger.removeAttribute(attr);
+  }
+}
+
 export function refreshDefinitionNotes() {
-  for (const note of content.querySelectorAll<HTMLElement>(".note")) {
-    const definition = definitionViews.get(Number(note.dataset.definitionId));
+  for (const [id, mark] of definitionMarks) {
+    const definition = definitionViews.get(id);
     if (!definition) continue;
+    const { note } = mark;
     const chinese = definition.language === "zh" && !!definition.chinese;
     const text = withIPA(chinese ? definition.chinese! : definition.english, definition.britishIPA);
-    const concealed = immersiveReading.concealed(definition);
-    const label = el("span", "note-text", text);
-    if (concealed) label.setAttribute("aria-hidden", "true");
-    note.replaceChildren(label); note.lang = chinese ? "zh-Hans" : "en";
-    note.classList.toggle("is-concealed", concealed);
-    const action = immersiveReading.active ? t(concealed ? "reader.noteReveal" : "reader.noteRevealed")
-      : deleteMode ? t("reader.noteDeleteHint") : !definition.chinese
-        ? t("reader.noteEnglishOnly")
-        : t(chinese ? "reader.noteShowEnglish" : "reader.noteShowChinese");
-    note.title = translateMode ? t("reader.noteReadToSwitch") : action;
-    if (!translateMode) {
+    if (note.textContent !== text) note.textContent = text;
+    note.lang = chinese ? "zh-Hans" : "en";
+    const action = deleteMode ? t("reader.noteDeleteHint") : !definition.chinese
+      ? t("reader.noteEnglishOnly") : t(chinese ? "reader.noteShowEnglish" : "reader.noteShowChinese");
+    note.title = immersiveReading.active ? "" : translateMode ? t("reader.noteReadToSwitch") : action;
+    if (!translateMode && !immersiveReading.active) {
       note.tabIndex = 0; note.setAttribute("role", "button");
-      note.setAttribute("aria-label", concealed ? action : `${text}. ${action}`);
-    } else { note.removeAttribute("tabindex"); note.removeAttribute("role"); note.removeAttribute("aria-label"); }
+      note.setAttribute("aria-label", `${text}. ${action}`);
+      note.setAttribute("aria-disabled", String(busy));
+    } else {
+      for (const attr of ["tabindex", "role", "aria-label", "aria-disabled"]) note.removeAttribute(attr);
+    }
     if (deleteMode) note.setAttribute("aria-pressed", String(deletePending === note));
     else note.removeAttribute("aria-pressed");
-    note.setAttribute("aria-disabled", String(busy));
+    updateImmersiveMark(mark, definition);
   }
 }
 export function definitionViewChanged() {
@@ -147,7 +187,7 @@ function paint(changed = false, keepDeleteMode = false) {
   clearPicked();
   setTranslateMode(false);
   setDeleteMode(keepDeleteMode && deleteMode);
-  wordsById.clear();
+  wordsById.clear(); definitionMarks.clear();
   const fragment = document.createDocumentFragment();
   const page = documentModel.page;
   let cursor = 0;
@@ -159,6 +199,7 @@ function paint(changed = false, keepDeleteMode = false) {
   for (const block of blocks) {
     const p = el("p");
     let offset = block.start;
+    let preceding: WordInfo[] = [];
     for (const piece of splitParagraph(block.text)) {
       if (piece.type === "note") {
         const note = el("span", "note", piece.text);
@@ -170,7 +211,12 @@ function paint(changed = false, keepDeleteMode = false) {
         note.dataset.end = String(offset + piece.text.length + 2);
         const definition = definitionViews.at(offset);
         note.dataset.definitionId = String(definition?.id ?? "");
-        if (definition) note.dataset.tape = definition.tape ??= randomNoteTape();
+        if (definition) {
+          note.id = `reading-note-${definition.id}`;
+          note.dataset.tape = definition.tape ??= randomNoteTape();
+          definitionMarks.set(definition.id, { note, preceding });
+        }
+        preceding = [];
         p.append(note);
         offset += piece.text.length + 2;
         continue;
@@ -183,7 +229,8 @@ function paint(changed = false, keepDeleteMode = false) {
         const id = cursor++;
         word.dataset.wordId = String(id);
         const start = offset + wordMatch.index;
-        wordsById.set(id, { id, text: wordMatch[0], el: word, start, end: start + wordMatch[0].length });
+        const info = { id, text: wordMatch[0], el: word, start, end: start + wordMatch[0].length };
+        wordsById.set(id, info); preceding.push(info);
         p.append(word);
         position = wordMatch.index + wordMatch[0].length;
       }
@@ -327,7 +374,7 @@ export function groupIds(ids: number[]): number[][] {
     const last = groups.at(-1), previousId = last?.at(-1);
     const prev = previousId === undefined ? undefined : wordsById.get(previousId);
     const current = wordsById.get(id);
-    const adjacent = prev && current && previousId === id - 1 && prev.el.parentNode === current.el.parentNode
+    const adjacent = prev && current && previousId === id - 1 && prev.el.closest("p") === current.el.closest("p")
       && !/\S/.test(documentModel.text.slice(prev.end, current.start));
     if (adjacent && last) last.push(id); else groups.push([id]);
   }

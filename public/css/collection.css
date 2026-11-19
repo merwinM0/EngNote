@@ -15,12 +15,9 @@
 }
 .collection-viewport:focus-visible { outline-offset: 2px; }
 .collection-viewport.is-dragging, .collection-viewport.is-dragging * { cursor: grabbing; }
-.entry-list { --board-columns: 1; position: absolute; top: 0; left: 0; width: max-content; display: grid; grid-template-columns: repeat(var(--board-columns), 200px); grid-auto-rows: 96px; align-items: start; gap: 24px 20px; list-style: none; margin: 0; padding: 24px; transform-origin: 0 0; will-change: transform; }
-.entry-list:has(.entry-empty) { grid-auto-rows: auto; }
+.entry-list { position: absolute; top: 0; left: 0; width: max-content; max-width: 100%; list-style: none; margin: 0; padding: 0; transform-origin: 0 0; will-change: transform; }
 .board-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; flex-shrink: 0; }
-.entry-list li:not(.entry-empty) { position: relative; min-width: 0; transform: rotate(-1deg); }
-.entry-list li:nth-child(2n) { transform: rotate(1.2deg); }
-.entry-list li:nth-child(3n) { transform: rotate(-.4deg); }
+.entry-list li[data-id] { position: absolute; top: 0; left: 0; width: 200px; }
 .entry-open { --tape-tilt: 0deg; display: block; width: 100%; min-height: 64px; padding: 12px 36px 10px 12px; text-align: left; --tape-color: var(--tape-sage); }
 .entry-open::before { inset: 0; }
 .entry-list li:nth-child(3n + 2) .entry-open { --tape-color: var(--tape-wheat); }
@@ -30,7 +27,7 @@
 .entry-list li.active .entry-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .entry-list li.active .entry-open::after { content: "✓"; position: absolute; right: 16px; bottom: 12px; color: var(--accent); }
 .entry-del { position: absolute; right: -8px; top: -12px; z-index: 1; font-size: 20px; }
-.entry-empty { grid-column: 1 / -1; color: var(--muted); font: italic 17px/1.8 var(--serif); padding: 24px 4px; }
+.entry-empty { color: var(--muted); font: italic 17px/1.8 var(--serif); padding: 24px; }
 @media (max-width: 700px) {
   .note-window.collection-window { width: calc(100% - 12px); padding: 24px 12px 16px; }
   .note-window .collection-board { height: calc(100dvh - 92px); padding: 24px 12px 12px; transform: rotate(-.4deg); border-width: 4px; }
