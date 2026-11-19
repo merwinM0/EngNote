@@ -1,5 +1,5 @@
 import { getEmail, openLogin } from "../account/auth";
-import { definitionViewChanged, definitionViews, getCurrentText, isBusy } from "../reading/state";
+import { definitionViewChanged, definitionViews, getCurrentText, isBusy, isDefinitionImmersed } from "../reading/state";
 import { openPanel, closePanel } from "../ui/panels";
 import { t, type UIMessage } from "../ui/i18n";
 import { api, el, errorMessage } from "../ui/util";
@@ -65,14 +65,14 @@ export function initDefinitionList() {
       meaning.lang = chinese ? "zh-Hans" : "en";
       if (meaning instanceof HTMLButtonElement) {
         meaning.type = "button"; meaning.dataset.vocabularyKey = key;
-        meaning.disabled = isBusy();
+        meaning.disabled = isBusy() || (scope === "article" && !!note && isDefinitionImmersed(note.id));
         meaning.setAttribute("aria-label", `${item.term}. ${meaning.textContent}. ${t(chinese ? "reader.noteShowEnglish" : "reader.noteShowChinese")}`);
         meaning.addEventListener("click", () => {
           if (isBusy()) return;
           if (scope === "all") { languages.set(key, chinese ? "en" : "zh"); draw(); }
           else if ("start" in item) {
             const note = definitionViews.at(item.start);
-            if (note?.chinese) { note.language = note.language === "en" ? "zh" : "en"; definitionViewChanged(); }
+            if (note?.chinese && !isDefinitionImmersed(note.id)) { note.language = note.language === "en" ? "zh" : "en"; definitionViewChanged(); }
           }
         });
       } else meaning.title = t("reader.noteEnglishOnly");
@@ -139,7 +139,7 @@ export function initDefinitionList() {
     request++; collectRequest++; controller?.abort(); controller = null; clearTimeout(timer);
     items = []; input.value = ""; loading = false; collecting = false; failure = null; notice = ""; list.replaceChildren();
   });
-  for (const event of ["document-view-changed", "definition-view-changed"]) window.addEventListener(event, () => { if (panel.open && scope === "article") void load(); });
+  for (const event of ["document-view-changed", "definition-view-changed", "immersive-ranges-changed"]) window.addEventListener(event, () => { if (panel.open && scope === "article") void load(); });
   window.addEventListener("reading-busy-changed", () => { if (panel.open) draw(); });
   window.addEventListener("vocabulary-updated", () => { if (panel.open && scope === "all") void load(); });
   window.addEventListener("ui-language-changed", () => { if (panel.open) draw(); });

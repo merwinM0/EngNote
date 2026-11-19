@@ -22,11 +22,15 @@
   .word-run, .word-table td { color: CanvasText !important; background: Canvas !important; }
 }
 .content .term { border-radius: 2px; }
-.content.select-mode .term, .content .note[role="button"] { cursor: pointer; }
-.content.select-mode .term:hover { background: var(--panel-2); }
+.content:is(.select-mode,.range-select-mode) .term[role="button"], .content .note[role="button"] { cursor: pointer; }
+.content:is(.select-mode,.range-select-mode) .term[role="button"]:hover { background: var(--panel-2); }
+.content .term.definition-blocked { cursor: not-allowed; }
+.content .term.range-start { outline: 2px solid var(--accent); outline-offset: 2px; }
+.immersive-range-hint:not(.sr-only) { margin: 12px clamp(16px, 4vw, 44px) 0; padding-inline-start: 10px; border-inline-start: 2px solid var(--accent); }
 .content .term.picked { color: var(--accent-2); background: var(--selected); box-shadow: 0 -2px 0 var(--accent) inset; }
 .content .term.picked .word-run { color: inherit !important; background: transparent !important; }
-.content .immersive-trigger[aria-expanded] { cursor: pointer; text-decoration: underline dashed #000 1px; text-underline-offset: .2em; text-decoration-skip-ink: none; }
+.content .immersive-trigger.is-immersed { text-decoration: underline dashed #000 1px; text-underline-offset: .2em; text-decoration-skip-ink: none; }
+.content .immersive-trigger[aria-expanded] { cursor: pointer; }
 .content .immersive-trigger[aria-expanded]:focus-visible { outline: none; text-decoration-thickness: 3px; }
 /* Paint torn tape as a background, so wrapping text and focus rings stay intact. */
 .content .note {
@@ -50,7 +54,8 @@
 .content .term.defining { text-decoration: underline dotted var(--accent); text-underline-offset: 4px; }
 .content .note.delete-selected { --tape-color: var(--tape-rose); color: var(--tape-danger-ink); outline: 1px dashed var(--danger); }
 @media (forced-colors: active) {
-  .content .immersive-trigger[aria-expanded] { text-decoration-color: CanvasText; }
+  .content .immersive-trigger.is-immersed { text-decoration-color: CanvasText; }
+  .content .term.range-start { outline-color: Highlight; }
   .content .note { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
   .content .note.delete-selected { outline: 2px dashed Highlight; }
 }

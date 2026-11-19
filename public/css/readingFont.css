@@ -1,0 +1,36 @@
+/* A vertical tape measure: the fixed housing is the trigger, while the ruler unrolls below it. */
+.font-size-picker { position: relative; flex: 0 0 auto; }
+.font-size-picker > button { white-space: nowrap; }
+.font-size-ruler {
+  position: absolute; z-index: 12; inset-block-start: 100%; inset-inline-end: 0;
+  inline-size: 116px; display: grid; grid-template-rows: 0fr; visibility: hidden; overflow: clip;
+  transition: grid-template-rows .28s cubic-bezier(.25,.75,.3,1), visibility 0s linear .28s;
+}
+.font-size-picker > button[aria-expanded="true"] + .font-size-ruler { grid-template-rows: 1fr; visibility: visible; transition-delay: 0s; }
+.font-size-ruler-reveal { min-block-size: 0; overflow: hidden; overflow: clip; }
+.font-size-strip {
+  display: grid; position: relative; padding: 6px 6px 15px 16px;
+  background: repeat-y left top / 8px 8px linear-gradient(var(--control-border) 1px, transparent 1px), var(--sticky-paper);
+  border: 1px solid var(--control-border); border-radius: 0 0 6px 6px;
+}
+.font-size-ruler::after {
+  content: ""; position: absolute; inset: auto 0 0; block-size: 9px; pointer-events: none;
+  background: linear-gradient(var(--sticky-paper), var(--tape-wheat));
+  border: 1px solid var(--control-border); border-radius: 0 0 6px 6px;
+}
+.font-size-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  min-block-size: 44px; padding: 0 5px; text-align: start;
+  color: var(--text); background: transparent; border: 1px solid transparent;
+  font: 600 13px var(--sans);
+}
+.font-size-option + .font-size-option { border-block-start-color: var(--border); }
+.font-size-option:hover { background: var(--panel-2); }
+.font-size-option[aria-pressed="true"] { background: var(--selected); border-color: var(--control-border); text-decoration: underline; }
+.font-size-option:focus-visible { outline-offset: -2px; }
+.font-size-sample { font: var(--font-preview-size, 20px)/1 var(--serif); }
+@media (forced-colors: active) {
+  .font-size-strip, .font-size-ruler::after { background: Canvas; border-color: CanvasText; }
+  .font-size-option[aria-pressed="true"] { border-color: Highlight; }
+}
+@media (prefers-reduced-motion: reduce) { .font-size-ruler { transition: none; } }

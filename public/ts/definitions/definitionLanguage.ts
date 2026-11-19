@@ -1,4 +1,4 @@
-import { definitionViews, definitionViewChanged, isBusy, isDeleteMode, isTranslateMode } from "../reading/state";
+import { definitionViews, definitionViewChanged, isBusy, isDeleteMode, isTranslateMode, isDefinitionImmersed } from "../reading/state";
 import { setStatus } from "../ui/util";
 import { msg } from "../ui/i18n";
 
@@ -6,7 +6,7 @@ import { msg } from "../ui/i18n";
 export function toggleDefinitionLanguage(element: HTMLElement) {
   if (isBusy() || isTranslateMode() || isDeleteMode()) return;
   const definition = definitionViews.get(Number(element.dataset.definitionId));
-  if (!definition) return;
+  if (!definition || isDefinitionImmersed(definition.id)) return;
   if (!definition.chinese) {
     setStatus(msg("status.oldNoteEnglishOnly"));
     return;

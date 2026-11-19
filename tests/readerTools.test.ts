@@ -59,7 +59,8 @@ describe("compact reading tools", () => {
   });
   test("mode guidance remains available to assistive technology without popup reminders", () => {
     const state = readFileSync("public/ts/reading/state.ts", "utf8");
-    expect(state).toContain('modeHint.textContent = translateMode ? t("reader.modeSelect")');
+    expect(state).toContain('modeHint.textContent = selecting ? instruction : translateMode ? t("reader.modeSelect")');
+    expect(readFileSync("public/index.html", "utf8")).toMatch(/id="immersiveRangeHint"[^>]*role="status"/);
     for (const file of ["main", "definitions/translate", "definitions/deleteNote"]) {
       const source = readFileSync(`public/ts/${file}.ts`, "utf8");
       expect(source).not.toMatch(/msg\("(?:reader\.modeSelect|reader\.modeDelete|status\.readingMode|status\.definitionSelected)"\)/);
@@ -82,11 +83,11 @@ describe("compact reading tools", () => {
   });
   test("immersive marks use a black dashed underline, independently of the search outline", () => {
     const css = readFileSync("public/css/content.css", "utf8");
-    const mark = css.match(/\.immersive-trigger\[aria-expanded\]\s*\{([^}]+)\}/)?.[1];
+    const mark = css.match(/\.immersive-trigger\.is-immersed\s*\{([^}]+)\}/)?.[1];
     expect(mark).toContain("text-decoration: underline dashed #000 1px");
     expect(mark).not.toContain("outline:");
     expect(css).toMatch(/\.immersive-trigger\[aria-expanded\]:focus-visible\s*\{[^}]*text-decoration-thickness: 3px/);
-    expect(css).toMatch(/\.immersive-trigger\[aria-expanded\]\s*\{\s*text-decoration-color: CanvasText/);
+    expect(css).toMatch(/\.immersive-trigger\.is-immersed\s*\{\s*text-decoration-color: CanvasText/);
   });
   test("offers five reading sizes while matching note size to prose without changing Word metadata", () => {
     expect(READING_FONT_LEVELS.map(level => level.label)).toEqual(["S", "M", "L", "XL", "XXL"]);
@@ -97,6 +98,15 @@ describe("compact reading tools", () => {
     expect(css).toContain("var(--reading-font-scale, 1)");
     const source = readFileSync("public/ts/reading/readingFont.ts", "utf8");
     expect(source).not.toMatch(/document-changed|setText|formatting|sessionStorage|localStorage/);
+  });
+  test("font choices start as an inert ruler with a reversible, reduced-motion-safe reveal", () => {
+    const html = readFileSync("public/index.html", "utf8");
+    expect(html).toMatch(/id="fontSizeBtn"[^>]*aria-expanded="false"[^>]*aria-controls="fontSizeRuler"/);
+    expect(html).toMatch(/id="fontSizeRuler"[^>]*aria-hidden="true" inert/);
+    const css = readFileSync("public/css/readingFont.css", "utf8");
+    expect(css).toMatch(/grid-template-rows: 0fr/);
+    expect(css).toMatch(/aria-expanded="true"[^\n]*grid-template-rows: 1fr/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce[^\n]*transition: none/);
   });
   test("definition lists sit in the requested positions without changing AI cache settings", () => {
     const html = readFileSync("public/index.html", "utf8");

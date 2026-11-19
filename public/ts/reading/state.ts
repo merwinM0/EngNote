@@ -10,23 +10,52 @@ import { t } from "../ui/i18n";
 import { splitParagraph, WORD_PATTERN } from "./text";
 import { ReadingDocument, characterCount, PAGE_LIMIT } from "./pagination";
 import { DefinitionViews, type Definition, type DefinitionView } from "../definitions/definitionViews";
-import { definitionSourceWords } from "../definitions/definitionSource";
+import { definitionSourceRange, definitionSourceWords } from "../definitions/definitionSource";
 import type { DefinitionLanguage } from "../definitions/definitionPreference";
 
 import { ImmersiveReading } from "./immersiveReading";
 
 const immersiveReading = new ImmersiveReading();
-export const isImmersiveReading = () => immersiveReading.active;
-export function setImmersiveReading(on: boolean) {
-  if (!on && document.activeElement instanceof HTMLElement && document.activeElement.matches('.immersive-trigger[role="button"]')) content.focus({ preventScroll: true });
-  immersiveReading.active = on;
+export const isSelectingImmersiveRange = () => immersiveReading.selecting;
+export function pressImmersiveButton() {
+  const result = immersiveReading.press(); updateModes();
+  if (result === "full" || result === "exited") window.dispatchEvent(new Event("immersive-ranges-changed"));
+  return result;
+}
+export function exitImmersion(cancelSelectionOnly = false) {
+  if (!immersiveReading.active && !immersiveReading.selecting) return;
+  if (cancelSelectionOnly && immersiveReading.selecting) immersiveReading.cancel();
+  else immersiveReading.reset();
   updateModes();
+  window.dispatchEvent(new Event("immersive-ranges-changed"));
+}
+export function chooseImmersiveWord(id: number) {
+  const word = wordsById.get(id);
+  if (!word || busy) return;
+  const result = immersiveReading.choose(word);
+  if (!result) return;
+  updateModes();
+  if (result !== "start") {
+    if (document.activeElement === word.el) {
+      (word.el.closest<HTMLElement>('.immersive-trigger[role="button"]') ?? content).focus({ preventScroll: true });
+    }
+    window.dispatchEvent(new Event("immersive-ranges-changed"));
+  }
+  return result;
+}
+function noteSource(note: Definition): TextRange {
+  const mark = definitionMarks.get(note.id);
+  return mark?.source && mark.term === note.term ? mark.source : definitionSourceRange(documentModel.text, note.start, note.term);
+}
+export function isDefinitionImmersed(id: number) {
+  const definition = definitionViews.get(id);
+  return !!definition && immersiveReading.intersects(noteSource(definition));
 }
 export function toggleImmersiveDefinition(element: HTMLElement) {
-  if (!immersiveReading.active || busy) return;
+  if (immersiveReading.selecting || busy) return;
   const id = Number(element.dataset.definitionId), mark = definitionMarks.get(id), definition = definitionViews.get(id);
   if (mark?.trigger !== element || !definition) return;
-  immersiveReading.toggle(definition); updateImmersiveMark(mark, definition);
+  immersiveReading.toggle(id, noteSource(definition)); updateImmersiveMark(mark, definition);
 }
 
 export const documentModel = new ReadingDocument();
@@ -44,7 +73,7 @@ const defineSelectedBtn = document.getElementById("defineSelectedBtn") as HTMLBu
 const refreshSelectedBtn = document.getElementById("refreshSelectedBtn") as HTMLButtonElement;
 export type WordInfo = { id: number; text: string; el: HTMLElement; start: number; end: number };
 export const wordsById = new Map<number, WordInfo>();
-type DefinitionMark = { note: HTMLElement; preceding: readonly WordInfo[]; trigger?: HTMLElement; term?: string; fallback?: boolean };
+type DefinitionMark = { note: HTMLElement; preceding: readonly WordInfo[]; trigger?: HTMLElement; term?: string; fallback?: boolean; source?: TextRange };
 const definitionMarks = new Map<number, DefinitionMark>();
 const pickedIds = new Set<number>();
 let retainedRanges: TextRange[] = [];
@@ -72,6 +101,7 @@ export function restoreHistory(redo = false) {
   if (busy) return;
   const next = redo ? readingHistory.redo(snapshot()) : readingHistory.undo(snapshot());
   if (!next) return;
+  immersiveReading.cancel(); immersiveReading.rebase(documentModel.text, next.text);
   documentFormatting = validateFormatting(next.formatting, next.text);
   documentModel.setText(next.text); definitionViews.reset(next.text, next.definitions);
   documentModel.select(documentModel.locate(next.offset)); paint(true);
@@ -135,12 +165,15 @@ function updateImmersiveMark(mark: DefinitionMark, definition: Definition) {
       }
     }
     mark.trigger = trigger; mark.term = definition.term; mark.fallback = !words.length;
+    mark.source = definitionSourceRange(documentModel.text, definition.start, definition.term);
   }
   const { trigger } = mark;
-  const active = immersiveReading.active, concealed = immersiveReading.concealed(definition);
+  const source = noteSource(definition);
+  const active = immersiveReading.intersects(source), concealed = immersiveReading.concealed(definition.id, source);
   note.hidden = concealed;
   trigger.hidden = !!mark.fallback && !active;
-  if (active) {
+  trigger.classList.toggle("is-immersed", active);
+  if (active && !immersiveReading.selecting && !translateMode && !deleteMode) {
     const action = t(concealed ? "reader.noteReveal" : "reader.noteHide");
     trigger.tabIndex = 0; trigger.role = "button"; trigger.title = action;
     trigger.setAttribute("aria-label", mark.fallback ? action : `${trigger.textContent}: ${action}`);
@@ -162,8 +195,9 @@ export function refreshDefinitionNotes() {
     note.lang = chinese ? "zh-Hans" : "en";
     const action = deleteMode ? t("reader.noteDeleteHint") : !definition.chinese
       ? t("reader.noteEnglishOnly") : t(chinese ? "reader.noteShowEnglish" : "reader.noteShowChinese");
-    note.title = immersiveReading.active ? "" : translateMode ? t("reader.noteReadToSwitch") : action;
-    if (!translateMode && !immersiveReading.active) {
+    const immersed = immersiveReading.intersects(noteSource(definition));
+    note.title = immersed || immersiveReading.selecting ? "" : translateMode ? t("reader.noteReadToSwitch") : action;
+    if (!translateMode && !immersed && !immersiveReading.selecting) {
       note.tabIndex = 0; note.setAttribute("role", "button");
       note.setAttribute("aria-label", `${text}. ${action}`);
       note.setAttribute("aria-disabled", String(busy));
@@ -185,9 +219,9 @@ function paint(changed = false, keepDeleteMode = false) {
   definitionViews.sync(documentModel.text);
   revision++;
   clearPicked();
+  wordsById.clear(); definitionMarks.clear();
   setTranslateMode(false);
   setDeleteMode(keepDeleteMode && deleteMode);
-  wordsById.clear(); definitionMarks.clear();
   const fragment = document.createDocumentFragment();
   const page = documentModel.page;
   let cursor = 0;
@@ -274,6 +308,9 @@ export function editCurrentPage(value: string, cursor: number, typing = true, ed
     if (text !== nextText) throw new Error("Paragraph edits do not match the formatted text.");
   } else formatting = rebaseFormatting(formatting, before.text, nextText);
   const result = documentModel.editPage(value, cursor);
+  if (edits) {
+    for (const edit of [...edits].sort((a, b) => b.start - a.start)) immersiveReading.edit({ start: page.start + edit.start, end: page.start + edit.end, length: edit.value.length });
+  } else immersiveReading.rebase(before.text, nextText);
   documentFormatting = formatting;
   definitionViews.sync(documentModel.text);
   readingHistory.record(before, snapshot(), typing);
@@ -293,6 +330,7 @@ export function addDefinitions(definitions: Array<DefinitionMetadata & { offset:
     text = text.slice(0, edit.offset) + edit.value + text.slice(edit.offset + edit.deleteCount);
   }
   documentModel.setText(text); documentFormatting = formatting;
+  for (const edit of edits) immersiveReading.edit({ start: edit.offset, end: edit.offset + edit.deleteCount, length: edit.value.length });
   definitionViews.sync(text, edits);
   let shift = 0, focus = 0;
   for (const edit of [...edits].reverse()) {
@@ -315,10 +353,11 @@ export function addDefinitions(definitions: Array<DefinitionMetadata & { offset:
 export function removeDefinition(note: HTMLElement) {
   const start = Number(note.dataset.start), end = Number(note.dataset.end);
   const definition = definitionViews.get(Number(note.dataset.definitionId));
-  if (!definition || !Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${definition.english}』`) return;
+  if (!definition || isDefinitionImmersed(definition.id) || !Number.isInteger(start) || !Number.isInteger(end) || documentModel.text.slice(start, end) !== `『${definition.english}』`) return;
   const before = snapshot();
   const formatting = editFormatting(documentFormatting, documentModel.text, { start, end, value: "" });
   documentModel.replaceRange(start, end, "", start);
+  immersiveReading.edit({ start, end, length: 0 });
   documentFormatting = formatting;
   definitionViews.sync(documentModel.text);
   readingHistory.record(before, snapshot());
@@ -332,10 +371,15 @@ export function clearPicked() {
   pickedIds.clear();
   updateDefinitionControls();
 }
+function canDefine(word: WordInfo) {
+  if (immersiveReading.intersects(word)) return false;
+  const previous = definitionViews.at(word.end);
+  return !previous || !isDefinitionImmersed(previous.id);
+}
 export function togglePick(id: number) {
   if (busy || !translateMode) return;
   const info = wordsById.get(id), word = info?.el;
-  if (!word || !info) return;
+  if (!word || !info || !canDefine(info)) return;
   if (pickedIds.has(id)) pickedIds.delete(id); else pickedIds.add(id);
   word.classList.toggle("picked", pickedIds.has(id));
   word.setAttribute("aria-pressed", String(pickedIds.has(id)));
@@ -348,7 +392,7 @@ export function togglePick(id: number) {
 }
 function applyRetainedPicks() {
   for (const word of wordsById.values()) {
-    if (!retainedRanges.some(range => range.start <= word.start && word.end <= range.end)) continue;
+    if (!canDefine(word) || !retainedRanges.some(range => range.start <= word.start && word.end <= range.end)) continue;
     pickedIds.add(word.id); word.el.classList.add("picked"); word.el.setAttribute("aria-pressed", "true");
   }
   updateDefinitionControls();
@@ -375,7 +419,7 @@ export function groupIds(ids: number[]): number[][] {
     const prev = previousId === undefined ? undefined : wordsById.get(previousId);
     const current = wordsById.get(id);
     const adjacent = prev && current && previousId === id - 1 && prev.el.closest("p") === current.el.closest("p")
-      && !/\S/.test(documentModel.text.slice(prev.end, current.start));
+      && !immersiveReading.intersects({ start: prev.end, end: current.start }) && !/\S/.test(documentModel.text.slice(prev.end, current.start));
     if (adjacent && last) last.push(id); else groups.push([id]);
   }
   return groups;
@@ -394,30 +438,40 @@ function updateDefinitionControls() {
 }
 function updateModes() {
   updateDefinitionControls();
-  document.getElementById("readBtn")!.setAttribute("aria-pressed", String(!translateMode && !deleteMode && !immersiveReading.active && !document.getElementById("readPanel")!.hidden));
-  document.getElementById("immersiveBtn")!.setAttribute("aria-pressed", String(immersiveReading.active));
+  const selecting = immersiveReading.selecting;
+  document.getElementById("readBtn")!.setAttribute("aria-pressed", String(!translateMode && !deleteMode && !selecting && !document.getElementById("readPanel")!.hidden));
+  document.getElementById("immersiveBtn")!.setAttribute("aria-pressed", String(selecting || immersiveReading.active));
   translateBtn.setAttribute("aria-pressed", String(translateMode));
   deleteBtn.classList.toggle("active-delete", deleteMode);
   deleteBtn.setAttribute("aria-pressed", String(deleteMode));
   content.classList.toggle("select-mode", translateMode);
   content.classList.toggle("delete-mode", deleteMode);
-  modeHint.textContent = translateMode ? t("reader.modeSelect")
-    : deleteMode ? t("reader.modeDelete") : "";
+  content.classList.toggle("range-select-mode", selecting);
+  const hint = document.getElementById("immersiveRangeHint")!;
+  const instruction = selecting ? t(immersiveReading.first ? "reader.immersiveEnd" : "reader.immersiveStart") : "";
+  hint.classList.toggle("sr-only", !selecting);
+  if (hint.textContent !== instruction) hint.textContent = instruction;
+  modeHint.textContent = selecting ? instruction : translateMode ? t("reader.modeSelect") : deleteMode ? t("reader.modeDelete") : "";
   for (const word of wordsById.values()) {
-    if (translateMode) { word.el.tabIndex = 0; word.el.setAttribute("role", "button"); word.el.setAttribute("aria-pressed", String(pickedIds.has(word.id))); }
-    else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
+    const first = immersiveReading.first?.start === word.start;
+    const blocked = translateMode && !canDefine(word);
+    word.el.classList.toggle("range-start", selecting && first);
+    word.el.classList.toggle("definition-blocked", blocked);
+    if (selecting || translateMode && !blocked) {
+      word.el.tabIndex = 0; word.el.role = "button"; word.el.setAttribute("aria-pressed", String(selecting ? first : pickedIds.has(word.id)));
+    } else { word.el.removeAttribute("tabindex"); word.el.removeAttribute("role"); word.el.removeAttribute("aria-pressed"); }
   }
   refreshDefinitionNotes();
 }
 export function setTranslateMode(on: boolean) {
   translateMode = on;
-  if (on) { immersiveReading.active = false; deleteMode = false; clearDeleteSelection(); } else clearPicked();
+  if (on) { immersiveReading.cancel(); deleteMode = false; clearDeleteSelection(); } else clearPicked();
   updateModes();
 }
 export function setDeleteMode(on: boolean) {
   deleteMode = on;
   clearDeleteSelection();
-  if (on) { immersiveReading.active = false; translateMode = false; clearPicked(); }
+  if (on) { immersiveReading.cancel(); translateMode = false; clearPicked(); }
   updateModes();
 }
 export function clearDeleteSelection() {
