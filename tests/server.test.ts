@@ -180,6 +180,21 @@ describe("source server", () => {
     }
     expect(icons.size).toBe(1);
   });
+  test("serves the Chinese public security filing link in both site footers", async () => {
+    for (const path of ["/", "/home.html", "/index.html"]) {
+      const response = await request(path);
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      const footer = html.match(/<footer class="site-footer">([\s\S]*?)<\/footer>/);
+      expect(footer?.index).toBeGreaterThan(html.indexOf("</main>"));
+      const link = footer?.[1]?.match(/<a\b([^>]*)>([^<]+)<\/a>/);
+      expect(link?.[1]).toContain('href="https://beian.mps.gov.cn/#/query/webSearch?code=11011402057922"');
+      expect(link?.[1]).toContain('rel="noreferrer"');
+      expect(link?.[1]).toContain('target="_blank"');
+      expect(link?.[1]).toContain('lang="zh-Hans"');
+      expect(link?.[2]).toBe("京公网安备11011402057922号");
+    }
+  });
   test("home explains English-first reading with optional Chinese in English copy", async () => {
     const html = await (await request("/")).text();
     expect(html).toContain('data-i18n-html="home.titleHtml">Read English <em>your way</em></h1>');
@@ -190,10 +205,10 @@ describe("source server", () => {
     expect(html).toContain("AI creates English and Chinese definitions together.");
     expect(html).not.toContain("exclusively");
     expect(html).not.toContain("without translating into another language.");
-    // The English page has a self-labelled Chinese language switch, not Chinese body copy.
-    expect(html.replace(/<button id="uiLangBtn"[^>]*>[\s\S]*?<\/button>/, "")).not.toMatch(/\p{Script=Han}/u);
+    // The English page keeps its copy in English; the language switch and official filing text are exceptions.
+    const copy = html.replace(/<button id="uiLangBtn"[^>]*>[\s\S]*?<\/button>/, "").replace(/<a\b[^>]*\blang="zh-Hans"[^>]*>京公网安备11011402057922号<\/a>/, "");
+    expect(copy).not.toMatch(/\p{Script=Han}/u);
     expect(html).not.toContain("Stay in English. Slow down");
-    expect(html).not.toMatch(/<footer\b/);
     expect(html).not.toContain('class="page-note"');
   });
   test("home places a five-step practice manual after the language switch", async () => {
